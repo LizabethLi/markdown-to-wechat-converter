@@ -29,6 +29,58 @@
                         <option value="compact">紧凑模式</option>
                         <option value="standard">标准模式</option>
                     </select>
+                    <div class="theme-selector" style="display: inline-block; position: relative; margin-right: 10px;">
+                        <button id="themeButton" class="btn theme-btn" onclick="toggleThemePanel()" title="选择主题色">
+                            🎨
+                        </button>
+                        <div id="themePanel" class="theme-panel" style="display: none;">
+                            <div class="theme-panel-header">选择主题色</div>
+                            <div class="theme-options">
+                                <div class="theme-option" data-theme="purple" onclick="selectTheme('purple')">
+                                    <div class="theme-color" style="background: #7E3AF2;"></div>
+                                    <div class="theme-info">
+                                        <div class="theme-name">经典紫色</div>
+                                        <div class="theme-desc">优雅专业</div>
+                                    </div>
+                                </div>
+                                <div class="theme-option" data-theme="blue" onclick="selectTheme('blue')">
+                                    <div class="theme-color" style="background: #2563EB;"></div>
+                                    <div class="theme-info">
+                                        <div class="theme-name">商务蓝色</div>
+                                        <div class="theme-desc">商务正式</div>
+                                    </div>
+                                </div>
+                                <div class="theme-option" data-theme="orange" onclick="selectTheme('orange')">
+                                    <div class="theme-color" style="background: #EA580C;"></div>
+                                    <div class="theme-info">
+                                        <div class="theme-name">活力橙色</div>
+                                        <div class="theme-desc">活泼创新</div>
+                                    </div>
+                                </div>
+                                <div class="theme-option" data-theme="green" onclick="selectTheme('green')">
+                                    <div class="theme-color" style="background: #16A34A;"></div>
+                                    <div class="theme-info">
+                                        <div class="theme-name">自然绿色</div>
+                                        <div class="theme-desc">清新自然</div>
+                                    </div>
+                                </div>
+                                <div class="theme-option" data-theme="red" onclick="selectTheme('red')">
+                                    <div class="theme-color" style="background: #DC2626;"></div>
+                                    <div class="theme-info">
+                                        <div class="theme-name">激情红色</div>
+                                        <div class="theme-desc">热情活力</div>
+                                    </div>
+                                </div>
+                                <div class="theme-option" data-theme="cyan" onclick="selectTheme('cyan')">
+                                    <div class="theme-color" style="background: #0891B2;"></div>
+                                    <div class="theme-info">
+                                        <div class="theme-name">深海蓝</div>
+                                        <div class="theme-desc">稳重深沉</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <button class="btn" onclick="loadExample()">加载示例</button>
                 </div>
             </div>

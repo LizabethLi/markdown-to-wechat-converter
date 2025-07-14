@@ -314,4 +314,137 @@ th {
 
 tr:nth-child(even) {
     background-color: #f8fafc;
+}
+
+/* 主题选择器样式 */
+.theme-selector {
+    position: relative;
+    display: inline-block;
+}
+
+.theme-btn {
+    font-size: 16px;
+    min-width: 40px;
+    padding: 5px 8px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.theme-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.theme-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 280px;
+    margin-top: 4px;
+    animation: fadeInDown 0.2s ease-out;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.theme-panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.theme-options {
+    padding: 8px;
+}
+
+.theme-option {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 4px;
+}
+
+.theme-option:last-child {
+    margin-bottom: 0;
+}
+
+.theme-option:hover {
+    background: #f8f9fa;
+}
+
+.theme-option.active {
+    background: #e8f4fd;
+    border: 1px solid #bfdbfe;
+}
+
+.theme-color {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    margin-right: 12px;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.theme-info {
+    flex: 1;
+}
+
+.theme-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+
+.theme-desc {
+    font-size: 12px;
+    color: #666;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .theme-panel {
+        right: -50px;
+        min-width: 260px;
+    }
+    
+    .theme-option {
+        padding: 12px;
+    }
+    
+    .theme-color {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .theme-name {
+        font-size: 14px;
+    }
+    
+    .theme-desc {
+        font-size: 13px;
+    }
 } 

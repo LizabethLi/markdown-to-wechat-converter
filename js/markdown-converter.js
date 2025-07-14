@@ -1,8 +1,8 @@
 // Markdown转换器核心模块
 const MarkdownConverter = {
     // 创建微信渲染器
-    createWechatRenderer: function(mode) {
-        const wechatStyles = WechatStyles.getStyles(mode);
+    createWechatRenderer: function(mode, themeColor) {
+        const wechatStyles = WechatStyles.getStyles(mode, themeColor);
         const renderer = new marked.Renderer();
 
         // 标题渲染
@@ -114,12 +114,12 @@ const MarkdownConverter = {
     },
 
     // 主转换函数
-    convertMarkdownToWechat: function(markdown, mode = 'compact') {
+    convertMarkdownToWechat: function(markdown, mode = 'compact', themeColor = null) {
         // 1. 保护数学公式
         const { markdown: protectedMarkdown, mathPlaceholders } = MathRenderer.protectMathExpressions(markdown);
 
         // 2. 使用 marked.js 进行转换
-        const renderer = this.createWechatRenderer(mode);
+        const renderer = this.createWechatRenderer(mode, themeColor);
         marked.setOptions({ renderer });
         let html = marked(protectedMarkdown);
 

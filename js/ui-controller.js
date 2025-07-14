@@ -1,9 +1,12 @@
 // UI控制器模块
 const UIController = {
+    currentTheme: null,
+
     // 初始化UI控制器
     init: function() {
         this.bindEvents();
         this.initializeElements();
+        this.loadThemeFromStorage();
     },
 
     // 绑定事件监听器
@@ -20,12 +23,23 @@ const UIController = {
             modeSelect.addEventListener('change', () => this.updateOutput());
         }
 
+        // 点击外部关闭主题面板
+        document.addEventListener('click', (e) => {
+            const themePanel = document.getElementById('themePanel');
+            const themeButton = document.getElementById('themeButton');
+            if (themePanel && !themePanel.contains(e.target) && e.target !== themeButton) {
+                themePanel.style.display = 'none';
+            }
+        });
+
         // 绑定全局函数到window对象，以便HTML中的onclick可以调用
         window.showTab = this.showTab.bind(this);
         window.copyHtml = this.copyHtml.bind(this);
         window.copyPreview = this.copyPreview.bind(this);
         window.loadExample = this.loadExample.bind(this);
         window.updateOutput = this.updateOutput.bind(this);
+        window.toggleThemePanel = this.toggleThemePanel.bind(this);
+        window.selectTheme = this.selectTheme.bind(this);
     },
 
     // 初始化元素
@@ -35,6 +49,90 @@ const UIController = {
         if (modeSelect && !modeSelect.value) {
             modeSelect.value = AppConfig.defaults.mode;
         }
+
+        // 设置默认主题
+        if (!this.currentTheme) {
+            this.currentTheme = AppConfig.defaults.theme;
+        }
+        this.updateThemeUI();
+    },
+
+    // 从本地存储加载主题
+    loadThemeFromStorage: function() {
+        try {
+            const savedTheme = localStorage.getItem('wechat-converter-theme');
+            if (savedTheme && AppConfig.themes[savedTheme]) {
+                this.currentTheme = savedTheme;
+            }
+        } catch (e) {
+            console.warn('Failed to load theme from localStorage:', e);
+        }
+    },
+
+    // 保存主题到本地存储
+    saveThemeToStorage: function() {
+        try {
+            localStorage.setItem('wechat-converter-theme', this.currentTheme);
+        } catch (e) {
+            console.warn('Failed to save theme to localStorage:', e);
+        }
+    },
+
+    // 切换主题面板显示/隐藏
+    toggleThemePanel: function() {
+        const themePanel = document.getElementById('themePanel');
+        if (themePanel) {
+            const isVisible = themePanel.style.display !== 'none';
+            themePanel.style.display = isVisible ? 'none' : 'block';
+        }
+    },
+
+    // 选择主题
+    selectTheme: function(themeKey) {
+        if (!AppConfig.themes[themeKey]) {
+            console.error('Unknown theme:', themeKey);
+            return;
+        }
+
+        this.currentTheme = themeKey;
+        this.saveThemeToStorage();
+        this.updateThemeUI();
+        this.updateOutput();
+        
+        // 关闭主题面板
+        const themePanel = document.getElementById('themePanel');
+        if (themePanel) {
+            themePanel.style.display = 'none';
+        }
+    },
+
+    // 更新主题UI显示
+    updateThemeUI: function() {
+        // 更新所有主题选项的激活状态
+        const themeOptions = document.querySelectorAll('.theme-option');
+        themeOptions.forEach(option => {
+            const themeKey = option.getAttribute('data-theme');
+            if (themeKey === this.currentTheme) {
+                option.classList.add('active');
+            } else {
+                option.classList.remove('active');
+            }
+        });
+
+        // 更新主题按钮的颜色提示
+        const themeButton = document.getElementById('themeButton');
+        if (themeButton && AppConfig.themes[this.currentTheme]) {
+            const themeColor = AppConfig.themes[this.currentTheme].primary;
+            themeButton.style.borderColor = themeColor;
+        }
+    },
+
+    // 获取当前主题色
+    getCurrentThemeColor: function() {
+        if (this.currentTheme && AppConfig.themes[this.currentTheme]) {
+            return AppConfig.themes[this.currentTheme].primary;
+        }
+        return AppConfig.themes[AppConfig.defaults.theme].primary;
     },
 
     // 更新输出
@@ -51,9 +149,10 @@ const UIController = {
 
         const markdown = markdownInput.value;
         const mode = modeSelect.value;
+        const themeColor = this.getCurrentThemeColor();
 
         try {
-            const html = MarkdownConverter.convertMarkdownToWechat(markdown, mode);
+            const html = MarkdownConverter.convertMarkdownToWechat(markdown, mode, themeColor);
             
             htmlOutput.value = html;
             preview.innerHTML = html;
