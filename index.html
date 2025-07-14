@@ -545,8 +545,8 @@ console.log('Hello, world!');
             renderer.list = (body, ordered, start) => {
                 const tag = ordered ? 'ol' : 'ul';
                 const styles = mode === 'compact' 
-                    ? `list-style-position: inside; padding: 0; margin: 8px 0;`
-                    : `padding-left: 25px; margin: 15px 0;`;
+                    ? `list-style-position: outside; padding-left: 30px; margin: 8px 0;`
+                    : `padding-left: 40px; margin: 15px 0;`;
                 return `<${tag} style="${styles}">${body}</${tag}>`;
             };
 
@@ -554,8 +554,31 @@ console.log('Hello, world!');
                 const style = mode === 'compact'
                     ? `margin: 5px 0; line-height: 1.6; font-size: 14px; color: #333;`
                     : `margin: 8px 0; line-height: 1.6; font-size: 14px; color: #333;`;
-                // 处理嵌套列表的<p>标签问题
-                const cleanedText = text.replace(/<p>([\s\S]*?)<\/p>/g, '$1');
+                
+                // 改进的文本清理逻辑
+                let cleanedText = text;
+                
+                // 1. 先处理嵌套的子列表，保持其结构
+                const nestedLists = [];
+                cleanedText = cleanedText.replace(/(<[uo]l[^>]*>[\s\S]*?<\/[uo]l>)/g, (match, listContent) => {
+                    const placeholder = `__NESTED_LIST_${nestedLists.length}__`;
+                    nestedLists.push(listContent);
+                    return placeholder;
+                });
+                
+                // 2. 处理段落标签，智能合并文本内容
+                cleanedText = cleanedText.replace(/<p>([\s\S]*?)<\/p>/g, (match, content) => {
+                    return content.trim();
+                });
+                
+                // 3. 清理多余的空白字符，但保持单个空格
+                cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
+                
+                // 4. 恢复嵌套列表
+                nestedLists.forEach((listContent, index) => {
+                    cleanedText = cleanedText.replace(`__NESTED_LIST_${index}__`, listContent);
+                });
+                
                 return `<li style="${style}">${cleanedText}</li>`;
             };
 
