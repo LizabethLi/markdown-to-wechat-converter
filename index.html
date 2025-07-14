@@ -178,6 +178,9 @@
             scroll-behavior: smooth;
         }
         
+        /* KaTeX 字体大小调整 */
+        .katex { font-size: 1.1em; }
+        
         #preview::-webkit-scrollbar {
             width: 8px;
         }
@@ -273,9 +276,34 @@
             color: #7E3AF2;
             margin-bottom: 1rem;
         }
+        
+        table {
+            border-collapse: collapse;
+            margin: 15px 0;
+            width: 100%;
+            border: 1px solid #e2e8f0;
+        }
+        
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 10px 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: #334155;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
     </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css" integrity="sha384-vKruJ+a13U8yHIkAyOUuD3QAWDk/a3KYZ2/f9S62AANe4e1HN5dgTICI+VE9aLJ9" crossorigin="anonymous">
 </head>
 <body>
+    <div id="scratch" style="display:none;"></div>
     <div class="header">
         <h1>📝 Markdown to 微信公众号排版转换器</h1>
         <p>一键将 Markdown 转换为微信公众号样式，支持实时预览</p>
@@ -319,8 +347,16 @@
 > 这是引用内容
 
 ```javascript
-console.log('代码块');
+console.log('Hello, world!');
 ```
+
+| 表头1 | 表头2 |
+|---|---|
+| 单元格1 | 单元格2 |
+
+行内公式：$E = mc^2$
+
+块级公式：$$ \frac{-b \pm \sqrt{b^2-4ac}}{2a} $$
 
 ![图片描述](https://via.placeholder.com/400x200)
 
@@ -354,126 +390,6 @@ console.log('代码块');
     </div>
     
     <script>
-        // 转换规则配置
-        const conversionRules = {
-            // 章节编号（### 后面跟数字）
-            sectionNumber: /^### (\d+)\s*$/gm,
-            
-            // 标题层级
-            h1: /^# (.+)$/gm,
-            h2: /^## (.+)$/gm,
-            h3: /^### (.+)$/gm,
-            
-            // 文本样式
-            bold: /\*\*(.+?)\*\*/g,
-            italic: /\*(.+?)\*/g,
-            
-            // 列表（支持嵌套）
-            nestedList: /^( {0,})[\-\*\+] (.+)$/gm,
-            orderedList: /^( {0,})\d+\. (.+)$/gm,
-            
-            // 引用
-            blockquote: /^> (.+)$/gm,
-            
-            // 代码
-            codeBlock: /```(\w*)\n([\s\S]*?)```/g,
-            inlineCode: /`([^`]+)`/g,
-            
-            // 图片
-            image: /!\[([^\]]*)\]\(([^)]+)\)/g,
-            
-            // 链接
-            link: /\[([^\]]+)\]\(([^)]+)\)/g,
-            
-            // 段落
-            paragraph: /^([^#\-\*\+\d\>\`\!\[].*?)$/gm
-        };
-        
-        // 处理嵌套列表的函数
-        function processNestedLists(text) {
-            const lines = text.split('\n');
-            const listGroups = [];
-            let currentGroup = null;
-            
-            // 分析文本，找出所有列表组
-            lines.forEach((line, index) => {
-                const match = line.match(/^( {0,})[\-\*\+] (.+)$/);
-                if (match) {
-                    const indent = match[1].length;
-                    const content = match[2];
-                    const level = Math.floor(indent / 4);
-                    
-                    if (!currentGroup) {
-                        currentGroup = {
-                            startIndex: index,
-                            items: []
-                        };
-                    }
-                    
-                    currentGroup.items.push({ level, content, lineIndex: index });
-                } else if (currentGroup) {
-                    // 非列表行，结束当前组
-                    currentGroup.endIndex = index - 1;
-                    listGroups.push(currentGroup);
-                    currentGroup = null;
-                }
-            });
-            
-            // 处理最后一个组
-            if (currentGroup) {
-                currentGroup.endIndex = lines.length - 1;
-                listGroups.push(currentGroup);
-            }
-            
-            if (listGroups.length === 0) return text;
-            
-            // 从后往前处理列表组，避免索引变化影响
-            let result = text;
-            
-            listGroups.reverse().forEach(group => {
-                // 构建HTML
-                let html = '';
-                let currentLevel = -1;
-                let openTags = [];
-                
-                group.items.forEach((item) => {
-                    const { level, content } = item;
-                    
-                    if (level > currentLevel) {
-                        // 进入更深层级
-                        for (let i = currentLevel + 1; i <= level; i++) {
-                            // 所有层级都需要左边距来显示圆点，递增20px
-                            const marginLeft = (i + 1) * 20;
-                            const listStyle = i === 0 ? 'disc' : (i === 1 ? 'circle' : 'square');
-                            html += `<ul style="list-style-type: ${listStyle}; padding: 0; margin: 8px 0 8px ${marginLeft}px;">`;
-                            openTags.push('ul');
-                        }
-                    } else if (level < currentLevel) {
-                        // 返回上层级别
-                        for (let i = currentLevel; i > level; i--) {
-                            html += '</ul>';
-                            openTags.pop();
-                        }
-                    }
-                    
-                    html += `<li style="margin: 6px 0; line-height: 1.6;"><span style="font-size: 14px; color: #333;">${content}</span></li>`;
-                    currentLevel = level;
-                });
-                
-                // 关闭所有打开的标签
-                while (openTags.length > 0) {
-                    html += '</ul>';
-                    openTags.pop();
-                }
-                
-                // 替换原文中的这个列表组
-                const listLines = lines.slice(group.startIndex, group.endIndex + 1);
-                const originalListText = listLines.join('\n');
-                result = result.replace(originalListText, html);
-            });
-            
-            return result;
-        }
         const wechatStylesCompact = {
             sectionNumber: (match, number) => 
                 `<section style="text-align: center; margin: 20px 0 15px 0;"><p style="font-size: 28px; color: rgb(0, 0, 0); line-height: 1.2; font-weight: bold; margin: 0;">${number.padStart(2, '0')}</p></section>`,
@@ -596,57 +512,135 @@ console.log('代码块');
             }
         };
         
+        function createWechatRenderer(mode) {
+            const wechatStyles = mode === 'compact' ? wechatStylesCompact : wechatStylesStandard;
+            const renderer = new marked.Renderer();
+
+            renderer.heading = (text, level, raw) => {
+                if (level === 1) return wechatStyles.h1(raw, text);
+                if (level === 2) return wechatStyles.h2(raw, text);
+                if (level === 3) {
+                    const sectionMatch = raw.match(/^###\s(\d+)/);
+                    if (sectionMatch && raw.trim().split(/\s+/).length === 2) {
+                        return wechatStyles.sectionNumber(raw, sectionMatch[1]);
+                    }
+                    return wechatStyles.h3(raw, text);
+                }
+                return `<h${level} style="font-size: ${18 - level}px; font-weight: bold; margin: 15px 0;">${text}</h${level}>`;
+            };
+
+            renderer.paragraph = (text) => {
+                // 避免 marked.js 给已经有样式的块（如KaTeX渲染的块）再次套上 <p> 标签
+                if (text.trim().startsWith('<section') && text.trim().endsWith('</section>')) {
+                    return text;
+                }
+                return wechatStyles.paragraph(null, text);
+            };
+
+            renderer.strong = (text) => wechatStyles.bold(null, text);
+            renderer.em = (text) => wechatStyles.italic(null, text);
+
+            renderer.list = (body, ordered, start) => {
+                const tag = ordered ? 'ol' : 'ul';
+                const styles = mode === 'compact' 
+                    ? `list-style-position: inside; padding: 0; margin: 8px 0;`
+                    : `padding-left: 25px; margin: 15px 0;`;
+                return `<${tag} style="${styles}">${body}</${tag}>`;
+            };
+
+            renderer.listitem = (text) => {
+                const style = mode === 'compact'
+                    ? `margin: 5px 0; line-height: 1.6; font-size: 14px; color: #333;`
+                    : `margin: 8px 0; line-height: 1.6; font-size: 14px; color: #333;`;
+                // 处理嵌套列表的<p>标签问题
+                const cleanedText = text.replace(/<p>([\s\S]*?)<\/p>/g, '$1');
+                return `<li style="${style}">${cleanedText}</li>`;
+            };
+
+            renderer.blockquote = (quote) => {
+                const unwrappedQuote = quote.replace(/^<p>([\s\S]*)<\/p>\n?$/, '$1');
+                return wechatStyles.blockquote(null, unwrappedQuote);
+            };
+
+            renderer.code = (code, lang, escaped) => wechatStyles.codeBlock(null, lang, code);
+            renderer.codespan = (code) => wechatStyles.inlineCode(null, code);
+            renderer.image = (href, title, text) => wechatStyles.image(null, text, href);
+            renderer.link = (href, title, text) => wechatStyles.link(null, text, href);
+
+            renderer.table = (header, body) => {
+                return `<table style="border-collapse: collapse; margin: 15px 0; width: 100%; border: 1px solid #e2e8f0;"><thead>${header}</thead><tbody>${body}</tbody></table>`;
+            };
+            
+            renderer.tablerow = (content) => {
+                return `<tr style="border-bottom: 1px solid #e2e8f0;">${content}</tr>`;
+            };
+
+            renderer.tablecell = (content, flags) => {
+                const tag = flags.header ? 'th' : 'td';
+                const textAlign = flags.align ? `text-align: ${flags.align};` : '';
+                const style = flags.header
+                    ? `background-color: #f8fafc; font-weight: 600; color: #334155; border: 1px solid #e2e8f0; padding: 10px 12px; ${textAlign}`
+                    : `border: 1px solid #e2e8f0; padding: 10px 12px; ${textAlign}`;
+                return `<${tag} style="${style}">${content}</${tag}>`;
+            };
+
+            return renderer;
+        }
+
         function convertMarkdownToWechat(markdown) {
             const mode = document.getElementById('modeSelect').value;
-            const wechatStyles = mode === 'compact' ? wechatStylesCompact : wechatStylesStandard;
             
-            let html = markdown;
+            // 1. 保护数学公式，替换为占位符
+            const mathPlaceholders = {};
+            let mathCounter = 0;
             
-            // 处理代码块（需要最先处理，避免被其他规则影响）
-            html = html.replace(conversionRules.codeBlock, wechatStyles.codeBlock);
+            // 块级公式
+            markdown = markdown.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
+                const placeholder = `__MATH_BLOCK_${mathCounter++}__`;
+                mathPlaceholders[placeholder] = latex;
+                return placeholder;
+            });
+
+            // 行内公式
+            markdown = markdown.replace(/\$([^$]+?)\$/g, (match, latex) => {
+                const placeholder = `__MATH_INLINE_${mathCounter++}__`;
+                mathPlaceholders[placeholder] = latex;
+                return placeholder;
+            });
+
+            // 2. 使用 marked.js 进行转换
+            const renderer = createWechatRenderer(mode);
+            marked.setOptions({ renderer });
+            let html = marked.parse(markdown);
+
+            // 3. 恢复数学公式并用 KaTeX 渲染
+            html = html.replace(/__MATH_BLOCK_(\d+)__/g, (match) => {
+                const latex = mathPlaceholders[match];
+                try {
+                    return `<section style="text-align:center; margin: 15px 0; overflow-x: auto; overflow-y: hidden;">${katex.renderToString(latex, { throwOnError: false, displayMode: true })}</section>`;
+                } catch (e) {
+                    return `<p style="color:red;">KaTeX Error: ${e.message}</p>`;
+                }
+            });
+            html = html.replace(/__MATH_INLINE_(\d+)__/g, (match) => {
+                const latex = mathPlaceholders[match];
+                try {
+                    return katex.renderToString(latex, { throwOnError: false, displayMode: false });
+                } catch (e) {
+                    return `<code style="color:red; font-size: 1em;">KaTeX Error</code>`;
+                }
+            });
             
-            // 处理各种标题
-            html = html.replace(conversionRules.sectionNumber, wechatStyles.sectionNumber);
-            html = html.replace(conversionRules.h1, wechatStyles.h1);
-            html = html.replace(conversionRules.h2, wechatStyles.h2);
-            html = html.replace(conversionRules.h3, wechatStyles.h3);
-            
-            // 处理引用
-            html = html.replace(conversionRules.blockquote, wechatStyles.blockquote);
-            
-            // 处理图片
-            html = html.replace(conversionRules.image, wechatStyles.image);
-            
-            // 处理链接
-            html = html.replace(conversionRules.link, wechatStyles.link);
-            
-            // 处理嵌套列表（新的处理方式）
-            html = processNestedLists(html);
-            
-            // 处理文本样式
-            html = html.replace(conversionRules.bold, wechatStyles.bold);
-            html = html.replace(conversionRules.italic, wechatStyles.italic);
-            html = html.replace(conversionRules.inlineCode, wechatStyles.inlineCode);
-            
-            // 处理段落（最后处理）
-            html = html.replace(conversionRules.paragraph, wechatStyles.paragraph);
-            
-            // 根据模式进行不同的清理
+            // 4. 根据模式进行最终清理
             if (mode === 'compact') {
-                // 紧凑模式：彻底清理多余的换行和空白字符
-                html = html.replace(/\n\s*\n/g, ''); // 移除空行
-                html = html.replace(/\n/g, ''); // 移除所有换行符
-                html = html.replace(/\s{2,}/g, ' '); // 多个空格压缩为一个
-                html = html.replace(/>\s+</g, '><'); // 移除标签间的空白
+                html = html.replace(/\n\s*\n/g, '');
+                html = html.replace(/\s{2,}/g, ' ');
+                html = html.replace(/>\s+</g, '><');
             } else {
-                // 标准模式：保留适当的换行，只清理多余的空行
-                html = html.replace(/\n\s*\n\s*\n/g, '\n\n'); // 多个空行压缩为两个换行
+                html = html.replace(/\n\s*\n\s*\n/g, '\n\n');
             }
             
-            // 包装整体容器
-            html = `<div style="font-family: 'PingFang SC', system-ui, -apple-system, 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif; color: rgba(0, 0, 0, 0.9); max-width: 100%; overflow-wrap: break-word;">${html}</div>`;
-            
-            return html;
+            return `<div style="font-family: 'PingFang SC', system-ui, -apple-system, 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif; color: rgba(0, 0, 0, 0.9); max-width: 100%; overflow-wrap: break-word;">${html}</div>`;
         }
         
         function updateOutput() {
@@ -761,32 +755,20 @@ console.log('代码块');
 
 ### 技术细节对比
 
-**传统CNN的处理方式**：
-- 局部卷积操作
-    - 3x3 或 5x5 的小窗口
-    - 逐步扩大感受野
-    - 层层堆叠提取特征
-- 池化降采样
-    - 减少计算量
-    - 保留重要信息
-- 全连接分类
-    - 最终特征映射
-    - 输出分类结果
+下面是一个表格示例：
 
-**ViT的处理方式**：
-- 图像分块编码
-    - 16x16 像素为一个patch
-    - 线性投影到向量空间
-    - 添加位置编码信息
-- Transformer处理
-    - 多头自注意力机制
-        - Query、Key、Value 三元组
-        - 计算全局相关性矩阵
-    - 前馈神经网络
-    - 残差连接和层归一化
-- 分类头输出
-    - [CLS] token 的最终表示
-    - 线性分类器输出结果
+| 特性 | 传统CNN | Vision Transformer (ViT) |
+| :--- | :--- | :--- |
+| **核心操作** | 局部卷积 | 全局自注意力 |
+| **感受野** | 逐步扩大 | 一开始即全局 |
+| **数据处理** | 2D图像数组 | 1D序列（Patches） |
+| **计算复杂度**| O(k² * C_in * C_out) | O(n² * d) |
+
+以及数学公式：
+
+- **行内公式**: 著名的质能方程是 $E = mc^2$。
+- **块级公式**: 求解二次方程 $ax^2 + bx + c = 0$ 的公式是：
+$$ x = \frac{-b \pm \sqrt{b^2-4ac}}{2a} $$
 
 > 如果说 AI 是个不断学习的学生，那这三位就是陪它从"看不懂图片"到"能看图说话"的老师。
 
@@ -842,5 +824,7 @@ console.log('代码块');
         // 初始化
         updateOutput();
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js" integrity="sha384-PwRUT/YqbnEjkZO0zZxNqKaLiZWC2GeOhXCI2eJt89KCtEpPlC+bb9HvpYa+5YKS" crossorigin="anonymous"></script>
 </body>
 </html>
