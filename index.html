@@ -389,7 +389,7 @@ console.log('Hello, world!');
         </div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/3.0.8/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js"></script>
     <script>
         const wechatStylesCompact = {
@@ -594,44 +594,80 @@ console.log('Hello, world!');
             
             // 1. 保护数学公式，替换为占位符
             const mathPlaceholders = {};
-            let mathCounter = 0;
+            let blockMathCounter = 0;
+            let inlineMathCounter = 0;
+            
+            console.log('Original markdown:', markdown);
             
             // 块级公式
             markdown = markdown.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
-                const placeholder = `__MATH_BLOCK_${mathCounter++}__`;
+                const placeholder = `MATHBLOCK${blockMathCounter++}PLACEHOLDER`;
                 mathPlaceholders[placeholder] = latex;
+                console.log('Block math found:', match, '-> placeholder:', placeholder, '-> latex:', latex);
                 return placeholder;
             });
 
             // 行内公式
             markdown = markdown.replace(/\$([^$]+?)\$/g, (match, latex) => {
-                const placeholder = `__MATH_INLINE_${mathCounter++}__`;
+                const placeholder = `MATHINLINE${inlineMathCounter++}PLACEHOLDER`;
                 mathPlaceholders[placeholder] = latex;
+                console.log('Inline math found:', match, '-> placeholder:', placeholder, '-> latex:', latex);
                 return placeholder;
             });
+            
+            console.log('Markdown after placeholder replacement:', markdown);
+            console.log('Math placeholders:', mathPlaceholders);
 
             // 2. 使用 marked.js 进行转换
             const renderer = createWechatRenderer(mode);
             marked.setOptions({ renderer });
             let html = marked(markdown);
+            
+            console.log('HTML after marked conversion:', html);
 
             // 3. 恢复数学公式并用 KaTeX 渲染
-            html = html.replace(/__MATH_BLOCK_(\d+)__/g, (match) => {
+            html = html.replace(/MATHBLOCK(\d+)PLACEHOLDER/g, (match, num) => {
                 const latex = mathPlaceholders[match];
+                console.log('Processing block math:', match, latex);
+                if (typeof katex === 'undefined') {
+                    console.error('KaTeX is not loaded');
+                    return `<p style="color:red;">KaTeX library not loaded</p>`;
+                }
+                if (!latex) {
+                    console.error('No latex found for placeholder:', match);
+                    return `<p style="color:red;">No latex found for ${match}</p>`;
+                }
                 try {
-                    return `<section style="text-align:center; margin: 15px 0; overflow-x: auto; overflow-y: hidden;">${katex.renderToString(latex, { throwOnError: false, displayMode: true })}</section>`;
+                    const rendered = katex.renderToString(latex, { throwOnError: false, displayMode: true });
+                    console.log('KaTeX rendered successfully:', rendered);
+                    return `<section style="text-align:center; margin: 15px 0; overflow-x: auto; overflow-y: hidden;">${rendered}</section>`;
                 } catch (e) {
+                    console.error('KaTeX Error:', e);
                     return `<p style="color:red;">KaTeX Error: ${e.message}</p>`;
                 }
             });
-            html = html.replace(/__MATH_INLINE_(\d+)__/g, (match) => {
+            html = html.replace(/MATHINLINE(\d+)PLACEHOLDER/g, (match, num) => {
                 const latex = mathPlaceholders[match];
+                console.log('Processing inline math:', match, latex);
+                if (typeof katex === 'undefined') {
+                    console.error('KaTeX is not loaded');
+                    return `<code style="color:red;">KaTeX library not loaded</code>`;
+                }
+                if (!latex) {
+                    console.error('No latex found for placeholder:', match);
+                    return `<code style="color:red;">No latex found for ${match}</code>`;
+                }
                 try {
-                    return katex.renderToString(latex, { throwOnError: false, displayMode: false });
+                    const rendered = katex.renderToString(latex, { throwOnError: false, displayMode: false });
+                    console.log('KaTeX inline rendered successfully:', rendered);
+                    return rendered;
                 } catch (e) {
+                    console.error('KaTeX Error:', e);
                     return `<code style="color:red; font-size: 1em;">KaTeX Error</code>`;
                 }
             });
+            
+            console.log('Final HTML:', html);
             
             // 4. 根据模式进行最终清理
             if (mode === 'compact') {
