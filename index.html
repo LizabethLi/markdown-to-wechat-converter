@@ -11,6 +11,29 @@
             box-sizing: border-box;
         }
         
+        /* MathJax SVG 样式优化 */
+        .MathJax {
+            outline: 0;
+            text-align: center;
+            display: inline-block !important;
+            vertical-align: middle;
+        }
+        
+        .MathJax_SVG {
+            display: inline-block;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        
+        .MathJax_SVG_Display {
+            margin: 1em 0;
+            text-align: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+            max-width: 100%;
+        }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
             background: #f5f7fa;
@@ -300,7 +323,28 @@
             background-color: #f8fafc;
         }
     </style>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+    <script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$', '$']],
+            displayMath: [['$$', '$$']],
+            processEscapes: true,
+            processEnvironments: true
+        },
+        svg: {
+            fontCache: 'none',
+            scale: 1.2,
+            minScale: 0.5
+        },
+        startup: {
+            ready: () => {
+                MathJax.startup.defaultReady();
+                console.log('MathJax loaded and ready');
+            }
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body>
     <div id="scratch" style="display:none;"></div>
@@ -390,7 +434,6 @@ console.log('Hello, world!');
     </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/3.0.8/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js"></script>
     <script>
         const wechatStylesCompact = {
             sectionNumber: (match, number) => 
@@ -416,7 +459,7 @@ console.log('Hello, world!');
                 `<li style="margin: 5px 0; line-height: 1.6;"><span style="font-size: 14px; color: #333;">${text}</span></li>`,
             
             blockquote: (match, text) => 
-                `<blockquote style="margin: 15px 0; padding: 12px 16px; background: #f8f9fa; border-left: 4px solid #7E3AF2; border-radius: 4px;"><p style="line-height: 1.6; margin: 0; font-size: 14px; color: #555; font-style: italic;">${text}</p></blockquote>`,
+                `<blockquote style="margin: 8px 0; padding: 12px 16px; background: #f8f9fa; border-left: 4px solid #7E3AF2; border-radius: 4px;"><p style="line-height: 1.6; margin: 0; font-size: 14px; color: #555; font-style: italic;">${text}</p></blockquote>`,
             
             codeBlock: (match, lang, code) => 
                 `<pre style="background: #f8f9fa; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 15px 0; border: 1px solid #e9ecef; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.4; color: #333;">${code.trim()}</pre>`,
@@ -483,7 +526,7 @@ console.log('Hello, world!');
                 </li>`,
             
             blockquote: (match, text) => 
-                `<blockquote style="margin: 20px 0; padding: 15px 20px; background: #f8f9fa; border-left: 4px solid #7E3AF2; border-radius: 4px;">
+                `<blockquote style="margin: 12px 0; padding: 15px 20px; background: #f8f9fa; border-left: 4px solid #7E3AF2; border-radius: 4px;">
                     <p style="line-height: 1.6; margin: 0; font-size: 14px; color: #555; font-style: italic;">
                         ${text}
                     </p>
@@ -612,6 +655,49 @@ console.log('Hello, world!');
             return renderer;
         }
 
+        // 创建数学公式渲染器
+        function createMathRenderer(display) {
+            return (mathContent) => {
+                try {
+                    if (typeof MathJax === 'undefined' || !MathJax.tex2svg) {
+                        return display 
+                            ? `<section style="text-align: center; color: red;">MathJax not ready</section>`
+                            : `<span style="color: red;">MathJax not ready</span>`;
+                    }
+                    
+                    MathJax.texReset();
+                    const mjxContainer = MathJax.tex2svg(mathContent, { display });
+                    const svg = mjxContainer.firstChild;
+                    
+                    if (!svg) {
+                        throw new Error('No SVG generated');
+                    }
+                    
+                    // 优化 SVG 样式以适配微信公众号
+                    const width = svg.style.minWidth || svg.getAttribute('width');
+                    svg.removeAttribute('width');
+                    svg.removeAttribute('height');
+                    svg.style.cssText = `max-width: 100% !important; vertical-align: middle;`;
+                    
+                    if (width) {
+                        svg.style.width = width;
+                    }
+                    
+                    svg.style.display = 'inline-block';
+                    
+                    if (display) {
+                        return `<section style="text-align: center; margin: 15px 0; overflow-x: auto; overflow-y: hidden;">${svg.outerHTML}</section>`;
+                    }
+                    return svg.outerHTML;
+                } catch (error) {
+                    console.error('Error rendering math:', error);
+                    return display 
+                        ? `<section style="text-align: center; color: red;">Math Error: ${mathContent}</section>`
+                        : `<span style="color: red;">Math Error</span>`;
+                }
+            };
+        }
+
         function convertMarkdownToWechat(markdown) {
             const mode = document.getElementById('modeSelect').value;
             
@@ -620,77 +706,37 @@ console.log('Hello, world!');
             let blockMathCounter = 0;
             let inlineMathCounter = 0;
             
-            console.log('Original markdown:', markdown);
-            
             // 块级公式
             markdown = markdown.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
                 const placeholder = `MATHBLOCK${blockMathCounter++}PLACEHOLDER`;
-                mathPlaceholders[placeholder] = latex;
-                console.log('Block math found:', match, '-> placeholder:', placeholder, '-> latex:', latex);
+                mathPlaceholders[placeholder] = latex.trim();
                 return placeholder;
             });
 
             // 行内公式
             markdown = markdown.replace(/\$([^$]+?)\$/g, (match, latex) => {
                 const placeholder = `MATHINLINE${inlineMathCounter++}PLACEHOLDER`;
-                mathPlaceholders[placeholder] = latex;
-                console.log('Inline math found:', match, '-> placeholder:', placeholder, '-> latex:', latex);
+                mathPlaceholders[placeholder] = latex.trim();
                 return placeholder;
             });
-            
-            console.log('Markdown after placeholder replacement:', markdown);
-            console.log('Math placeholders:', mathPlaceholders);
 
             // 2. 使用 marked.js 进行转换
             const renderer = createWechatRenderer(mode);
             marked.setOptions({ renderer });
             let html = marked(markdown);
-            
-            console.log('HTML after marked conversion:', html);
 
-            // 3. 恢复数学公式并用 KaTeX 渲染
+            // 3. 恢复数学公式，使用临时占位符
             html = html.replace(/MATHBLOCK(\d+)PLACEHOLDER/g, (match, num) => {
                 const latex = mathPlaceholders[match];
-                console.log('Processing block math:', match, latex);
-                if (typeof katex === 'undefined') {
-                    console.error('KaTeX is not loaded');
-                    return `<p style="color:red;">KaTeX library not loaded</p>`;
-                }
-                if (!latex) {
-                    console.error('No latex found for placeholder:', match);
-                    return `<p style="color:red;">No latex found for ${match}</p>`;
-                }
-                try {
-                    const rendered = katex.renderToString(latex, { throwOnError: false, displayMode: true });
-                    console.log('KaTeX rendered successfully:', rendered);
-                    return `<section style="text-align:center; margin: 15px 0; overflow-x: auto; overflow-y: hidden;">${rendered}</section>`;
-                } catch (e) {
-                    console.error('KaTeX Error:', e);
-                    return `<p style="color:red;">KaTeX Error: ${e.message}</p>`;
-                }
+                if (!latex) return `<p style="color:red;">No latex found for ${match}</p>`;
+                return createMathRenderer(true)(latex);
             });
+
             html = html.replace(/MATHINLINE(\d+)PLACEHOLDER/g, (match, num) => {
                 const latex = mathPlaceholders[match];
-                console.log('Processing inline math:', match, latex);
-                if (typeof katex === 'undefined') {
-                    console.error('KaTeX is not loaded');
-                    return `<code style="color:red;">KaTeX library not loaded</code>`;
-                }
-                if (!latex) {
-                    console.error('No latex found for placeholder:', match);
-                    return `<code style="color:red;">No latex found for ${match}</code>`;
-                }
-                try {
-                    const rendered = katex.renderToString(latex, { throwOnError: false, displayMode: false });
-                    console.log('KaTeX inline rendered successfully:', rendered);
-                    return rendered;
-                } catch (e) {
-                    console.error('KaTeX Error:', e);
-                    return `<code style="color:red; font-size: 1em;">KaTeX Error</code>`;
-                }
+                if (!latex) return `<span style="color:red;">No latex found for ${match}</span>`;
+                return createMathRenderer(false)(latex);
             });
-            
-            console.log('Final HTML:', html);
             
             // 4. 根据模式进行最终清理
             if (mode === 'compact') {
@@ -700,7 +746,7 @@ console.log('Hello, world!');
             } else {
                 html = html.replace(/\n\s*\n\s*\n/g, '\n\n');
             }
-            
+
             return `<div style="font-family: 'PingFang SC', system-ui, -apple-system, 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif; color: rgba(0, 0, 0, 0.9); max-width: 100%; overflow-wrap: break-word;">${html}</div>`;
         }
         
@@ -709,10 +755,11 @@ console.log('Hello, world!');
             const html = convertMarkdownToWechat(markdown);
             
             document.getElementById('htmlOutput').value = html;
-            document.getElementById('preview').innerHTML = html;
+            const previewElement = document.getElementById('preview');
+            previewElement.innerHTML = html;
             
             // 自动滚动到预览顶部
-            document.getElementById('preview').scrollTop = 0;
+            previewElement.scrollTop = 0;
         }
         
         function showTab(tabName) {
@@ -882,8 +929,23 @@ $$ x = \frac{-b \pm \sqrt{b^2-4ac}}{2a} $$
         // 绑定事件
         document.getElementById('markdownInput').addEventListener('input', updateOutput);
         
-        // 初始化
-        updateOutput();
+        // 等待 MathJax 加载完成后初始化
+        function initializeApp() {
+            if (typeof MathJax !== 'undefined' && MathJax.tex2svg) {
+                console.log('MathJax tex2svg ready');
+                updateOutput();
+            } else {
+                // 如果 MathJax 还没加载，等待一下再试
+                setTimeout(initializeApp, 200);
+            }
+        }
+        
+        // 启动应用
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeApp);
+        } else {
+            initializeApp();
+        }
     </script>
 </body>
 </html>
