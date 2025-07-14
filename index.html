@@ -613,7 +613,7 @@ console.log('Hello, world!');
             // 2. 使用 marked.js 进行转换
             const renderer = createWechatRenderer(mode);
             marked.setOptions({ renderer });
-            let html = marked.parse(markdown);
+            let html = marked(markdown);
 
             // 3. 恢复数学公式并用 KaTeX 渲染
             html = html.replace(/__MATH_BLOCK_(\d+)__/g, (match) => {
