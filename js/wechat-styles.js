@@ -30,7 +30,7 @@ const WechatStyles = {
             `<blockquote style="margin: 8px 0; padding: 12px 16px; background: #f8f9fa; border-left: 4px solid {{THEME_COLOR}}; border-radius: 4px;"><p style="line-height: 1.6; margin: 0; font-size: 14px; color: #555; font-style: italic;">${text}</p></blockquote>`,
         
         codeBlock: (match, lang, code) => 
-            `<pre style="background: #f8f9fa; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 15px 0; border: 1px solid #e9ecef; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.4; color: #333;">${code.trim()}</pre>`,
+            `<pre style="background: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; margin: 15px 0; border: 1px solid #d0d7de; white-space: pre-wrap; font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Courier New', monospace; font-size: 14px; line-height: 1.5; color: #24292f; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">${code.trim()}</pre>`,
         
         inlineCode: (match, code) => 
             `<code style="background: #f1f3f4; padding: 2px 6px; border-radius: 3px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; color: #d73a49;">${code}</code>`,
@@ -101,8 +101,8 @@ const WechatStyles = {
             </blockquote>`,
         
         codeBlock: (match, lang, code) => 
-            `<pre style="background: #f8f9fa; padding: 15px; border-radius: 8px; overflow-x: auto; margin: 20px 0; border: 1px solid #e9ecef;">
-                <code style="font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.4; color: #333;">${code.trim()}</code>
+            `<pre style="background: #f6f8fa; padding: 18px; border-radius: 8px; overflow-x: auto; margin: 20px 0; border: 1px solid #d0d7de; white-space: pre-wrap; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <code style="font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Courier New', monospace; font-size: 14px; line-height: 1.5; color: #24292f;">${code.trim()}</code>
             </pre>`,
         
         inlineCode: (match, code) => 

@@ -2,11 +2,27 @@
 const UIController = {
     currentTheme: null,
 
-    // 初始化UI控制器
+    // 初始化应用
     init: function() {
         this.bindEvents();
         this.initializeElements();
         this.loadThemeFromStorage();
+        this.initSyntaxHighlighting();
+    },
+
+    // 初始化语法高亮
+    initSyntaxHighlighting: function() {
+        // 检查 highlight.js 是否可用
+        if (typeof hljs !== 'undefined') {
+            // 配置 highlight.js
+            hljs.configure({
+                languages: ['javascript', 'python', 'java', 'cpp', 'c', 'csharp', 'php', 'ruby', 'go', 'typescript', 'html', 'css', 'sql', 'bash', 'json', 'xml', 'yaml'],
+                ignoreUnescapedHTML: true
+            });
+            console.log('Syntax highlighting initialized with highlight.js');
+        } else {
+            console.warn('highlight.js not found, syntax highlighting disabled');
+        }
     },
 
     // 绑定事件监听器

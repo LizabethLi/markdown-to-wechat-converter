@@ -59,7 +59,10 @@ const MarkdownConverter = {
         };
 
         // 代码块
-        renderer.code = (code, lang, escaped) => wechatStyles.codeBlock(null, lang, code);
+        renderer.code = (code, lang, escaped) => {
+            // 使用语法高亮增强版本
+            return this.renderCodeBlock(code, lang, mode, themeColor);
+        };
         renderer.codespan = (code) => wechatStyles.inlineCode(null, code);
 
         // 图片和链接
@@ -97,7 +100,15 @@ const MarkdownConverter = {
             return placeholder;
         });
         
-        // 处理段落标签，智能合并文本内容
+        // 保护HTML格式标签 (strong, em, code, a 等)
+        const htmlTags = [];
+        cleanedText = cleanedText.replace(/(<(?:strong|em|code|a|span)[^>]*>[\s\S]*?<\/(?:strong|em|code|a|span)>)/g, (match, tagContent) => {
+            const placeholder = `__HTML_TAG_${htmlTags.length}__`;
+            htmlTags.push(tagContent);
+            return placeholder;
+        });
+        
+        // 现在安全地处理段落标签
         cleanedText = cleanedText.replace(/<p>([\s\S]*?)<\/p>/g, (match, content) => {
             return content.trim();
         });
@@ -105,12 +116,125 @@ const MarkdownConverter = {
         // 清理多余的空白字符，但保持单个空格
         cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
         
+        // 恢复HTML格式标签
+        htmlTags.forEach((tagContent, index) => {
+            cleanedText = cleanedText.replace(`__HTML_TAG_${index}__`, tagContent);
+        });
+        
         // 恢复嵌套列表
         nestedLists.forEach((listContent, index) => {
             cleanedText = cleanedText.replace(`__NESTED_LIST_${index}__`, listContent);
         });
         
         return cleanedText;
+    },
+
+    // 渲染带语法高亮的代码块
+    renderCodeBlock: function(code, lang, mode = 'compact', themeColor = null) {
+        const trimmedCode = code.trim();
+        const currentTheme = this.getCurrentTheme(themeColor);
+        const syntaxConfig = AppConfig.syntaxHighlighting;
+        
+        if (!syntaxConfig.enabled || typeof hljs === 'undefined') {
+            // 回退到普通样式
+            return WechatStyles.getStyles(mode, themeColor).codeBlock(null, lang, trimmedCode);
+        }
+
+        // 规范化语言名称
+        const normalizedLang = this.normalizeLanguage(lang);
+        let highlightedCode = trimmedCode;
+        let detectedLang = normalizedLang || '';
+
+        try {
+            if (normalizedLang && hljs.getLanguage(normalizedLang)) {
+                // 指定语言高亮
+                const result = hljs.highlight(trimmedCode, { language: normalizedLang });
+                highlightedCode = result.value;
+                detectedLang = normalizedLang;
+            } else {
+                // 自动检测语言
+                const result = hljs.highlightAuto(trimmedCode);
+                if (result.language && result.relevance > 5) {
+                    highlightedCode = result.value;
+                    detectedLang = result.language;
+                }
+            }
+        } catch (error) {
+            console.warn('Syntax highlighting failed:', error);
+            // 使用原始代码
+        }
+
+        // 生成样式化的代码块
+        return this.generateStyledCodeBlock(highlightedCode, detectedLang, currentTheme, mode);
+    },
+
+    // 规范化语言名称
+    normalizeLanguage: function(lang) {
+        if (!lang) return null;
+        
+        const normalized = lang.toLowerCase().trim();
+        const languageMap = AppConfig.syntaxHighlighting.languageMap;
+        
+        return languageMap[normalized] || normalized;
+    },
+
+    // 获取当前主题
+    getCurrentTheme: function(themeColor) {
+        if (!themeColor) return 'purple';
+        
+        for (const [key, theme] of Object.entries(AppConfig.themes)) {
+            if (theme.primary === themeColor) {
+                return key;
+            }
+        }
+        return 'purple';
+    },
+
+    // 生成样式化代码块
+    generateStyledCodeBlock: function(code, language, theme, mode) {
+        const themeStyles = AppConfig.syntaxHighlighting.themeStyles[theme];
+        const isCompact = mode === 'compact';
+        
+        // 语言标签
+        const languageLabel = language ? 
+            `<div style="background: ${themeStyles.keyword}; color: white; padding: 4px 8px; border-radius: 4px 4px 0 0; font-size: 12px; font-weight: 500; display: inline-block; margin-bottom: -1px;">${language.toUpperCase()}</div>` : '';
+
+        // 代码块样式
+        const codeBlockStyle = `
+            background: ${themeStyles.background};
+            border: 1px solid ${themeStyles.border};
+            border-radius: ${languageLabel ? '0 6px 6px 6px' : '6px'};
+            padding: ${isCompact ? '14px' : '16px'};
+            margin: ${isCompact ? '12px 0' : '16px 0'};
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            color: ${themeStyles.text};
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        `.replace(/\s+/g, ' ').trim();
+
+        // 生成内联CSS样式
+        const inlineStyles = this.generateInlineSyntaxStyles(themeStyles);
+
+        return `
+            ${languageLabel}
+            <pre style="${codeBlockStyle}"><code class="hljs">${inlineStyles}${code}</code></pre>
+        `;
+    },
+
+    // 生成内联语法高亮样式
+    generateInlineSyntaxStyles: function(themeStyles) {
+        return `<style>
+            .hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-title, .hljs-section, .hljs-doctag, .hljs-type, .hljs-name { color: ${themeStyles.keyword} !important; }
+            .hljs-string, .hljs-meta .hljs-meta-string { color: ${themeStyles.string} !important; }
+            .hljs-comment, .hljs-quote { color: ${themeStyles.comment} !important; font-style: italic; }
+            .hljs-number, .hljs-literal { color: ${themeStyles.number} !important; }
+            .hljs-function, .hljs-title.function { color: ${themeStyles.function} !important; }
+            .hljs-variable, .hljs-property, .hljs-attr { color: ${themeStyles.variable} !important; }
+            .hljs-built_in, .hljs-class .hljs-title { color: ${themeStyles.keyword} !important; font-weight: 600; }
+        </style>`;
     },
 
     // 主转换函数
@@ -136,10 +260,23 @@ const MarkdownConverter = {
     // 后处理HTML
     postProcessHtml: function(html, mode) {
         if (mode === 'compact') {
-            // 紧凑模式：去除多余换行和空格
+            // 保护代码块内容
+            const codeBlocks = [];
+            html = html.replace(/(<pre[^>]*>[\s\S]*?<\/pre>)/g, (match, codeBlock) => {
+                const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`;
+                codeBlocks.push(codeBlock);
+                return placeholder;
+            });
+            
+            // 紧凑模式：去除多余换行和空格（但不影响代码块）
             html = html.replace(/\n\s*\n/g, '');
             html = html.replace(/\s{2,}/g, ' ');
             html = html.replace(/>\s+</g, '><');
+            
+            // 恢复代码块
+            codeBlocks.forEach((codeBlock, index) => {
+                html = html.replace(`__CODE_BLOCK_${index}__`, codeBlock);
+            });
         } else {
             // 标准模式：保持适当格式
             html = html.replace(/\n\s*\n\s*\n/g, '\n\n');

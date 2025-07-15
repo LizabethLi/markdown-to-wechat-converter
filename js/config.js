@@ -55,6 +55,102 @@ const AppConfig = {
         }
     },
 
+    // 语法高亮配置
+    syntaxHighlighting: {
+        enabled: true,
+        
+        // 主题特定的语法高亮配色
+        themeStyles: {
+            purple: {
+                background: '#f8f9fa',
+                border: '#e9ecef',
+                text: '#333333',
+                keyword: '#7E3AF2',
+                string: '#0969da',
+                comment: '#6a737d',
+                number: '#e36209',
+                function: '#8250df',
+                variable: '#953800'
+            },
+            blue: {
+                background: '#f6f8fa',
+                border: '#d0d7de',
+                text: '#24292f',
+                keyword: '#2563EB',
+                string: '#0969da',
+                comment: '#6a737d',
+                number: '#0550ae',
+                function: '#8250df',
+                variable: '#953800'
+            },
+            orange: {
+                background: '#fff8f0',
+                border: '#fdba74',
+                text: '#333333',
+                keyword: '#EA580C',
+                string: '#0969da',
+                comment: '#6a737d',
+                number: '#dc2626',
+                function: '#7c3aed',
+                variable: '#059669'
+            },
+            green: {
+                background: '#f0fdf4',
+                border: '#86efac',
+                text: '#333333',
+                keyword: '#16A34A',
+                string: '#0369a1',
+                comment: '#6b7280',
+                number: '#dc2626',
+                function: '#7c3aed',
+                variable: '#0891b2'
+            },
+            red: {
+                background: '#fef2f2',
+                border: '#fca5a5',
+                text: '#333333',
+                keyword: '#DC2626',
+                string: '#0969da',
+                comment: '#6a737d',
+                number: '#ea580c',
+                function: '#7c3aed',
+                variable: '#059669'
+            },
+            cyan: {
+                background: '#ecfeff',
+                border: '#67e8f9',
+                text: '#333333',
+                keyword: '#0891B2',
+                string: '#0969da',
+                comment: '#6a737d',
+                number: '#dc2626',
+                function: '#7c3aed',
+                variable: '#059669'
+            }
+        },
+
+        // 常用语言映射
+        languageMap: {
+            'js': 'javascript',
+            'jsx': 'javascript',
+            'ts': 'typescript',
+            'tsx': 'typescript',
+            'py': 'python',
+            'rb': 'ruby',
+            'go': 'go',
+            'java': 'java',
+            'c': 'c',
+            'cpp': 'cpp',
+            'cs': 'csharp',
+            'php': 'php',
+            'sql': 'sql',
+            'sh': 'bash',
+            'bash': 'bash',
+            'zsh': 'bash',
+            'ps1': 'powershell'
+        }
+    },
+
     // 应用默认配置
     defaults: {
         mode: 'compact', // 默认模式：compact 或 standard
