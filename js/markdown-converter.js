@@ -132,11 +132,17 @@ const MarkdownConverter = {
     // 渲染带语法高亮的代码块
     renderCodeBlock: function(code, lang, mode = 'compact', themeColor = null) {
         const trimmedCode = code.trim();
+        console.log('=== CODE BLOCK DEBUG ===');
+        console.log('原始代码:', JSON.stringify(code));
+        console.log('修剪后代码:', JSON.stringify(trimmedCode));
+        console.log('语言:', lang);
+        
         const currentTheme = this.getCurrentTheme(themeColor);
         const syntaxConfig = AppConfig.syntaxHighlighting;
         
         if (!syntaxConfig.enabled || typeof hljs === 'undefined') {
             // 回退到普通样式
+            console.log('使用回退样式');
             return WechatStyles.getStyles(mode, themeColor).codeBlock(null, lang, trimmedCode);
         }
 
@@ -151,12 +157,16 @@ const MarkdownConverter = {
                 const result = hljs.highlight(trimmedCode, { language: normalizedLang });
                 highlightedCode = result.value;
                 detectedLang = normalizedLang;
+                console.log('使用指定语言高亮:', normalizedLang);
             } else {
                 // 自动检测语言
                 const result = hljs.highlightAuto(trimmedCode);
                 if (result.language && result.relevance > 5) {
                     highlightedCode = result.value;
                     detectedLang = result.language;
+                    console.log('自动检测语言:', result.language, '相关性:', result.relevance);
+                } else {
+                    console.log('未检测到语言或相关性低');
                 }
             }
         } catch (error) {
@@ -164,8 +174,13 @@ const MarkdownConverter = {
             // 使用原始代码
         }
 
+        console.log('高亮后代码:', JSON.stringify(highlightedCode));
+        
         // 生成样式化的代码块
-        return this.generateStyledCodeBlock(highlightedCode, detectedLang, currentTheme, mode);
+        const result = this.generateStyledCodeBlock(highlightedCode, detectedLang, currentTheme, mode);
+        console.log('最终HTML:', result);
+        console.log('=== END DEBUG ===');
+        return result;
     },
 
     // 规范化语言名称
@@ -207,7 +222,7 @@ const MarkdownConverter = {
             padding: ${isCompact ? '14px' : '16px'};
             margin: ${isCompact ? '12px 0' : '16px 0'};
             overflow-x: auto;
-            white-space: pre-wrap;
+            white-space: pre;
             font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Courier New', monospace;
             font-size: 14px;
             line-height: 1.5;
@@ -218,10 +233,7 @@ const MarkdownConverter = {
         // 生成内联CSS样式
         const inlineStyles = this.generateInlineSyntaxStyles(themeStyles);
 
-        return `
-            ${languageLabel}
-            <pre style="${codeBlockStyle}"><code class="hljs">${inlineStyles}${code}</code></pre>
-        `;
+        return `${languageLabel}<pre style="${codeBlockStyle}"><code class="hljs">${inlineStyles}${code}</code></pre>`;
     },
 
     // 生成内联语法高亮样式

@@ -82,6 +82,12 @@
                                         <div class="theme-desc">稳重深沉</div>
                                     </div>
                                 </div>
+                                <hr class="theme-divider">
+                                <div class="theme-option custom-color-option" style="display: flex; align-items: center; cursor: default;">
+                                    <input id="customColorInput" type="text" maxlength="9" placeholder="#RRGGBB" class="custom-color-input" oninput="UIController.previewCustomColor()" style="margin-right: 10px; width: 90px;" />
+                                    <div id="customColorPreview" class="custom-color-preview" style="width: 24px; height: 24px; border-radius: 6px; border: 1px solid #ddd; margin-right: 10px;"></div>
+                                    <button class="btn custom-color-btn" onclick="UIController.applyCustomColor()">应用自定义颜色</button>
+                                </div>
                             </div>
                         </div>
                     </div>

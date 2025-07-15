@@ -1,6 +1,7 @@
 // UI控制器模块
 const UIController = {
     currentTheme: null,
+    customColor: null, // 新增：自定义颜色
 
     // 初始化应用
     init: function() {
@@ -76,8 +77,16 @@ const UIController = {
     // 从本地存储加载主题
     loadThemeFromStorage: function() {
         try {
-            const savedTheme = localStorage.getItem('wechat-converter-theme');
-            if (savedTheme && AppConfig.themes[savedTheme]) {
+            var savedTheme = localStorage.getItem('wechat-converter-theme');
+            if (savedTheme === 'custom') {
+                var customColor = localStorage.getItem('wechat-converter-custom-color');
+                if (UIController.isValidColor(customColor)) {
+                    this.currentTheme = 'custom';
+                    this.customColor = customColor;
+                } else {
+                    this.currentTheme = AppConfig.defaults.theme;
+                }
+            } else if (savedTheme && AppConfig.themes[savedTheme]) {
                 this.currentTheme = savedTheme;
             }
         } catch (e) {
@@ -89,6 +98,9 @@ const UIController = {
     saveThemeToStorage: function() {
         try {
             localStorage.setItem('wechat-converter-theme', this.currentTheme);
+            if (this.currentTheme === 'custom' && this.customColor) {
+                localStorage.setItem('wechat-converter-custom-color', this.customColor);
+            }
         } catch (e) {
             console.warn('Failed to save theme to localStorage:', e);
         }
@@ -141,10 +153,28 @@ const UIController = {
             const themeColor = AppConfig.themes[this.currentTheme].primary;
             themeButton.style.borderColor = themeColor;
         }
+
+        // 高亮自定义颜色
+        var input = document.getElementById('customColorInput');
+        var preview = document.getElementById('customColorPreview');
+        if (input && preview) {
+            if (this.currentTheme === 'custom' && this.customColor) {
+                input.value = this.customColor;
+                preview.style.background = this.customColor;
+                preview.style.borderColor = this.customColor;
+            } else {
+                input.value = '';
+                preview.style.background = '#fff';
+                preview.style.borderColor = '#ddd';
+            }
+        }
     },
 
-    // 获取当前主题色
+    // 获取当前主题色，支持自定义
     getCurrentThemeColor: function() {
+        if (this.currentTheme === 'custom' && this.customColor) {
+            return this.customColor;
+        }
         if (this.currentTheme && AppConfig.themes[this.currentTheme]) {
             return AppConfig.themes[this.currentTheme].primary;
         }
@@ -361,6 +391,46 @@ console.log('Hello, WeChat!');
         if (preview) {
             preview.innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">正在加载...</p>';
         }
+    },
+
+    // 新增：自定义颜色预览
+    previewCustomColor: function() {
+        var input = document.getElementById('customColorInput');
+        var preview = document.getElementById('customColorPreview');
+        if (!input || !preview) return;
+        var color = input.value.trim();
+        if (UIController.isValidColor(color)) {
+            preview.style.background = color;
+            preview.style.borderColor = color;
+        } else {
+            preview.style.background = '#fff';
+            preview.style.borderColor = '#ddd';
+        }
+    },
+
+    // 新增：应用自定义颜色
+    applyCustomColor: function() {
+        var input = document.getElementById('customColorInput');
+        var color = input ? input.value.trim() : '';
+        if (!UIController.isValidColor(color)) {
+            alert('请输入有效的十六进制色号，如 #FF5733');
+            return;
+        }
+        // 标记为自定义主题
+        this.currentTheme = 'custom';
+        this.customColor = color;
+        this.saveThemeToStorage();
+        this.updateThemeUI();
+        this.updateOutput();
+        // 关闭主题面板
+        var themePanel = document.getElementById('themePanel');
+        if (themePanel) themePanel.style.display = 'none';
+    },
+
+    // 新增：颜色格式校验
+    isValidColor: function(color) {
+        // 支持 #RGB, #RRGGBB, #RRGGBBAA
+        return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color);
     }
 };
 

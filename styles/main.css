@@ -424,6 +424,51 @@ tr:nth-child(even) {
     color: #666;
 }
 
+.theme-divider {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 8px 0 8px 0;
+}
+
+.custom-color-option {
+    margin-top: 6px;
+    padding: 8px 0 0 0;
+}
+
+.custom-color-input {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.custom-color-input:focus {
+    border-color: #7E3AF2;
+}
+
+.custom-color-preview {
+    display: inline-block;
+    vertical-align: middle;
+    background: #fff;
+    border: 1px solid #ddd;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.custom-color-btn {
+    padding: 4px 12px;
+    font-size: 13px;
+    background: #7E3AF2;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.custom-color-btn:hover {
+    background: #6d28d9;
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
     .theme-panel {
