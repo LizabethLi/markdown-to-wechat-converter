@@ -46,10 +46,10 @@ const MarkdownConverter = {
                 ? `margin: 5px 0; line-height: 1.6; font-size: 14px; color: #333;`
                 : `margin: 8px 0; line-height: 1.6; font-size: 14px; color: #333;`;
             
-            // 改进的文本清理逻辑
-            let cleanedText = this.cleanListItemText(text);
-            
-            return `<li style="${style}">${cleanedText}</li>`;
+            const parsedContent = marked.parseInline(text);
+
+            // 使用 <span> 包裹内容，避免微信编辑器插入 <section> 块级元素导致换行
+            return `<li style="${style}"><span>${parsedContent}</span></li>`;
         };
 
         // 引用
@@ -88,45 +88,6 @@ const MarkdownConverter = {
         };
 
         return renderer;
-    },
-
-    // 清理列表项文本
-    cleanListItemText: function(text) {
-        // 保护嵌套的子列表
-        const nestedLists = [];
-        let cleanedText = text.replace(/(<[uo]l[^>]*>[\s\S]*?<\/[uo]l>)/g, (match, listContent) => {
-            const placeholder = `__NESTED_LIST_${nestedLists.length}__`;
-            nestedLists.push(listContent);
-            return placeholder;
-        });
-        
-        // 保护HTML格式标签 (strong, em, code, a 等)
-        const htmlTags = [];
-        cleanedText = cleanedText.replace(/(<(?:strong|em|code|a|span)[^>]*>[\s\S]*?<\/(?:strong|em|code|a|span)>)/g, (match, tagContent) => {
-            const placeholder = `__HTML_TAG_${htmlTags.length}__`;
-            htmlTags.push(tagContent);
-            return placeholder;
-        });
-        
-        // 现在安全地处理段落标签
-        cleanedText = cleanedText.replace(/<p>([\s\S]*?)<\/p>/g, (match, content) => {
-            return content.trim();
-        });
-        
-        // 清理多余的空白字符，但保持单个空格
-        cleanedText = cleanedText.replace(/\s+/g, ' ').trim();
-        
-        // 恢复HTML格式标签
-        htmlTags.forEach((tagContent, index) => {
-            cleanedText = cleanedText.replace(`__HTML_TAG_${index}__`, tagContent);
-        });
-        
-        // 恢复嵌套列表
-        nestedLists.forEach((listContent, index) => {
-            cleanedText = cleanedText.replace(`__NESTED_LIST_${index}__`, listContent);
-        });
-        
-        return cleanedText;
     },
 
     // 渲染带语法高亮的代码块
