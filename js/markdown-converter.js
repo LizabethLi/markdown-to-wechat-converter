@@ -48,8 +48,11 @@ const MarkdownConverter = {
             
             const parsedContent = marked.parseInline(text);
 
-            // 使用 <span> 包裹内容，避免微信编辑器插入 <section> 块级元素导致换行
-            return `<li style="${style}"><span>${parsedContent}</span></li>`;
+            // By wrapping the entire list item content in a <p> tag with `display: inline`,
+            // we create a consistent block-level container for mixed content (text nodes and <strong> tags).
+            // This structure is less likely to be "fixed" by the WeChat editor, preventing it from
+            // inserting disruptive <section> tags.
+            return `<li style="${style}"><p style="display: inline;">${parsedContent}</p></li>`;
         };
 
         // 引用
