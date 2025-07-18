@@ -45,7 +45,7 @@ const WechatStyles = {
         
         paragraph: (match, text) => {
             if (text.trim() === '') return '';
-            return `<p style="line-height: 1.7; margin: 12px 0; font-size: 15px; color: #333; text-align: justify;">${text}</p>`;
+            return `<p style="line-height: 1.7; margin: 12px 0; font-size: 14px; color: #333; text-align: justify;">${text}</p>`;
         }
     },
 
@@ -119,7 +119,7 @@ const WechatStyles = {
         
         paragraph: (match, text) => {
             if (text.trim() === '') return '';
-            return `<p style="line-height: 1.8; margin: 15px 0; font-size: 15px; color: #333; text-align: justify;">${text}</p>`;
+            return `<p style="line-height: 1.8; margin: 15px 0; font-size: 14px; color: #333; text-align: justify;">${text}</p>`;
         }
     },
 
