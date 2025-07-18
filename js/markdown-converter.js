@@ -54,8 +54,11 @@ const MarkdownConverter = {
 
         // 引用
         renderer.blockquote = (quote) => {
-            const unwrappedQuote = quote.replace(/^<p>([\s\S]*)<\/p>\n?$/, '$1');
-            return wechatStyles.blockquote(null, unwrappedQuote);
+            // 先生成一个带样式的空引用块
+            const blockquoteFrame = wechatStyles.blockquote(null, 'PLACEHOLDER_TEXT');
+            // 将marked解析的内容（可能包含多个p标签）替换掉占位符
+            // 我们需要移除占位符所在的p标签，并将完整内容注入
+            return blockquoteFrame.replace('<p style="line-height: 1.6; margin: 0; font-size: 14px; color: #555; font-style: italic;">PLACEHOLDER_TEXT</p>', quote);
         };
 
         // 代码块
