@@ -2,7 +2,8 @@
 const ExampleData = {
     // 获取示例Markdown内容
     getExampleMarkdown: function() {
-        return `# 这是主标题
+        return `
+# 这是主标题
 ## 这是副标题  
 ### 这是小标题
 
