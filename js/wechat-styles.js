@@ -5,13 +5,13 @@ const WechatStyles = {
     // 紧凑模式样式（去除换行，适合微信公众号）
     compact: {
         sectionNumber: (match, number) => 
-            `<section style="text-align: center; margin: 20px 0 15px 0;"><p style="font-size: 28px; color: rgb(0, 0, 0); line-height: 1.2; font-weight: bold; margin: 0;">${number.padStart(2, '0')}</p></section>`,
+            `<section style="text-align: center; margin: 20px 0 14px 0;"><p style="font-size: 28px; color: rgb(0, 0, 0); line-height: 1.2; font-weight: bold; margin: 0;">${number.padStart(2, '0')}</p></section>`,
         
         h1: (match, text) => 
-            `<section style="text-align: center; margin: 25px 0 15px 0;"><p style="min-height: 1em; color: rgb(51, 51, 51); line-height: 1.4; margin: 0;"><strong><span style="background: {{THEME_COLOR}}; color: white; padding: 6px 12px; border-radius: 4px; font-size: 16px;">${text}</span></strong></p></section>`,
+            `<section style="text-align: center; margin: 25px 0 14px 0;"><p style="min-height: 1em; color: rgb(51, 51, 51); line-height: 1.4; margin: 0;"><strong><span style="background: {{THEME_COLOR}}; color: white; padding: 6px 12px; border-radius: 4px; font-size: 16px;">${text}</span></strong></p></section>`,
         
         h2: (match, text) => 
-            `<p style="font-size: 20px; font-weight: bold; margin: 25px 0 15px 0; padding-left: 12px; border-left: 4px solid {{THEME_COLOR}}; line-height: 1.3;"><span style="font-weight: bold; color: #333;">${text}</span></p>`,
+            `<p style="font-size: 20px; font-weight: bold; margin: 25px 0 14px 0; padding-left: 12px; border-left: 4px solid {{THEME_COLOR}}; line-height: 1.3;"><span style="font-weight: bold; color: #333;">${text}</span></p>`,
         
         h3: (match, text) => 
             `<h3 style="line-height: 1.4; font-size: 16px; margin: 20px 0 10px 0; color: #333; font-weight: bold;">${text}</h3>`,
@@ -30,7 +30,7 @@ const WechatStyles = {
             `<blockquote style="margin: 8px 0; padding: 12px 16px; background: #f8f9fa; border-left: 4px solid {{THEME_COLOR}}; border-radius: 4px;"><p style="line-height: 1.6; margin: 0; font-size: 14px; color: #555; font-style: italic;">${text}</p></blockquote>`,
         
         codeBlock: (match, lang, code) => 
-            `<pre style="background: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; margin: 15px 0; border: 1px solid #d0d7de; white-space: pre; font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Courier New', monospace; font-size: 14px; line-height: 1.5; color: #24292f; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">${code.trim()}</pre>`,
+            `<pre style="background: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; margin: 14px 0; border: 1px solid #d0d7de; white-space: pre; font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Courier New', monospace; font-size: 14px; line-height: 1.5; color: #24292f; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">${code.trim()}</pre>`,
         
         inlineCode: (match, code) => 
             `<code style="background: #f1f3f4; padding: 2px 6px; border-radius: 3px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; color: #d73a49;">${code}</code>`,
@@ -94,7 +94,7 @@ const WechatStyles = {
             </li>`,
         
         blockquote: (match, text) => 
-            `<blockquote style="margin: 12px 0; padding: 15px 20px; background: #f8f9fa; border-left: 4px solid {{THEME_COLOR}}; border-radius: 4px;">
+            `<blockquote style="margin: 12px 0; padding: 14px 20px; background: #f8f9fa; border-left: 4px solid {{THEME_COLOR}}; border-radius: 4px;">
                 <p style="line-height: 1.6; margin: 0; font-size: 14px; color: #555; font-style: italic;">
                     ${text}
                 </p>
@@ -119,7 +119,7 @@ const WechatStyles = {
         
         paragraph: (match, text) => {
             if (text.trim() === '') return '';
-            return `<p style="line-height: 1.8; margin: 15px 0; font-size: 14px; color: #333; text-align: justify;">${text}</p>`;
+            return `<p style="line-height: 1.8; margin: 14px 0; font-size: 14px; color: #333; text-align: justify;">${text}</p>`;
         }
     },
 
