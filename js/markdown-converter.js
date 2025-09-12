@@ -38,21 +38,24 @@ const MarkdownConverter = {
             const styles = mode === 'compact' 
                 ? `list-style-position: outside; padding-left: 30px; margin: 8px 0;`
                 : `padding-left: 40px; margin: 15px 0;`;
-            return `<${tag} style="${styles}">${body}</${tag}>`;
+            // Add WeChat-like padding class for better parity
+            return `<${tag} style="${styles}" class="list-paddingleft-1">${body}</${tag}>`;
         };
 
         renderer.listitem = (text) => {
             const style = mode === 'compact'
                 ? `margin: 5px 0; line-height: 1.6; font-size: 14px; color: #333;`
                 : `margin: 8px 0; line-height: 1.6; font-size: 14px; color: #333;`;
-            
-            const parsedContent = marked.parseInline(text);
 
-            // By wrapping the entire list item content in a <p> tag with `display: inline`,
-            // we create a consistent block-level container for mixed content (text nodes and <strong> tags).
-            // This structure is less likely to be "fixed" by the WeChat editor, preventing it from
-            // inserting disruptive <section> tags.
-            return `<li style="${style}"><p style="display: inline;">${parsedContent}</p></li>`;
+            const content = (text || '').trim();
+            // Avoid invalid nested <p> by detecting block-level content produced by marked
+            const hasBlockLevel = /<(?:p|div|section|ul|ol|pre|blockquote|h[1-6]|table)\b/i.test(content);
+
+            if (hasBlockLevel) {
+                return `<li style="${style}">${content}</li>`;
+            }
+
+            return `<li style="${style}"><p style="display: inline;">${content}</p></li>`;
         };
 
         // 引用
@@ -265,7 +268,8 @@ const MarkdownConverter = {
 
     // 包装在微信样式容器中
     wrapInWechatContainer: function(html) {
-        return `<div style="font-family: 'PingFang SC', system-ui, -apple-system, 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif; color: rgba(0, 0, 0, 0.9); max-width: 100%; overflow-wrap: break-word;">${html}</div>`;
+        // Use <section> to mirror WeChat's outer container element
+        return `<section style="font-family: 'PingFang SC', system-ui, -apple-system, 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif; color: rgba(0, 0, 0, 0.9); max-width: 100%; overflow-wrap: break-word;">${html}</section>`;
     },
 
     // 获取支持的模式
