@@ -52,6 +52,12 @@ body {
     font-size: 1.1rem;
 }
 
+/* 头部区域链接：白色文字，保留默认下划线 */
+.header a,
+.header a:visited {
+    color: #fff;
+}
+
 .container {
     max-width: 1400px;
     margin: 0 auto;
