@@ -52,6 +52,11 @@ const AppConfig = {
             name: '深海蓝',
             primary: '#0891B2',
             description: '稳重深沉'
+        },
+        mint: {
+            name: '薄荷青',
+            primary: '#01fabd',
+            description: '清爽活力'
         }
     },
 
@@ -164,6 +169,19 @@ const AppConfig = {
         copySuccessDisplayTime: 2000, // 复制成功提示显示时间
         tabSwitchDuration: 200, // 标签切换动画时间
         themeTransitionDuration: 300 // 主题切换动画时间
+    }
+};
+
+// 翻译配置（Substack/GitHub渠道）
+AppConfig.translation = {
+    // 模式：'disabled' | 'proxy' | 'direct'
+    mode: 'disabled',
+    // 代理模式：将请求发送到后端代理，避免泄露API密钥
+    proxyEndpoint: '', // 例如：'/api/translate' 或你的Cloudflare Worker地址
+    // 直连Gemini（仅限本地或可信环境，可能暴露API密钥）
+    gemini: {
+        apiKey: '', // 可留空并通过 localStorage.setItem('gemini_api_key', '...') 注入
+        model: 'gemini-1.5-flash-latest'
     }
 };
 

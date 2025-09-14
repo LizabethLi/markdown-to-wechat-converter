@@ -2,6 +2,7 @@
 const UIController = {
     currentTheme: null,
     customColor: null, // 新增：自定义颜色
+    currentChannel: 'wechat',
 
     // 初始化应用
     init: function() {
@@ -34,11 +35,13 @@ const UIController = {
             markdownInput.addEventListener('input', () => this.updateOutput());
         }
 
-        // 模式选择事件
-        const modeSelect = document.getElementById('modeSelect');
-        if (modeSelect) {
-            modeSelect.addEventListener('change', () => this.updateOutput());
+        // 渠道选择事件
+        const channelSelect = document.getElementById('channelSelect');
+        if (channelSelect) {
+            channelSelect.addEventListener('change', () => this.updateOutput());
         }
+
+        // 移除模式选择事件（已删除）
 
         // 点击外部关闭主题面板
         document.addEventListener('click', (e) => {
@@ -46,6 +49,11 @@ const UIController = {
             const themeButton = document.getElementById('themeButton');
             if (themePanel && !themePanel.contains(e.target) && e.target !== themeButton) {
                 themePanel.style.display = 'none';
+            }
+            const translatorPanel = document.getElementById('translatorPanel');
+            const translatorButton = document.getElementById('translatorButton');
+            if (translatorPanel && !translatorPanel.contains(e.target) && e.target !== translatorButton) {
+                translatorPanel.style.display = 'none';
             }
         });
 
@@ -57,14 +65,19 @@ const UIController = {
         window.updateOutput = this.updateOutput.bind(this);
         window.toggleThemePanel = this.toggleThemePanel.bind(this);
         window.selectTheme = this.selectTheme.bind(this);
+        // 翻译设置
+        window.toggleTranslatorPanel = this.toggleTranslatorPanel.bind(this);
+        window.saveTranslatorSettings = this.saveTranslatorSettings.bind(this);
     },
 
     // 初始化元素
     initializeElements: function() {
-        // 设置默认模式
-        const modeSelect = document.getElementById('modeSelect');
-        if (modeSelect && !modeSelect.value) {
-            modeSelect.value = AppConfig.defaults.mode;
+        // 已移除模式选择器
+
+        // 设置默认渠道
+        const channelSelect = document.getElementById('channelSelect');
+        if (channelSelect && !channelSelect.value) {
+            channelSelect.value = 'wechat';
         }
 
         // 设置默认主题
@@ -72,6 +85,8 @@ const UIController = {
             this.currentTheme = AppConfig.defaults.theme;
         }
         this.updateThemeUI();
+        // 加载翻译设置
+        this.loadTranslatorSettingsFromStorage();
     },
 
     // 从本地存储加载主题
@@ -91,6 +106,62 @@ const UIController = {
             }
         } catch (e) {
             console.warn('Failed to load theme from localStorage:', e);
+        }
+    },
+
+    // 翻译设置：显示/隐藏
+    toggleTranslatorPanel: function() {
+        const panel = document.getElementById('translatorPanel');
+        if (!panel) return;
+        const isVisible = panel.style.display !== 'none';
+        panel.style.display = isVisible ? 'none' : 'block';
+    },
+
+    // 翻译设置：加载
+    loadTranslatorSettingsFromStorage: function() {
+        try {
+            const key = localStorage.getItem('gemini_api_key') || '';
+            const prompt = localStorage.getItem('translation_system_prompt') || '';
+            const keyInput = document.getElementById('translatorApiKey');
+            const promptInput = document.getElementById('translatorSystemPrompt');
+            if (keyInput) keyInput.value = key;
+            if (promptInput) promptInput.value = prompt;
+            if (key) {
+                AppConfig.translation.mode = 'direct';
+                if (!AppConfig.translation.gemini) AppConfig.translation.gemini = {};
+                AppConfig.translation.gemini.apiKey = key;
+            }
+            if (prompt) {
+                AppConfig.translation.systemPrompt = prompt;
+            }
+        } catch (e) {
+            console.warn('Failed to load translator settings:', e);
+        }
+    },
+
+    // 翻译设置：保存
+    saveTranslatorSettings: function() {
+        try {
+            const keyInput = document.getElementById('translatorApiKey');
+            const promptInput = document.getElementById('translatorSystemPrompt');
+            const key = keyInput ? keyInput.value.trim() : '';
+            const prompt = promptInput ? promptInput.value.trim() : '';
+            // 保存到本地
+            localStorage.setItem('gemini_api_key', key);
+            localStorage.setItem('translation_system_prompt', prompt);
+            // 应用配置
+            if (!AppConfig.translation.gemini) AppConfig.translation.gemini = {};
+            AppConfig.translation.gemini.apiKey = key;
+            AppConfig.translation.systemPrompt = prompt;
+            AppConfig.translation.mode = key ? 'direct' : AppConfig.translation.mode;
+            // 关闭面板
+            const panel = document.getElementById('translatorPanel');
+            if (panel) panel.style.display = 'none';
+            // 重新渲染（可能在 Substack/GitHub）
+            this.updateOutput();
+        } catch (e) {
+            console.error('Failed to save translator settings:', e);
+            alert('保存失败，请重试');
         }
     },
 
@@ -182,27 +253,49 @@ const UIController = {
     },
 
     // 更新输出
-    updateOutput: function() {
+    updateOutput: async function() {
         const markdownInput = document.getElementById('markdownInput');
-        const modeSelect = document.getElementById('modeSelect');
+        const channelSelect = document.getElementById('channelSelect');
         const htmlOutput = document.getElementById('htmlOutput');
         const preview = document.getElementById('preview');
 
-        if (!markdownInput || !modeSelect || !htmlOutput || !preview) {
+        if (!markdownInput || !htmlOutput || !preview) {
             console.error('Required elements not found');
             return;
         }
 
         const markdown = markdownInput.value;
-        const mode = modeSelect.value;
+        const channel = channelSelect ? channelSelect.value : 'wechat';
         const themeColor = this.getCurrentThemeColor();
 
         try {
-            const html = MarkdownConverter.convertMarkdownToWechat(markdown, mode, themeColor);
-            
-            htmlOutput.value = html;
-            preview.innerHTML = html;
-            
+            if (channel === 'wechat') {
+                const html = MarkdownConverter.convertMarkdownToWechat(markdown, AppConfig.defaults.mode, themeColor);
+                htmlOutput.value = html;
+                preview.innerHTML = html;
+                // 预览样式切换
+                preview.classList.add('wechat-preview');
+                preview.classList.remove('markdown-preview');
+                // 切换代码标签标题为 HTML
+                const codeBtn = document.getElementById('codeTabButton');
+                const codeTitle = document.getElementById('codeTabTitle');
+                if (codeBtn) codeBtn.textContent = '📄 HTML代码';
+                if (codeTitle) codeTitle.textContent = '📋 HTML 代码 (可滚动查看)';
+            } else if (channel === 'github') {
+                this.showLoading();
+                const combinedMd = await ChannelConverter.convertToGithub(markdown);
+                htmlOutput.value = combinedMd; // For GitHub channel, textarea holds Markdown
+                // Render preview as HTML using marked
+                preview.innerHTML = marked(combinedMd);
+                // 预览样式切换
+                preview.classList.add('markdown-preview');
+                preview.classList.remove('wechat-preview');
+                // 切换代码标签标题为 Markdown
+                const codeBtn = document.getElementById('codeTabButton');
+                const codeTitle = document.getElementById('codeTabTitle');
+                if (codeBtn) codeBtn.textContent = '📄 Markdown代码';
+                if (codeTitle) codeTitle.textContent = '📋 Markdown 代码 (可滚动查看)';
+            }
             // 自动滚动到预览顶部
             if (AppConfig.defaults.autoScrollToTop) {
                 preview.scrollTop = 0;
@@ -364,20 +457,13 @@ console.log('Hello, WeChat!');
 | 感受野 | 逐步扩大 | 一开始即全局 |`;
     },
 
-    // 获取当前选择的模式
-    getCurrentMode: function() {
-        const modeSelect = document.getElementById('modeSelect');
-        return modeSelect ? modeSelect.value : AppConfig.defaults.mode;
+    // 获取当前渠道
+    getCurrentChannel: function() {
+        const channelSelect = document.getElementById('channelSelect');
+        return channelSelect ? channelSelect.value : 'wechat';
     },
 
-    // 设置模式
-    setMode: function(mode) {
-        const modeSelect = document.getElementById('modeSelect');
-        if (modeSelect && MarkdownConverter.isValidMode(mode)) {
-            modeSelect.value = mode;
-            this.updateOutput();
-        }
-    },
+    // 已移除模式设置
 
     // 显示错误消息
     showError: function(message) {

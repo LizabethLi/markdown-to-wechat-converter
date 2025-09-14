@@ -104,3 +104,31 @@ $$ \\sum_{i=1}^{n} x_i = n $$
   ```
 
   生成效果是一个带有主题色背景的小胶囊样式，适合做引导语或关键信息提示。
+
+## 7. 新增渠道：Substack 与 GitHub
+
+- 渠道选择：在左上角“Channel/渠道”下拉框选择输出类型：
+  - `WeChat`：输出微信公众号样式 HTML（原有功能）
+  - `Substack (HTML)`：将中文 Markdown 翻译为英文（Gemini），然后按“英文在前，中文在后”合并为一份 HTML，便于直接粘贴至 Substack 编辑器
+  - `GitHub (Markdown)`：将中文 Markdown 翻译为英文（Gemini），按“英文在前，中文在后”合并为一份 Markdown，便于使用在 GitHub README/文档
+
+### 7.1 启用翻译（Gemini）
+
+在输入栏上方点击“⚙️ 翻译设置”按钮，填写 Gemini API Key 与可选的 System Prompt，即可启用翻译；设置会本地保存（浏览器 localStorage）。
+
+此外，也支持下列方式：
+
+- 代理模式（推荐）：在 `js/config.js` 中设置 `AppConfig.translation.mode = 'proxy'`，并配置 `proxyEndpoint` 指向你自有的服务端代理（例如 Cloudflare Worker 或服务器接口）。代理接收 JSON：`{ text, sourceLang, targetLang, format, instructions }`，返回：`{ translation }`。
+- 直连模式（本地/可信环境）：在 `js/config.js` 中设置 `AppConfig.translation.mode = 'direct'`，并提供 `gemini.apiKey`。或者在浏览器控制台执行：`localStorage.setItem('gemini_api_key', 'YOUR_KEY')`。
+
+提示：直连模式会在浏览器内携带 API Key，谨慎在公开环境使用。
+
+### 7.2 Substack 输出
+
+- 输入：中文 Markdown
+- 输出：一份 HTML，包含英文（翻译）在前、中文在后，样式简洁、左对齐，便于直接复制进 Substack。
+
+### 7.3 GitHub 输出
+
+- 输入：中文 Markdown
+- 输出：一份合并后的 Markdown，结构为：英文（翻译） + 分隔线 `---` + 中文原文。
