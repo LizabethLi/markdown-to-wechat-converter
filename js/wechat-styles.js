@@ -7,8 +7,11 @@ const WechatStyles = {
         sectionNumber: (match, number) => 
             `<section style="text-align: center; margin: 20px 0 14px 0;"><p style="font-size: 28px; color: rgb(0, 0, 0); line-height: 1.2; font-weight: bold; margin: 0;">${number.padStart(2, '0')}</p></section>`,
         
-        h1: (match, text) => 
-            `<section style="text-align: center; margin: 25px 0 14px 0;"><p style="min-height: 1em; color: rgb(51, 51, 51); line-height: 1.4; margin: 0;"><strong><span style="background: {{THEME_COLOR}}; color: white; padding: 6px 12px; border-radius: 4px; font-size: 16px;">${text}</span></strong></p></section>`,
+        h1: (match, text, index) => {
+            const numberLine = index ? `<p style="font-size: 28px; color: rgb(0, 0, 0); line-height: 1.2; font-weight: bold; margin: 0;">${String(index).padStart(2, '0')}</p>` : '';
+            const titleLine = `<p style="min-height: 1em; color: rgb(51, 51, 51); line-height: 1.4; margin: 0;"><strong><span style="background: {{THEME_COLOR}}; color: white; padding: 6px 12px; border-radius: 4px; font-size: 16px;">${text}</span></strong></p>`;
+            return `<section style="text-align: center; margin: 25px 0 14px 0;">${numberLine}${titleLine}</section>`;
+        },
         
         h2: (match, text) => 
             `<p style="font-size: 20px; font-weight: bold; margin: 25px 0 14px 0; padding-left: 12px; border-left: 4px solid {{THEME_COLOR}}; line-height: 1.3;"><span style="font-weight: bold; color: #333;">${text}</span></p>`,
@@ -45,8 +48,14 @@ const WechatStyles = {
         
         paragraph: (match, text) => {
             if (text.trim() === '') return '';
-            return `<p style="line-height: 1.7; margin: 12px 0; font-size: 14px; color: #333; text-align: justify;">${text}</p>`;
-        }
+            return `<p style="line-height: 1.7; margin: 12px 0; font-size: 14px; color: #333; text-align: left;">${text}</p>`;
+        },
+
+        // 主题色强调段落（通过 [lead] 标记触发），浅色背景块
+        leadParagraph: (match, text) =>
+            `<section style="margin: 20px 0; padding: 20px; background: {{THEME_TINT_BG}};">
+                <p style="line-height: 1.7; margin: 0; font-size: 14px; color: #333; text-align: left;">${text}</p>
+            </section>`
     },
 
     // 标准模式样式（保持格式，适当换行）
@@ -58,16 +67,16 @@ const WechatStyles = {
                 </p>
             </section>`,
         
-        h1: (match, text) => 
-            `<section style="text-align: center; margin: 30px 0 20px 0;">
-                <p style="min-height: 1em; color: rgb(51, 51, 51); line-height: 22px;">
+        h1: (match, text, index) => {
+            const numberLine = index ? `<p style="font-size: 28px; color: rgb(0, 0, 0); line-height: 1.2; font-weight: bold; margin: 0;">${String(index).padStart(2, '0')}</p>` : '';
+            const titleLine = `
+                <p style="min-height: 1em; color: rgb(51, 51, 51); line-height: 22px; margin: 0;">
                     <strong>
-                        <span style="background: {{THEME_COLOR}}; color: white; padding: 6px 12px; border-radius: 4px;">
-                            ${text}
-                        </span>
+                        <span style="background: {{THEME_COLOR}}; color: white; padding: 6px 12px; border-radius: 4px;">${text}</span>
                     </strong>
-                </p>
-            </section>`,
+                </p>`;
+            return `<section style="text-align: center; margin: 30px 0 20px 0;">${numberLine}${titleLine}</section>`;
+        },
         
         h2: (match, text) => 
             `<p style="font-size: 22px; font-weight: bold; margin: 30px 0 20px 0; padding-left: 12px; border-left: 4px solid {{THEME_COLOR}}; line-height: 1.4;">
@@ -119,8 +128,13 @@ const WechatStyles = {
         
         paragraph: (match, text) => {
             if (text.trim() === '') return '';
-            return `<p style="line-height: 1.8; margin: 14px 0; font-size: 14px; color: #333; text-align: justify;">${text}</p>`;
-        }
+            return `<p style="line-height: 1.8; margin: 14px 0; font-size: 14px; color: #333; text-align: left;">${text}</p>`;
+        },
+        // 主题色强调段落（通过 [lead] 标记触发），浅色背景块
+        leadParagraph: (match, text) =>
+            `<section style="margin: 20px 0; padding: 20px; background: {{THEME_TINT_BG}};">
+                <p style="line-height: 1.8; margin: 0; font-size: 14px; color: #333; text-align: left;">${text}</p>
+            </section>`
     },
 
     // 应用主题色到样式
@@ -128,19 +142,54 @@ const WechatStyles = {
         if (!themeColor) {
             themeColor = this.defaultThemeColor;
         }
+        // 计算浅色背景（将主题色与白色混合）
+        const tint = this.generateTintColor(themeColor, 0.12);
 
         const themedStyles = {};
         for (const key in styles) {
             if (typeof styles[key] === 'function') {
                 themedStyles[key] = (...args) => {
                     const result = styles[key](...args);
-                    return result.replace(/\{\{THEME_COLOR\}\}/g, themeColor);
+                    return result
+                        .replace(/\{\{THEME_COLOR\}\}/g, themeColor)
+                        .replace(/\{\{THEME_TINT_BG\}\}/g, tint);
                 };
             } else {
                 themedStyles[key] = styles[key];
             }
         }
         return themedStyles;
+    },
+
+    // 生成浅色背景色（将主题色与白色混合）
+    generateTintColor: function(hexColor, ratio = 0.12) {
+        const rgb = this.hexToRgb(hexColor);
+        if (!rgb) return hexColor;
+        const mix = (c) => Math.round(255 - (255 - c) * ratio);
+        const r = mix(rgb.r);
+        const g = mix(rgb.g);
+        const b = mix(rgb.b);
+        return this.rgbToHex(r, g, b);
+    },
+
+    hexToRgb: function(hex) {
+        if (!hex) return null;
+        let h = hex.replace('#', '').trim();
+        if (h.length === 3) {
+            h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+        }
+        if (h.length !== 6) return null;
+        const num = parseInt(h, 16);
+        return {
+            r: (num >> 16) & 255,
+            g: (num >> 8) & 255,
+            b: num & 255
+        };
+    },
+
+    rgbToHex: function(r, g, b) {
+        const toHex = (n) => n.toString(16).padStart(2, '0');
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
     },
 
     // 获取指定模式的样式

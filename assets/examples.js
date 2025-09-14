@@ -4,6 +4,9 @@ const ExampleData = {
     getExampleMarkdown: function() {
         return `
 # 这是主标题
+
+[lead] 在段落开头输入 [lead] 可生成浅色主题提示块（“破题”/引导块），用于强调关键信息。此块背景会随主题色变为浅色。
+
 ## 这是副标题  
 ### 这是小标题
 

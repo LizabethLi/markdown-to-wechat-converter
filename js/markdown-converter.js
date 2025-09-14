@@ -6,8 +6,9 @@ const MarkdownConverter = {
         const renderer = new marked.Renderer();
 
         // 标题渲染
+        let h1Counter = 0;
         renderer.heading = (text, level, raw) => {
-            if (level === 1) return wechatStyles.h1(raw, text);
+            if (level === 1) return wechatStyles.h1(raw, text, ++h1Counter);
             if (level === 2) return wechatStyles.h2(raw, text);
             if (level === 3) {
                 const sectionMatch = raw.match(/^###\s(\d+)/);
@@ -24,6 +25,13 @@ const MarkdownConverter = {
             // 避免 marked.js 给已经有样式的块（如KaTeX渲染的块）再次套上 <p> 标签
             if (text.trim().startsWith('<section') && text.trim().endsWith('</section>')) {
                 return text;
+            }
+            // 支持 [lead] 段首标记，将本段渲染为主题色强调段落
+            const trimmed = text.trim();
+            const leadPrefix = trimmed.match(/^\[\s*lead\s*\]\s*/i);
+            if (leadPrefix) {
+                const content = trimmed.replace(leadPrefix[0], '');
+                return wechatStyles.leadParagraph(null, content);
             }
             return wechatStyles.paragraph(null, text);
         };

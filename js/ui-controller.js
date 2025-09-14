@@ -329,6 +329,8 @@ const UIController = {
     getDefaultExample: function() {
         return `# AI视觉领域的"铁三角"
 
+[lead] 在段落开头加入 [lead]，可生成一个浅色的“破题/引导”提示块，适合关键提示或摘要（背景随主题色自动变浅）。
+
 ## 他们是谁？
 
 **Lucas Beyer、Alexander Kolesnikov 和 Xiaohua Zhai** 被业界称为 AI 视觉领域的"铁三角"。
