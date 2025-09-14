@@ -131,6 +131,18 @@ const AppConfig = {
                 number: '#dc2626',
                 function: '#7c3aed',
                 variable: '#059669'
+            },
+            // 与 themes.mint 对应的语法高亮主题，避免缺失导致报错
+            mint: {
+                background: '#effff8',
+                border: '#b8f2de',
+                text: '#2a2a2a',
+                keyword: '#01fabd',
+                string: '#0b72b9',
+                comment: '#6a737d',
+                number: '#e36209',
+                function: '#0ea5a0',
+                variable: '#0f766e'
             }
         },
 

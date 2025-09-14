@@ -293,7 +293,7 @@ const UIController = {
                 // 切换代码标签标题为 Markdown
                 const codeBtn = document.getElementById('codeTabButton');
                 const codeTitle = document.getElementById('codeTabTitle');
-                if (codeBtn) codeBtn.textContent = '📄 Markdown代码';
+                if (codeBtn) codeBtn.textContent = '📄 Markdown';
                 if (codeTitle) codeTitle.textContent = '📋 Markdown 代码 (可滚动查看)';
             }
             // 自动滚动到预览顶部

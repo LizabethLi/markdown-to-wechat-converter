@@ -185,7 +185,11 @@ const MarkdownConverter = {
 
     // 生成样式化代码块
     generateStyledCodeBlock: function(code, language, theme, mode) {
-        const themeStyles = AppConfig.syntaxHighlighting.themeStyles[theme];
+        // 防御：若主题样式缺失，回退到默认主题（避免 marked 捕获的渲染错误）
+        const themeStyles = 
+            AppConfig.syntaxHighlighting.themeStyles[theme] ||
+            AppConfig.syntaxHighlighting.themeStyles[AppConfig.defaults.theme] ||
+            Object.values(AppConfig.syntaxHighlighting.themeStyles)[0];
         const isCompact = mode === 'compact';
         
         // 语言标签
@@ -234,8 +238,8 @@ const MarkdownConverter = {
 
         // 2. 使用 marked.js 进行转换
         const renderer = this.createWechatRenderer(mode, themeColor);
-        marked.setOptions({ renderer });
-        let html = marked(protectedMarkdown);
+        // 使用局部renderer，避免污染全局marked配置，影响GitHub预览
+        let html = marked(protectedMarkdown, { renderer });
 
         // 3. 恢复数学公式
         html = MathRenderer.restoreMathExpressions(html, mathPlaceholders);
