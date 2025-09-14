@@ -28,11 +28,14 @@
     <div class="container">
         <div class="panel">
             <div class="panel-header">
-                <span class="panel-title"> Markdown Input</span>
+                <!-- <span class="panel-title"> Markdown Input</span> -->
                 <div>
                     <select id="channelSelect" style="margin-right: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateOutput()" title="选择输出渠道">
                         <option value="wechat">WeChat</option>
                         <option value="github">GitHub (Markdown)</option>
+                    </select>
+                    <select id="templateSelect" style="margin-right: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" title="选择模板">
+                        <option value="wechat-default">默认模板</option>
                     </select>
                     <div class="theme-selector" style="display: inline-block; position: relative; margin-right: 10px;">
                         <button id="themeButton" class="btn theme-btn" onclick="toggleThemePanel()" title="选择主题色">
@@ -196,7 +199,10 @@ console.log('Hello, world!');
     
     <!-- 外部JavaScript模块 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/3.0.8/marked.min.js"></script>
+    <script src="js/template-manager.js"></script>
     <script src="js/wechat-styles.js"></script>
+    <script src="js/templates/wechat-default.js"></script>
+    <script src="js/templates/wechat-minimal.js"></script>
     <script src="js/translator.js"></script>
     <script src="js/channel-converter.js"></script>
     <script src="js/math-renderer.js"></script>

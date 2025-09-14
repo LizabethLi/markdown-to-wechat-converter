@@ -2,7 +2,9 @@
 const MarkdownConverter = {
     // 创建微信渲染器
     createWechatRenderer: function(mode, themeColor) {
-        const wechatStyles = WechatStyles.getStyles(mode, themeColor);
+        const wechatStyles = (typeof TemplateManager !== 'undefined' 
+            ? TemplateManager.getStyles(mode, themeColor)
+            : WechatStyles.getStyles(mode, themeColor));
         const renderer = new marked.Renderer();
 
         // 标题渲染
@@ -121,7 +123,10 @@ const MarkdownConverter = {
         if (!syntaxConfig.enabled || typeof hljs === 'undefined') {
             // 回退到普通样式
             console.log('使用回退样式');
-            return WechatStyles.getStyles(mode, themeColor).codeBlock(null, lang, trimmedCode);
+            const styles = (typeof TemplateManager !== 'undefined'
+                ? TemplateManager.getStyles(mode, themeColor)
+                : WechatStyles.getStyles(mode, themeColor));
+            return styles.codeBlock(null, lang, trimmedCode);
         }
 
         // 规范化语言名称

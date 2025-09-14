@@ -41,6 +41,17 @@ const UIController = {
             channelSelect.addEventListener('change', () => this.updateOutput());
         }
 
+        // 模板选择事件
+        const templateSelect = document.getElementById('templateSelect');
+        if (templateSelect) {
+            templateSelect.addEventListener('change', (e) => {
+                if (typeof TemplateManager !== 'undefined') {
+                    TemplateManager.setActive(e.target.value);
+                }
+                this.updateOutput();
+            });
+        }
+
         // 移除模式选择事件（已删除）
 
         // 点击外部关闭主题面板
@@ -87,6 +98,36 @@ const UIController = {
         this.updateThemeUI();
         // 加载翻译设置
         this.loadTranslatorSettingsFromStorage();
+        // 加载模板列表
+        this.populateTemplateOptions();
+    },
+
+    // 填充模板选择器
+    populateTemplateOptions: function() {
+        const select = document.getElementById('templateSelect');
+        if (!select || typeof TemplateManager === 'undefined') return;
+        // Ensure we respect any stored active template after all templates are registered
+        try { TemplateManager.loadFromStorage(); } catch (_) {}
+        // 清空现有
+        select.innerHTML = '';
+        const list = TemplateManager.list();
+        if (!list.length) {
+            // 至少提供默认项（后备）
+            const opt = document.createElement('option');
+            opt.value = 'wechat-default';
+            opt.textContent = '默认模板';
+            select.appendChild(opt);
+            select.value = 'wechat-default';
+            return;
+        }
+        list.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.name || t.id;
+            select.appendChild(opt);
+        });
+        // 选中当前激活模板
+        select.value = TemplateManager.activeId;
     },
 
     // 从本地存储加载主题

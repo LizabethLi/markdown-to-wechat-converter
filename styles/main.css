@@ -302,6 +302,25 @@ body {
 .markdown-preview th, .markdown-preview td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; }
 .markdown-preview th { background: #f9fafb; }
 
+/* Markdown list styles (restore indentation and nesting) */
+.markdown-preview ul,
+.markdown-preview ol {
+    margin: 0.8em 0;
+    padding-left: 1.5em; /* re-add indent removed by global reset */
+}
+.markdown-preview li { margin: 0.25em 0; }
+.markdown-preview ul { list-style: disc outside; }
+.markdown-preview ul ul { list-style: circle outside; }
+.markdown-preview ul ul ul { list-style: square outside; }
+.markdown-preview ol { list-style: decimal outside; }
+.markdown-preview ol ol { list-style: lower-alpha outside; }
+.markdown-preview ol ol ol { list-style: lower-roman outside; }
+.markdown-preview ul ul,
+.markdown-preview ol ol {
+    margin-top: 0.2em;
+    margin-bottom: 0.2em;
+}
+
 .demo-section {
     margin: 2rem 0;
     padding: 1rem;
