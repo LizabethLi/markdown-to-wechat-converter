@@ -38,7 +38,9 @@ const UIController = {
         // 渠道选择事件
         const channelSelect = document.getElementById('channelSelect');
         if (channelSelect) {
-            channelSelect.addEventListener('change', () => this.updateOutput());
+            channelSelect.addEventListener('change', (e) => {
+                this.handleChannelChange(e.target.value);
+            });
         }
 
         // 模板选择事件
@@ -87,8 +89,13 @@ const UIController = {
 
         // 设置默认渠道
         const channelSelect = document.getElementById('channelSelect');
-        if (channelSelect && !channelSelect.value) {
-            channelSelect.value = 'wechat';
+        if (channelSelect) {
+            if (!channelSelect.value) {
+                channelSelect.value = 'wechat';
+            }
+            this.currentChannel = channelSelect.value;
+        } else {
+            this.currentChannel = 'wechat';
         }
 
         // 设置默认主题
@@ -100,6 +107,42 @@ const UIController = {
         this.loadTranslatorSettingsFromStorage();
         // 加载模板列表
         this.populateTemplateOptions();
+        // 更新渠道提醒状态
+        this.updateChannelReminder(this.currentChannel);
+    },
+
+    handleChannelChange: function(channel) {
+        this.currentChannel = channel || 'wechat';
+        this.updateChannelReminder(this.currentChannel);
+        this.updateOutput();
+    },
+
+    updateChannelReminder: function(channel) {
+        const reminderEl = document.getElementById('channelReminder');
+        if (!reminderEl) return;
+        const shouldShowReminder = channel === 'github' && !this.hasTranslatorConfiguration();
+        if (shouldShowReminder) {
+            reminderEl.textContent = 'Github channel可以进行翻译，请在设置中填写 Gemini API Key 和 System Prompt，否则 Github 输出会出现中文重复。';
+            reminderEl.classList.add('show');
+        } else {
+            reminderEl.classList.remove('show');
+        }
+    },
+
+    hasTranslatorConfiguration: function() {
+        const cfg = AppConfig.translation || {};
+        const key = (cfg.gemini && cfg.gemini.apiKey && cfg.gemini.apiKey.trim()) || this.safeReadLocalStorage('gemini_api_key');
+        const prompt = (cfg.systemPrompt && cfg.systemPrompt.trim()) || this.safeReadLocalStorage('translation_system_prompt');
+        return !!(key && prompt);
+    },
+
+    safeReadLocalStorage: function(key) {
+        try {
+            const value = localStorage.getItem(key);
+            return value && value.trim() ? value.trim() : '';
+        } catch (_) {
+            return '';
+        }
     },
 
     // 填充模板选择器
@@ -175,6 +218,7 @@ const UIController = {
             if (prompt) {
                 AppConfig.translation.systemPrompt = prompt;
             }
+            this.updateChannelReminder(this.currentChannel);
         } catch (e) {
             console.warn('Failed to load translator settings:', e);
         }
@@ -195,6 +239,7 @@ const UIController = {
             AppConfig.translation.gemini.apiKey = key;
             AppConfig.translation.systemPrompt = prompt;
             AppConfig.translation.mode = key ? 'direct' : AppConfig.translation.mode;
+            this.updateChannelReminder(this.currentChannel);
             // 关闭面板
             const panel = document.getElementById('translatorPanel');
             if (panel) panel.style.display = 'none';
@@ -308,6 +353,8 @@ const UIController = {
         const markdown = markdownInput.value;
         const channel = channelSelect ? channelSelect.value : 'wechat';
         const themeColor = this.getCurrentThemeColor();
+        this.currentChannel = channel;
+        this.updateChannelReminder(channel);
 
         try {
             if (channel === 'wechat') {

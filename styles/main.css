@@ -87,6 +87,24 @@ body {
     align-items: center;
 }
 
+.channel-reminder {
+    display: none;
+    margin: 0 1.5rem;
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.channel-reminder.show {
+    display: block;
+}
+
 .panel-title {
     font-weight: 600;
     color: #334155;
