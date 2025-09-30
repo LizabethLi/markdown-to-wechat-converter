@@ -1,10 +1,18 @@
 // Markdown转换器核心模块
 const MarkdownConverter = {
-    // 创建微信渲染器
-    createWechatRenderer: function(mode, themeColor) {
-        const wechatStyles = (typeof TemplateManager !== 'undefined' 
+    mermaidInitialized: false,
+    currentMermaidThemeColor: null,
+    mermaidSupportWarningLogged: false,
+
+    getWechatStyles: function(mode, themeColor) {
+        return (typeof TemplateManager !== 'undefined'
             ? TemplateManager.getStyles(mode, themeColor)
             : WechatStyles.getStyles(mode, themeColor));
+    },
+
+    // 创建微信渲染器
+    createWechatRenderer: function(mode, themeColor) {
+        const wechatStyles = this.getWechatStyles(mode, themeColor);
         const renderer = new marked.Renderer();
 
         // 标题渲染
@@ -120,6 +128,146 @@ const MarkdownConverter = {
         };
 
         return renderer;
+    },
+
+    hasMermaidSupport: function() {
+        return typeof mermaid !== 'undefined' && mermaid && typeof mermaid.render === 'function';
+    },
+
+    ensureMermaidReady: function(themeColor) {
+        if (!this.hasMermaidSupport()) {
+            if (!this.mermaidSupportWarningLogged) {
+                console.warn('Mermaid library is not available; skipping diagram rendering.');
+                this.mermaidSupportWarningLogged = true;
+            }
+            return false;
+        }
+
+        const fallbackColor = (AppConfig && AppConfig.themes && AppConfig.themes[AppConfig.defaults.theme])
+            ? AppConfig.themes[AppConfig.defaults.theme].primary
+            : (WechatStyles && WechatStyles.defaultThemeColor) ? WechatStyles.defaultThemeColor : '#7E3AF2';
+        const activeColor = (themeColor && typeof themeColor === 'string' && themeColor.trim()) ? themeColor.trim() : fallbackColor;
+
+        if (!this.mermaidInitialized || this.currentMermaidThemeColor !== activeColor) {
+            try {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    securityLevel: 'strict',
+                    theme: 'neutral',
+                    themeVariables: {
+                        primaryColor: activeColor,
+                        primaryTextColor: '#0f172a',
+                        primaryBorderColor: activeColor,
+                        lineColor: activeColor,
+                        edgeLabelBackground: '#ffffff'
+                    }
+                });
+                this.mermaidInitialized = true;
+                this.currentMermaidThemeColor = activeColor;
+                this.mermaidSupportWarningLogged = false;
+            } catch (error) {
+                console.warn('Failed to initialize Mermaid renderer:', error);
+                return false;
+            }
+        }
+        return true;
+    },
+
+    prepareMermaidSvgMarkup: function(svg) {
+        if (!svg || typeof svg !== 'string') return '';
+        let processed = svg.trim();
+
+        // Remove potential script tags for safety
+        processed = processed.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
+
+        const svgTagMatch = processed.match(/^<svg[^>]*>/i);
+        if (svgTagMatch) {
+            const originalSvgTag = svgTagMatch[0];
+            let updatedTag = originalSvgTag.replace(/\s(width|height)="[^"]*"/gi, '');
+            if (/style="[^"]*"/i.test(updatedTag)) {
+                updatedTag = updatedTag.replace(/style="([^"]*)"/i, (match, styles) => {
+                    const normalized = styles.replace(/\s+/g, ' ').trim();
+                    const additions = ['max-width: 100%', 'height: auto', 'display: block', 'margin: 0 auto'];
+                    const merged = additions.reduce((acc, rule) => acc.includes(rule) ? acc : `${acc}; ${rule}`, normalized);
+                    return `style="${merged}"`;
+                });
+            } else {
+                updatedTag = updatedTag.replace('<svg', '<svg style="max-width: 100%; height: auto; display: block; margin: 0 auto;"');
+            }
+            processed = processed.replace(originalSvgTag, updatedTag);
+        }
+
+        return processed;
+    },
+
+    buildMermaidContainer: function(svgMarkup, wechatStyles, originalCode) {
+        if (wechatStyles && typeof wechatStyles.diagram === 'function') {
+            try {
+                return wechatStyles.diagram(null, svgMarkup, { code: originalCode });
+            } catch (error) {
+                console.warn('Diagram renderer in template failed, falling back to default container:', error);
+            }
+        }
+        return this.defaultMermaidContainer(svgMarkup);
+    },
+
+    defaultMermaidContainer: function(svgMarkup) {
+        return `<section style="margin: 24px 0; padding: 18px 16px; background: #ffffff; border-radius: 14px; border: 1px solid rgba(148, 163, 184, 0.4); box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08); overflow-x: auto;">
+            <div style="min-width: 260px; max-width: 100%; margin: 0 auto; display: flex; justify-content: center;">
+                ${svgMarkup}
+            </div>
+        </section>`;
+    },
+
+    replaceMermaidBlocks: async function(markdown, mode, themeColor) {
+        if (typeof markdown !== 'string' || !markdown.includes('```mermaid')) {
+            return markdown;
+        }
+
+        if (!this.ensureMermaidReady(themeColor)) {
+            // Mermaid 不可用时直接返回原始 Markdown
+            return markdown;
+        }
+
+        const regex = /```mermaid\s*([\s\S]*?)```/gi;
+        let match;
+        let cursor = 0;
+        let output = '';
+        let index = 0;
+        const wechatStyles = this.getWechatStyles(mode, themeColor);
+
+        while ((match = regex.exec(markdown)) !== null) {
+            const preceding = markdown.slice(cursor, match.index);
+            output += preceding;
+
+            const rawCode = match[1] !== undefined ? match[1].trim() : '';
+            if (!rawCode) {
+                // 如果代码块为空，则跳过渲染，保持原样
+                output += match[0];
+                cursor = match.index + match[0].length;
+                continue;
+            }
+
+            const renderId = `wechat-mermaid-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
+            try {
+                const renderResult = await mermaid.render(renderId, rawCode);
+                const svgMarkup = this.prepareMermaidSvgMarkup(renderResult.svg);
+                if (svgMarkup) {
+                    output += this.buildMermaidContainer(svgMarkup, wechatStyles, rawCode);
+                } else {
+                    output += match[0];
+                }
+            } catch (error) {
+                console.warn('Mermaid diagram rendering failed, falling back to code block:', error);
+                output += match[0];
+            }
+
+            cursor = match.index + match[0].length;
+            index += 1;
+        }
+
+        output += markdown.slice(cursor);
+        return output;
     },
 
     // 渲染带语法高亮的代码块
@@ -250,22 +398,25 @@ const MarkdownConverter = {
     },
 
     // 主转换函数
-    convertMarkdownToWechat: function(markdown, mode = 'compact', themeColor = null) {
+    convertMarkdownToWechat: async function(markdown, mode = 'compact', themeColor = null) {
         // 1. 保护数学公式
         const { markdown: protectedMarkdown, mathPlaceholders } = MathRenderer.protectMathExpressions(markdown);
 
-        // 2. 使用 marked.js 进行转换
+        // 2. 渲染 Mermaid 流程图（如果可用）
+        const mermaidEnhancedMarkdown = await this.replaceMermaidBlocks(protectedMarkdown, mode, themeColor);
+
+        // 3. 使用 marked.js 进行转换
         const renderer = this.createWechatRenderer(mode, themeColor);
         // 使用局部renderer，避免污染全局marked配置，影响GitHub预览
-        let html = marked(protectedMarkdown, { renderer });
+        let html = marked(mermaidEnhancedMarkdown, { renderer });
 
-        // 3. 恢复数学公式
+        // 4. 恢复数学公式
         html = MathRenderer.restoreMathExpressions(html, mathPlaceholders);
         
-        // 4. 根据模式进行最终清理
+        // 5. 根据模式进行最终清理
         html = this.postProcessHtml(html, mode);
 
-        // 5. 包装在微信样式容器中
+        // 6. 包装在微信样式容器中
         return this.wrapInWechatContainer(html);
     },
 

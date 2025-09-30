@@ -55,6 +55,13 @@ const WechatStyles = {
         leadParagraph: (match, text) =>
             `<section style="margin: 20px 0; padding: 20px; background: {{THEME_TINT_BG}};">
                 <p style="line-height: 1.7; margin: 0; font-size: 14px; color: #333; text-align: left;">${text}</p>
+            </section>`,
+
+        diagram: (match, svg) =>
+            `<section style="margin: 24px 0; padding: 16px 14px; background: #fff; border-radius: 14px; border: 1px solid {{THEME_TINT_BG}}; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08); overflow-x: auto;">
+                <div style="min-width: 260px; max-width: 100%; margin: 0 auto; display: flex; justify-content: center;">
+                    ${svg}
+                </div>
             </section>`
     },
 
@@ -134,6 +141,13 @@ const WechatStyles = {
         leadParagraph: (match, text) =>
             `<section style="margin: 20px 0; padding: 20px; background: {{THEME_TINT_BG}};">
                 <p style="line-height: 1.8; margin: 0; font-size: 14px; color: #333; text-align: left;">${text}</p>
+            </section>`,
+
+        diagram: (match, svg) =>
+            `<section style="margin: 28px 0; padding: 20px 18px; background: #fff; border-radius: 16px; border: 1px solid {{THEME_TINT_BG}}; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08); overflow-x: auto;">
+                <div style="min-width: 280px; max-width: 100%; margin: 0 auto; display: flex; justify-content: center;">
+                    ${svg}
+                </div>
             </section>`
     },
 

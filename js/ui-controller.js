@@ -3,6 +3,7 @@ const UIController = {
     currentTheme: null,
     customColor: null, // 新增：自定义颜色
     currentChannel: 'wechat',
+    renderTaskToken: 0,
 
     // 初始化应用
     init: function() {
@@ -355,10 +356,17 @@ const UIController = {
         const themeColor = this.getCurrentThemeColor();
         this.currentChannel = channel;
         this.updateChannelReminder(channel);
+        const taskToken = ++this.renderTaskToken;
 
         try {
             if (channel === 'wechat') {
-                const html = MarkdownConverter.convertMarkdownToWechat(markdown, AppConfig.defaults.mode, themeColor);
+                if (markdown.includes('```mermaid') && typeof MarkdownConverter.hasMermaidSupport === 'function' && MarkdownConverter.hasMermaidSupport()) {
+                    this.showLoading();
+                }
+                const html = await MarkdownConverter.convertMarkdownToWechat(markdown, AppConfig.defaults.mode, themeColor);
+                if (taskToken !== this.renderTaskToken) {
+                    return;
+                }
                 htmlOutput.value = html;
                 preview.innerHTML = html;
                 // 预览样式切换
@@ -372,6 +380,9 @@ const UIController = {
             } else if (channel === 'github') {
                 this.showLoading();
                 const combinedMd = await ChannelConverter.convertToGithub(markdown);
+                if (taskToken !== this.renderTaskToken) {
+                    return;
+                }
                 htmlOutput.value = combinedMd; // For GitHub channel, textarea holds Markdown
                 // Render preview as HTML using marked
                 preview.innerHTML = marked(combinedMd);
