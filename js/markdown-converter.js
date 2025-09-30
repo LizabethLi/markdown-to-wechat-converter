@@ -180,6 +180,146 @@ const MarkdownConverter = {
         // Remove potential script tags for safety
         processed = processed.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
 
+        const canUseDomParser = typeof window !== 'undefined'
+            && typeof window.DOMParser !== 'undefined'
+            && typeof document !== 'undefined'
+            && !!document.body;
+
+        if (canUseDomParser) {
+            try {
+                const parser = new DOMParser();
+                const parsed = parser.parseFromString(processed, 'image/svg+xml');
+                const svgElement = parsed && parsed.documentElement;
+
+                if (svgElement && svgElement.tagName && svgElement.tagName.toLowerCase() === 'svg') {
+                    const toStyleMap = (styleAttr) => {
+                        const map = new Map();
+                        if (!styleAttr || typeof styleAttr !== 'string') return map;
+                        styleAttr.split(';').forEach(entry => {
+                            const [prop, ...rest] = entry.split(':');
+                            if (!prop || rest.length === 0) return;
+                            const value = rest.join(':').trim();
+                            if (!value) return;
+                            map.set(prop.trim(), value);
+                        });
+                        return map;
+                    };
+
+                    const toStyleString = (map) => Array.from(map.entries())
+                        .map(([prop, value]) => `${prop}: ${value}`)
+                        .join('; ');
+
+                    const ensureRootSvgSizing = () => {
+                        const sizingRules = {
+                            'max-width': '100%',
+                            height: 'auto',
+                            display: 'block',
+                            margin: '0 auto'
+                        };
+                        const styleMap = toStyleMap(svgElement.getAttribute('style'));
+                        Object.entries(sizingRules).forEach(([prop, value]) => {
+                            if (!styleMap.has(prop)) {
+                                styleMap.set(prop, value);
+                            }
+                        });
+                        svgElement.setAttribute('style', toStyleString(styleMap));
+                        svgElement.removeAttribute('width');
+                        svgElement.removeAttribute('height');
+                    };
+
+                    const inlineComputedStyles = () => {
+                        // WeChat 会剥离 <style> 内容，这里提前把关键样式写成内联
+                        const scratch = document.createElement('div');
+                        scratch.setAttribute('aria-hidden', 'true');
+                        scratch.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:0;height:0;overflow:hidden;pointer-events:none;opacity:0;';
+                        const workingSvg = svgElement.cloneNode(true);
+                        scratch.appendChild(workingSvg);
+                        document.body.appendChild(scratch);
+
+                        try {
+                            const properties = [
+                                'fill',
+                                'stroke',
+                                'stroke-width',
+                                'stroke-dasharray',
+                                'stroke-linecap',
+                                'stroke-linejoin',
+                                'stroke-miterlimit',
+                                'stroke-opacity',
+                                'font-size',
+                                'font-family',
+                                'font-weight',
+                                'font-style',
+                                'text-anchor',
+                                'white-space',
+                                'line-height',
+                                'word-break',
+                                'word-wrap',
+                                'overflow-wrap',
+                                'opacity',
+                                'color',
+                                'background',
+                                'background-color',
+                                'stop-color',
+                                'stop-opacity',
+                                'paint-order',
+                                'letter-spacing',
+                                'dominant-baseline',
+                                'alignment-baseline'
+                            ];
+
+                            const normalizeColorValue = (prop, value) => {
+                                if (!value) return '';
+                                const trimmed = value.trim();
+                                if (!trimmed) return '';
+                                if (trimmed === 'rgba(0, 0, 0, 0)' || trimmed === 'transparent') {
+                                    return (prop === 'fill' || prop === 'stroke' || prop === 'background-color') ? 'none' : ''; // 透明填充改为 none，避免被微信默认成黑色
+                                }
+                                return trimmed;
+                            };
+
+                            const applyInlineStyles = (el) => {
+                                const computed = window.getComputedStyle(el);
+                                if (!computed) return;
+                                const styleMap = toStyleMap(el.getAttribute('style'));
+                                let changed = false;
+
+                                properties.forEach(prop => {
+                                    if (styleMap.has(prop) && styleMap.get(prop)) return;
+                                    const rawValue = computed.getPropertyValue(prop);
+                                    const normalized = normalizeColorValue(prop, rawValue);
+                                    if (!normalized) return;
+                                    styleMap.set(prop, normalized);
+                                    changed = true;
+                                });
+
+                                if (changed) {
+                                    el.setAttribute('style', toStyleString(styleMap));
+                                }
+                            };
+
+                            applyInlineStyles(workingSvg);
+                            workingSvg.querySelectorAll('*').forEach(applyInlineStyles);
+
+                            // 移除 <style> 节点，避免被微信替换成无效标签
+                            workingSvg.querySelectorAll('style').forEach(styleNode => styleNode.remove());
+
+                            return new XMLSerializer().serializeToString(workingSvg);
+                        } finally {
+                            if (scratch.parentNode) {
+                                scratch.parentNode.removeChild(scratch);
+                            }
+                        }
+                    };
+
+                    ensureRootSvgSizing();
+                    processed = inlineComputedStyles();
+                }
+            } catch (error) {
+                console.warn('Failed to inline Mermaid styles for WeChat compatibility:', error);
+            }
+        }
+
         const svgTagMatch = processed.match(/^<svg[^>]*>/i);
         if (svgTagMatch) {
             const originalSvgTag = svgTagMatch[0];
@@ -379,22 +519,150 @@ const MarkdownConverter = {
         `.replace(/\s+/g, ' ').trim();
 
         // 生成内联CSS样式
-        const inlineStyles = this.generateInlineSyntaxStyles(themeStyles);
+        const inlineStyledCode = this.applyInlineSyntaxStyles(code, themeStyles);
 
-        return `${languageLabel}<pre style="${codeBlockStyle}"><code class="hljs">${inlineStyles}${code}</code></pre>`;
+        return `${languageLabel}<pre style="${codeBlockStyle}"><code class="hljs">${inlineStyledCode}</code></pre>`;
     },
 
-    // 生成内联语法高亮样式
-    generateInlineSyntaxStyles: function(themeStyles) {
-        return `<style>
-            .hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-title, .hljs-section, .hljs-doctag, .hljs-type, .hljs-name { color: ${themeStyles.keyword} !important; }
-            .hljs-string, .hljs-meta .hljs-meta-string { color: ${themeStyles.string} !important; }
-            .hljs-comment, .hljs-quote { color: ${themeStyles.comment} !important; font-style: italic; }
-            .hljs-number, .hljs-literal { color: ${themeStyles.number} !important; }
-            .hljs-function, .hljs-title.function { color: ${themeStyles.function} !important; }
-            .hljs-variable, .hljs-property, .hljs-attr { color: ${themeStyles.variable} !important; }
-            .hljs-built_in, .hljs-class .hljs-title { color: ${themeStyles.keyword} !important; font-weight: 600; }
-        </style>`;
+    // 将语法高亮样式直接写入元素的 style 属性，避免被微信清理
+    applyInlineSyntaxStyles: function(codeHtml, themeStyles) {
+        const canInline = typeof window !== 'undefined'
+            && typeof document !== 'undefined'
+            && !!document.body;
+
+        if (!canInline) {
+            return codeHtml;
+        }
+
+        const parseStyle = (styleAttr) => {
+            const map = new Map();
+            if (!styleAttr || typeof styleAttr !== 'string') return map;
+            styleAttr.split(';').forEach(entry => {
+                const [prop, ...rest] = entry.split(':');
+                if (!prop || rest.length === 0) return;
+                const value = rest.join(':').trim();
+                if (!value) return;
+                map.set(prop.trim(), value);
+            });
+            return map;
+        };
+
+        const styleMapToString = (map) => Array.from(map.entries())
+            .map(([prop, value]) => `${prop}: ${value}`)
+            .join('; ');
+
+        const highlightRules = this.getHighlightInlineRules(themeStyles);
+
+        try {
+            const container = document.createElement('div');
+            container.innerHTML = codeHtml;
+
+            const applyStyles = (element) => {
+                if (!element || element.nodeType !== 1) return;
+                const classList = Array.from(element.classList || []);
+                if (!classList.length) return;
+
+                const styleMap = parseStyle(element.getAttribute('style'));
+                let changed = false;
+
+                classList.forEach(className => {
+                    const rules = highlightRules[className];
+                    if (!rules) return;
+                    Object.entries(rules).forEach(([prop, value]) => {
+                        if (!styleMap.has(prop)) {
+                            styleMap.set(prop, value);
+                            changed = true;
+                        }
+                    });
+                });
+
+                if (!styleMap.has('color') && classList.includes('hljs-title') && element.parentElement && element.parentElement.classList.contains('hljs-class')) {
+                    styleMap.set('color', highlightRules['hljs-keyword'].color);
+                    if (!styleMap.has('font-weight')) {
+                        styleMap.set('font-weight', '600');
+                    }
+                    changed = true;
+                }
+
+                if (changed) {
+                    element.setAttribute('style', styleMapToString(styleMap));
+                }
+            };
+
+            const allElements = container.querySelectorAll('*');
+            allElements.forEach(applyStyles);
+            applyStyles(container); // 处理根节点本身是 span 的情况
+
+            this.preserveCodeLineBreaks(container);
+
+            return container.innerHTML;
+        } catch (error) {
+            console.warn('Failed to inline syntax highlight styles for WeChat compatibility:', error);
+            return codeHtml;
+        }
+    },
+
+    preserveCodeLineBreaks: function(container) {
+        if (!container || typeof container.childNodes === 'undefined') return;
+
+        const TEXT_NODE = typeof Node !== 'undefined' ? Node.TEXT_NODE : 3;
+        const ELEMENT_NODE = typeof Node !== 'undefined' ? Node.ELEMENT_NODE : 1;
+
+        const textNodes = [];
+        const collectTextNodes = (node) => {
+            node.childNodes.forEach(child => {
+                if (child.nodeType === TEXT_NODE) {
+                    if (child.nodeValue && child.nodeValue.includes('\n')) {
+                        textNodes.push(child);
+                    }
+                } else if (child.nodeType === ELEMENT_NODE) {
+                    collectTextNodes(child);
+                }
+            });
+        };
+
+        collectTextNodes(container);
+
+        textNodes.forEach(node => {
+            const segments = node.nodeValue.split('\n');
+            const fragment = document.createDocumentFragment();
+            segments.forEach((segment, index) => {
+                if (index > 0) {
+                    fragment.appendChild(document.createElement('br'));
+                }
+                if (segment) {
+                    fragment.appendChild(document.createTextNode(segment));
+                }
+            });
+            node.parentNode.replaceChild(fragment, node);
+        });
+    },
+
+    getHighlightInlineRules: function(themeStyles) {
+        return {
+            hljs: { color: themeStyles.text },
+            'hljs-keyword': { color: themeStyles.keyword },
+            'hljs-selector-tag': { color: themeStyles.keyword },
+            'hljs-title': { color: themeStyles.keyword },
+            'hljs-section': { color: themeStyles.keyword },
+            'hljs-doctag': { color: themeStyles.keyword },
+            'hljs-type': { color: themeStyles.keyword },
+            'hljs-name': { color: themeStyles.keyword },
+            'hljs-built_in': { color: themeStyles.keyword, 'font-weight': '600' },
+            'hljs-string': { color: themeStyles.string },
+            'hljs-meta': { color: themeStyles.keyword },
+            'hljs-meta-string': { color: themeStyles.string },
+            'hljs-comment': { color: themeStyles.comment, 'font-style': 'italic' },
+            'hljs-quote': { color: themeStyles.comment, 'font-style': 'italic' },
+            'hljs-number': { color: themeStyles.number },
+            'hljs-literal': { color: themeStyles.number },
+            'hljs-function': { color: themeStyles.function },
+            'hljs-title-function_': { color: themeStyles.function },
+            function_: { color: themeStyles.function },
+            'hljs-variable': { color: themeStyles.variable },
+            'hljs-property': { color: themeStyles.variable },
+            'hljs-attr': { color: themeStyles.variable }
+        };
     },
 
     // 主转换函数
