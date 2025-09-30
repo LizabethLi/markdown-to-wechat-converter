@@ -70,11 +70,24 @@ const MarkdownConverter = {
 
         // 引用
         renderer.blockquote = (quote) => {
-            // 先生成一个带样式的空引用块
-            const blockquoteFrame = wechatStyles.blockquote(null, 'PLACEHOLDER_TEXT');
-            // 将marked解析的内容（可能包含多个p标签）替换掉占位符
-            // 我们需要移除占位符所在的p标签，并将完整内容注入
-            return blockquoteFrame.replace('<p style="line-height: 1.6; margin: 0; font-size: 14px; color: #555; font-style: italic;">PLACEHOLDER_TEXT</p>', quote);
+            const frame = wechatStyles.blockquote ? wechatStyles.blockquote(null, 'PLACEHOLDER_TEXT') : '';
+            if (typeof frame !== 'string' || !frame) {
+                return `<blockquote>${quote}</blockquote>`;
+            }
+            const cleanedQuote = quote.trim();
+            const placeholderPattern = /<p[^>]*>\s*PLACEHOLDER_TEXT\s*<\/p>/i;
+            if (placeholderPattern.test(frame)) {
+                return frame.replace(placeholderPattern, cleanedQuote);
+            }
+            if (frame.includes('PLACEHOLDER_TEXT')) {
+                return frame.replace(/PLACEHOLDER_TEXT/g, cleanedQuote);
+            }
+            const closingTagIndex = frame.lastIndexOf('</blockquote>');
+            if (closingTagIndex !== -1) {
+                return frame.slice(0, closingTagIndex) + cleanedQuote + frame.slice(closingTagIndex);
+            }
+            console.warn('Blockquote template missing placeholder, appending raw content.');
+            return frame + cleanedQuote;
         };
 
         // 代码块
