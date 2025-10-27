@@ -123,7 +123,7 @@ const UIController = {
         if (!reminderEl) return;
         const shouldShowReminder = channel === 'github' && !this.hasTranslatorConfiguration();
         if (shouldShowReminder) {
-            reminderEl.textContent = 'Github channel可以进行翻译，请在设置中填写 Gemini API Key 和 System Prompt，否则 Github 输出会出现中文重复。';
+            reminderEl.textContent = 'Github channel可以进行翻译，请在设置中填写翻译 API Key 和 System Prompt，否则 Github 输出会出现中文重复。';
             reminderEl.classList.add('show');
         } else {
             reminderEl.classList.remove('show');
@@ -132,8 +132,14 @@ const UIController = {
 
     hasTranslatorConfiguration: function() {
         const cfg = AppConfig.translation || {};
-        const key = (cfg.gemini && cfg.gemini.apiKey && cfg.gemini.apiKey.trim()) || this.safeReadLocalStorage('gemini_api_key');
-        const prompt = (cfg.systemPrompt && cfg.systemPrompt.trim()) || this.safeReadLocalStorage('translation_system_prompt');
+        const provider = (cfg.provider || this.safeReadLocalStorage('translation_provider') || 'openrouter').toLowerCase();
+        let key = '';
+        if (provider === 'openrouter') {
+            key = (cfg.openrouter && cfg.openrouter.apiKey && cfg.openrouter.apiKey.trim()) || this.safeReadLocalStorage('openrouter_api_key');
+        } else {
+            key = (cfg.gemini && cfg.gemini.apiKey && cfg.gemini.apiKey.trim()) || this.safeReadLocalStorage('gemini_api_key');
+        }
+        const prompt = this.safeReadLocalStorage('translation_system_prompt') || (cfg.systemPrompt && cfg.systemPrompt.trim()) || '';
         return !!(key && prompt);
     },
 
@@ -143,6 +149,38 @@ const UIController = {
             return value && value.trim() ? value.trim() : '';
         } catch (_) {
             return '';
+        }
+    },
+
+    getPreferredTranslatorProvider: function() {
+        const cfgProvider = (AppConfig.translation && AppConfig.translation.provider) || '';
+        return (this.safeReadLocalStorage('translation_provider') || cfgProvider || 'openrouter').toLowerCase();
+    },
+
+    updateTranslatorProviderUI: function(provider) {
+        const label = document.getElementById('translatorApiKeyLabel');
+        const keyInput = document.getElementById('translatorApiKey');
+        if (label) {
+            label.textContent = provider === 'gemini' ? 'Gemini API Key' : 'OpenRouter API Key';
+        }
+        if (keyInput) {
+            keyInput.placeholder = provider === 'gemini' ? '粘贴你的 Gemini API Key' : '粘贴你的 OpenRouter API Key';
+        }
+    },
+
+    onTranslatorProviderChange: function() {
+        try {
+            const select = document.getElementById('translatorProvider');
+            const provider = select ? select.value : 'openrouter';
+            if (select) {
+                localStorage.setItem('translation_provider', provider);
+            }
+            if (!AppConfig.translation) AppConfig.translation = {};
+            AppConfig.translation.provider = provider;
+            this.updateTranslatorProviderUI(provider);
+            this.loadTranslatorSettingsFromStorage();
+        } catch (e) {
+            console.warn('Failed to switch translator provider:', e);
         }
     },
 
@@ -205,17 +243,39 @@ const UIController = {
     // 翻译设置：加载
     loadTranslatorSettingsFromStorage: function() {
         try {
-            const key = localStorage.getItem('gemini_api_key') || '';
-            const prompt = localStorage.getItem('translation_system_prompt') || '';
+            const provider = this.getPreferredTranslatorProvider();
+            const providerSelect = document.getElementById('translatorProvider');
+            if (providerSelect) providerSelect.value = provider;
+            this.updateTranslatorProviderUI(provider);
+
             const keyInput = document.getElementById('translatorApiKey');
             const promptInput = document.getElementById('translatorSystemPrompt');
+
+            const cfg = AppConfig.translation || {};
+            AppConfig.translation.provider = provider;
+
+            const configKey = provider === 'openrouter'
+                ? (cfg.openrouter && cfg.openrouter.apiKey && cfg.openrouter.apiKey.trim())
+                : (cfg.gemini && cfg.gemini.apiKey && cfg.gemini.apiKey.trim());
+            const storedKey = provider === 'openrouter'
+                ? this.safeReadLocalStorage('openrouter_api_key')
+                : this.safeReadLocalStorage('gemini_api_key');
+            const key = storedKey || configKey || '';
             if (keyInput) keyInput.value = key;
-            if (promptInput) promptInput.value = prompt;
             if (key) {
                 AppConfig.translation.mode = 'direct';
-                if (!AppConfig.translation.gemini) AppConfig.translation.gemini = {};
-                AppConfig.translation.gemini.apiKey = key;
+                if (provider === 'openrouter') {
+                    if (!AppConfig.translation.openrouter) AppConfig.translation.openrouter = {};
+                    AppConfig.translation.openrouter.apiKey = key;
+                } else {
+                    if (!AppConfig.translation.gemini) AppConfig.translation.gemini = {};
+                    AppConfig.translation.gemini.apiKey = key;
+                }
             }
+            const storedPrompt = this.safeReadLocalStorage('translation_system_prompt');
+            const configPrompt = cfg.systemPrompt && cfg.systemPrompt.trim();
+            const prompt = storedPrompt || configPrompt || '';
+            if (promptInput) promptInput.value = prompt;
             if (prompt) {
                 AppConfig.translation.systemPrompt = prompt;
             }
@@ -228,18 +288,36 @@ const UIController = {
     // 翻译设置：保存
     saveTranslatorSettings: function() {
         try {
+            const providerSelect = document.getElementById('translatorProvider');
             const keyInput = document.getElementById('translatorApiKey');
             const promptInput = document.getElementById('translatorSystemPrompt');
+            const provider = providerSelect ? providerSelect.value : this.getPreferredTranslatorProvider();
             const key = keyInput ? keyInput.value.trim() : '';
             const prompt = promptInput ? promptInput.value.trim() : '';
             // 保存到本地
-            localStorage.setItem('gemini_api_key', key);
+            localStorage.setItem('translation_provider', provider);
+            if (provider === 'openrouter') {
+                localStorage.setItem('openrouter_api_key', key);
+            } else {
+                localStorage.setItem('gemini_api_key', key);
+            }
             localStorage.setItem('translation_system_prompt', prompt);
             // 应用配置
-            if (!AppConfig.translation.gemini) AppConfig.translation.gemini = {};
-            AppConfig.translation.gemini.apiKey = key;
+            if (!AppConfig.translation) AppConfig.translation = {};
+            AppConfig.translation.provider = provider;
+            if (provider === 'openrouter') {
+                if (!AppConfig.translation.openrouter) AppConfig.translation.openrouter = {};
+                AppConfig.translation.openrouter.apiKey = key;
+            } else {
+                if (!AppConfig.translation.gemini) AppConfig.translation.gemini = {};
+                AppConfig.translation.gemini.apiKey = key;
+            }
             AppConfig.translation.systemPrompt = prompt;
-            AppConfig.translation.mode = key ? 'direct' : AppConfig.translation.mode;
+            if (key) {
+                AppConfig.translation.mode = 'direct';
+            } else if (AppConfig.translation.mode === 'direct') {
+                AppConfig.translation.mode = 'disabled';
+            }
             this.updateChannelReminder(this.currentChannel);
             // 关闭面板
             const panel = document.getElementById('translatorPanel');

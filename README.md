@@ -139,7 +139,8 @@ $$ \\sum_{i=1}^{n} x_i = n $$
 此外，也支持下列方式：
 
 - 代理模式（推荐）：在 `js/config.js` 中设置 `AppConfig.translation.mode = 'proxy'`，并配置 `proxyEndpoint` 指向你自有的服务端代理（例如 Cloudflare Worker 或服务器接口）。代理接收 JSON：`{ text, sourceLang, targetLang, format, instructions }`，返回：`{ translation }`。
-- 直连模式（本地/可信环境）：在 `js/config.js` 中设置 `AppConfig.translation.mode = 'direct'`，并提供 `gemini.apiKey`。或者在浏览器控制台执行：`localStorage.setItem('gemini_api_key', 'YOUR_KEY')`。
+- OpenRouter 直连（默认）：在 `js/config.js` 中设置 `AppConfig.translation.mode = 'direct'`，同时确保 `AppConfig.translation.provider = 'openrouter'`。填写 `openrouter.apiKey` 或在浏览器控制台执行：`localStorage.setItem('openrouter_api_key', 'YOUR_KEY')`。可调整 `openrouter.model`（如 `openai/gpt-4o-mini`、`qwen/qwen2.5-72b-instruct`）与 `fallbackModels`，必要时修改 `apiBase`/`extraHeaders` 以满足 OpenRouter 要求（推荐设置 `HTTP-Referer`）。
+- Gemini 直连（可选）：将 `AppConfig.translation.provider` 改为 `'gemini'` 并配置 `gemini.apiKey` 或 `localStorage.setItem('gemini_api_key', 'YOUR_KEY')`。如需兼容旧版接口，可将 `gemini.apiVersion` 配置为字符串或数组（默认会自动尝试 `v1beta` → `v1beta1` → `v1`，遇到 404/CORS 会继续降级）。想体验 Gemini 2.5，可将 `gemini.model` 改为官方发布的 2.5 模型 ID，并在 `fallbackModels` 中追加旧模型以便自动降级。
 
 提示：直连模式会在浏览器内携带 API Key，谨慎在公开环境使用。
 
@@ -199,7 +200,7 @@ $$ \\sum_{i=1}^{n} x_i = n $$
 - 翻译：见第 7 节（代理/直连模式）。
 
 - 本地存储键（可清理恢复默认）：
-  - `wechat-converter-theme`、`wechat-converter-custom-color`、`wechat-template`、`gemini_api_key`、`translation_system_prompt`
+- `wechat-converter-theme`、`wechat-converter-custom-color`、`wechat-template`、`openrouter_api_key`、`gemini_api_key`、`translation_provider`、`translation_system_prompt`
 
 ## 10. 常见问题（FAQ）
 

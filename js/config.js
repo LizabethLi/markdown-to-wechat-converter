@@ -188,12 +188,24 @@ const AppConfig = {
 AppConfig.translation = {
     // 模式：'disabled' | 'proxy' | 'direct'
     mode: 'disabled',
+    // 直连服务提供方：'openrouter' | 'gemini'
+    provider: 'openrouter',
     // 代理模式：将请求发送到后端代理，避免泄露API密钥
     proxyEndpoint: '', // 例如：'/api/translate' 或你的Cloudflare Worker地址
     // 直连Gemini（仅限本地或可信环境，可能暴露API密钥）
     gemini: {
         apiKey: '', // 可留空并通过 localStorage.setItem('gemini_api_key', '...') 注入
-        model: 'gemini-1.5-flash-latest'
+        model: 'gemini-1.5-flash-latest',
+        apiVersion: 'v1beta', // 可为字符串或数组，例如 ['v1', 'v1beta']
+        fallbackModels: [] // 自定义备用模型顺序，如 ['gemini-2.0-flash-exp', 'gemini-2.0-flash']
+    },
+    // 直连 OpenRouter（推荐，用于统一多模型能力）
+    openrouter: {
+        apiKey: '', // 可留空并通过 localStorage.setItem('openrouter_api_key', '...') 注入
+        model: 'openrouter/auto',
+        apiBase: 'https://openrouter.ai/api/v1',
+        fallbackModels: [], // 自定义备用模型顺序，如 ['openai/gpt-4o-mini', 'qwen/qwen2.5-72b-instruct']
+        extraHeaders: {} // 可设置 HTTP-Referer、X-Title 等推荐 Header
     }
 };
 
