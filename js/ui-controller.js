@@ -155,27 +155,41 @@ const UIController = {
     onTranslatorModelChange: function() {
         const select = document.getElementById('translatorModelSelect');
         const customInput = document.getElementById('translatorModelCustom');
+        const hint = document.getElementById('translatorModelCustomHint');
         if (!select || !customInput) return;
         if (select.value === 'custom') {
             customInput.style.display = 'block';
             customInput.focus();
+            if (hint) {
+                hint.style.display = 'block';
+            }
         } else {
             customInput.style.display = 'none';
+            if (hint) {
+                hint.style.display = 'none';
+            }
         }
     },
 
     applyModelSelection: function(modelId) {
         const select = document.getElementById('translatorModelSelect');
         const customInput = document.getElementById('translatorModelCustom');
+        const hint = document.getElementById('translatorModelCustomHint');
         if (!select || !customInput) return;
         const presets = this.modelPresets;
         if (presets.includes(modelId)) {
             select.value = modelId;
             customInput.style.display = 'none';
+            if (hint) {
+                hint.style.display = 'none';
+            }
         } else {
             select.value = 'custom';
             customInput.style.display = 'block';
             customInput.value = modelId || '';
+            if (hint) {
+                hint.style.display = 'block';
+            }
         }
     },
 
