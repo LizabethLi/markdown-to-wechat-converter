@@ -1,4 +1,4 @@
-// Translation module leveraging Gemini or proxy, with Markdown/code/math protection
+// Translation module leveraging OpenRouter or proxy, with Markdown/code/math protection
 const Translator = {
     // Translate Markdown Chinese -> English
     translateMarkdownToEnglish: async function(markdown) {
@@ -39,62 +39,32 @@ const Translator = {
                 return await this.translateViaProxy(text, cfg.proxyEndpoint);
             }
 
-            const provider = (cfg.provider || 'gemini').toLowerCase();
-
             if (cfg.mode === 'direct') {
-                if (provider === 'openrouter') {
-                    const openCfg = cfg.openrouter || {};
-                    const directKey = openCfg.apiKey && openCfg.apiKey.trim();
-                    if (directKey) {
-                        return await this.translateViaOpenRouter(
-                            text,
-                            directKey,
-                            openCfg.model,
-                            openCfg.apiBase,
-                            openCfg.fallbackModels,
-                            openCfg.extraHeaders
-                        );
-                    }
-                } else {
-                    const geminiCfg = cfg.gemini || {};
-                    const directKey = geminiCfg.apiKey && geminiCfg.apiKey.trim();
-                    if (directKey) {
-                        return await this.translateViaGeminiDirect(
-                            text,
-                            directKey,
-                            geminiCfg.model || 'gemini-1.5-flash-latest',
-                            geminiCfg.apiVersion,
-                            geminiCfg.fallbackModels
-                        );
-                    }
-                }
-            }
-
-            if (provider === 'openrouter') {
-                const key = this.safeReadLocalStorage('openrouter_api_key');
-                if (key) {
-                    const openCfg = cfg.openrouter || {};
+                const openCfg = cfg.openrouter || {};
+                const directKey = openCfg.apiKey && openCfg.apiKey.trim();
+                if (directKey) {
                     return await this.translateViaOpenRouter(
                         text,
-                        key,
+                        directKey,
                         openCfg.model,
                         openCfg.apiBase,
                         openCfg.fallbackModels,
                         openCfg.extraHeaders
                     );
                 }
-            } else {
-                const key = this.safeReadLocalStorage('gemini_api_key');
-                if (key) {
-                    const geminiCfg = cfg.gemini || {};
-                    return await this.translateViaGeminiDirect(
-                        text,
-                        key,
-                        geminiCfg.model || 'gemini-1.5-flash-latest',
-                        geminiCfg.apiVersion,
-                        geminiCfg.fallbackModels
-                    );
-                }
+            }
+
+            const key = this.safeReadLocalStorage('openrouter_api_key');
+            if (key) {
+                const openCfg = cfg.openrouter || {};
+                return await this.translateViaOpenRouter(
+                    text,
+                    key,
+                    openCfg.model,
+                    openCfg.apiBase,
+                    openCfg.fallbackModels,
+                    openCfg.extraHeaders
+                );
             }
         } catch (e) {
             console.warn('Translation failed, returning original text:', e);
@@ -122,98 +92,6 @@ const Translator = {
         if (!res.ok) throw new Error('Proxy translation failed: ' + res.status);
         const data = await res.json();
         return (data.translation || data.text || '').trim() || text;
-    },
-
-    // Direct Gemini API (use only in trusted/local environments)
-    translateViaGeminiDirect: async function(text, apiKey, model, apiVersion, fallbackModels) {
-        const versionsToTry = [];
-        const addVersion = (v) => {
-            if (!v || typeof v !== 'string') return;
-            const trimmed = v.trim();
-            if (!trimmed) return;
-            if (!versionsToTry.includes(trimmed)) versionsToTry.push(trimmed);
-        };
-        if (Array.isArray(apiVersion)) {
-            apiVersion.forEach(addVersion);
-        } else if (typeof apiVersion === 'string') {
-            addVersion(apiVersion);
-        }
-        addVersion('v1beta');
-        addVersion('v1beta1');
-        addVersion('v1');
-
-        const modelsToTry = [];
-        const addModel = (m) => {
-            if (!m || typeof m !== 'string') return;
-            const trimmed = m.trim();
-            if (!trimmed) return;
-            if (!modelsToTry.includes(trimmed)) modelsToTry.push(trimmed);
-        };
-        const normalizedModel = (model && typeof model === 'string' && model.trim()) || 'gemini-1.5-flash-latest';
-        addModel(normalizedModel);
-        if (normalizedModel.endsWith('-latest')) {
-            addModel(normalizedModel.replace(/-latest$/, ''));
-        }
-        if (normalizedModel === 'gemini-1.5-flash') {
-            addModel('gemini-1.5-flash-001');
-        }
-        (Array.isArray(fallbackModels) ? fallbackModels : []).forEach(addModel);
-        addModel('gemini-pro');
-
-        const userText = (this.getSystemPrompt() ? `[System Prompt]\n${this.getSystemPrompt()}\n\n` : '') + this.composeInstructions() + '\n\n' + text;
-        const body = {
-            contents: [
-                {
-                    role: 'user',
-                    parts: [
-                        { text: userText }
-                    ]
-                }
-            ]
-        };
-
-        let lastError = null;
-
-        outer: for (const version of versionsToTry) {
-            for (const modelName of modelsToTry) {
-                try {
-                    const url = `https://generativelanguage.googleapis.com/${version}/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
-                    const res = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
-                    });
-
-                    if (!res.ok) {
-                        const errText = await res.text();
-                        const error = new Error(`Gemini API error: ${res.status} ${errText}`);
-                        error.status = res.status;
-                        error.version = version;
-                        error.model = modelName;
-                        throw error;
-                    }
-
-                    const data = await res.json();
-                    const textOut = (((data || {}).candidates || [])[0] || {}).content;
-                    const parts = (textOut && textOut.parts) || [];
-                    const result = parts.map(p => p.text || '').join('').trim();
-                    return result || text;
-                } catch (err) {
-                    lastError = err;
-                    if (err && err.status === 404) {
-                        console.warn(`Gemini model ${err.model} not available on ${err.version}, retrying fallback...`);
-                        continue;
-                    }
-                    if (err instanceof TypeError || (err && /Failed to fetch/i.test(String(err.message || '')))) {
-                        console.warn(`Gemini request failed on ${err.version || version} / ${err.model || modelName}: ${err.message || err}. Trying next API version...`);
-                        continue outer;
-                    }
-                    throw err;
-                }
-            }
-        }
-
-        throw lastError || new Error('Gemini API error: all model attempts failed');
     },
 
     translateViaOpenRouter: async function(text, apiKey, model, apiBase, fallbackModels, extraHeaders) {
