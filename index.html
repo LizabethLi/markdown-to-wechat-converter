@@ -121,6 +121,18 @@
                                 </div>
                                 <div class="theme-option" style="cursor: default;">
                                     <div class="theme-info" style="width: 100%;">
+                                        <div class="theme-name">选择模型</div>
+                                        <select id="translatorModelSelect" class="custom-color-input" style="width: 100%; margin-top: 6px;" onchange="UIController.onTranslatorModelChange()">
+                                            <option value="openai/gpt-4o-mini">GPT-4o（openai/gpt-4o-mini）</option>
+                                            <option value="google/gemini-1.5-flash-latest">Gemini 1.5 Flash（google/gemini-1.5-flash-latest）</option>
+                                            <option value="deepseek/deepseek-chat">DeepSeek Chat（deepseek/deepseek-chat）</option>
+                                            <option value="custom">自定义模型 ID...</option>
+                                        </select>
+                                        <input id="translatorModelCustom" type="text" placeholder="e.g, openai/gpt-4o-mini" class="custom-color-input" style="width: 100%; margin-top: 6px; display: none;" />
+                                    </div>
+                                </div>
+                                <div class="theme-option" style="cursor: default;">
+                                    <div class="theme-info" style="width: 100%;">
                                         <div class="theme-name">System Prompt（可选）</div>
                                         <textarea id="translatorSystemPrompt" placeholder="例如：保持 Markdown 结构；术语表：LLM→LLM，大模型→foundation model；风格：清晰、简洁" class="custom-color-input" style="width: 100%; height: 120px; margin-top: 6px;"></textarea>
                                     </div>

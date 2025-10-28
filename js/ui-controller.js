@@ -146,6 +146,39 @@ const UIController = {
         }
     },
 
+    modelPresets: [
+        'openai/gpt-4o-mini',
+        'google/gemini-1.5-flash-latest',
+        'deepseek/deepseek-chat'
+    ],
+
+    onTranslatorModelChange: function() {
+        const select = document.getElementById('translatorModelSelect');
+        const customInput = document.getElementById('translatorModelCustom');
+        if (!select || !customInput) return;
+        if (select.value === 'custom') {
+            customInput.style.display = 'block';
+            customInput.focus();
+        } else {
+            customInput.style.display = 'none';
+        }
+    },
+
+    applyModelSelection: function(modelId) {
+        const select = document.getElementById('translatorModelSelect');
+        const customInput = document.getElementById('translatorModelCustom');
+        if (!select || !customInput) return;
+        const presets = this.modelPresets;
+        if (presets.includes(modelId)) {
+            select.value = modelId;
+            customInput.style.display = 'none';
+        } else {
+            select.value = 'custom';
+            customInput.style.display = 'block';
+            customInput.value = modelId || '';
+        }
+    },
+
     // 填充模板选择器
     populateTemplateOptions: function() {
         const select = document.getElementById('templateSelect');
@@ -209,7 +242,8 @@ const UIController = {
             const promptInput = document.getElementById('translatorSystemPrompt');
 
             const cfg = AppConfig.translation || {};
-            const configKey = cfg.openrouter && cfg.openrouter.apiKey && cfg.openrouter.apiKey.trim();
+            const openCfg = cfg.openrouter || {};
+            const configKey = openCfg.apiKey && openCfg.apiKey.trim();
             const storedKey = this.safeReadLocalStorage('openrouter_api_key');
             const key = storedKey || configKey || '';
             if (keyInput) keyInput.value = key;
@@ -218,6 +252,15 @@ const UIController = {
                 if (!AppConfig.translation.openrouter) AppConfig.translation.openrouter = {};
                 AppConfig.translation.openrouter.apiKey = key;
             }
+
+            const configModel = (openCfg.model && openCfg.model.trim()) || '';
+            const storedModel = this.safeReadLocalStorage('openrouter_model');
+            const defaultModel = this.modelPresets[0] || 'openrouter/auto';
+            const model = storedModel || configModel || defaultModel;
+            if (!AppConfig.translation.openrouter) AppConfig.translation.openrouter = {};
+            AppConfig.translation.openrouter.model = model;
+            this.applyModelSelection(model);
+
             const storedPrompt = this.safeReadLocalStorage('translation_system_prompt');
             const configPrompt = cfg.systemPrompt && cfg.systemPrompt.trim();
             const prompt = storedPrompt || configPrompt || '';
@@ -236,15 +279,35 @@ const UIController = {
         try {
             const keyInput = document.getElementById('translatorApiKey');
             const promptInput = document.getElementById('translatorSystemPrompt');
+            const modelSelect = document.getElementById('translatorModelSelect');
+            const modelCustomInput = document.getElementById('translatorModelCustom');
+
             const key = keyInput ? keyInput.value.trim() : '';
             const prompt = promptInput ? promptInput.value.trim() : '';
+
+            let model = '';
+            if (modelSelect) {
+                const selected = modelSelect.value;
+                if (selected === 'custom') {
+                    model = modelCustomInput ? modelCustomInput.value.trim() : '';
+                } else {
+                    model = selected.trim();
+                }
+            }
+            if (!model) {
+                model = this.modelPresets[0] || 'openrouter/auto';
+            }
+
             // 保存到本地
             localStorage.setItem('openrouter_api_key', key);
             localStorage.setItem('translation_system_prompt', prompt);
+            localStorage.setItem('openrouter_model', model);
+
             // 应用配置
             if (!AppConfig.translation) AppConfig.translation = {};
             if (!AppConfig.translation.openrouter) AppConfig.translation.openrouter = {};
             AppConfig.translation.openrouter.apiKey = key;
+            AppConfig.translation.openrouter.model = model;
             AppConfig.translation.systemPrompt = prompt;
             if (key) {
                 AppConfig.translation.mode = 'direct';

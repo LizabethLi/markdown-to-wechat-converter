@@ -193,9 +193,9 @@ AppConfig.translation = {
     // 直连 OpenRouter（推荐，用于统一多模型能力）
     openrouter: {
         apiKey: '', // 可留空并通过 localStorage.setItem('openrouter_api_key', '...') 注入
-        model: 'openrouter/auto',
+        model: 'openai/gpt-4o-mini',
         apiBase: 'https://openrouter.ai/api/v1',
-        fallbackModels: [], // 自定义备用模型顺序，如 ['openai/gpt-4o-mini', 'qwen/qwen2.5-72b-instruct']
+        fallbackModels: ['google/gemini-1.5-flash-latest', 'deepseek/deepseek-chat'], // 自定义备用模型顺序
         extraHeaders: {} // 可设置 HTTP-Referer、X-Title 等推荐 Header
     }
 };

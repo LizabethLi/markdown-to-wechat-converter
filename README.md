@@ -134,12 +134,18 @@ $$ \\sum_{i=1}^{n} x_i = n $$
 
 ### 7.1 启用翻译（OpenRouter）
 
-在输入栏上方点击“⚙️ 翻译设置”按钮，填写 OpenRouter API Key 与可选的 System Prompt，即可启用翻译；设置会本地保存（浏览器 localStorage）。
+在输入栏上方点击“⚙️ 翻译设置”按钮即可配置翻译：
+
+- 粘贴 OpenRouter API Key（仅保存在本地浏览器）
+- 选择模型：内置 GPT‑4o、Gemini 1.5 Flash、DeepSeek Chat，或切换到“自定义”自行填写 OpenRouter 模型 ID
+- （可选）填写 System Prompt 以调整风格/术语
+
+所有字段都会被保存到浏览器 localStorage，刷新后会自动回填。
 
 此外，也支持下列方式：
 
 - 代理模式（推荐）：在 `js/config.js` 中设置 `AppConfig.translation.mode = 'proxy'`，并配置 `proxyEndpoint` 指向你自有的服务端代理（例如 Cloudflare Worker 或服务器接口）。代理接收 JSON：`{ text, sourceLang, targetLang, format, instructions }`，返回：`{ translation }`。
-- OpenRouter 直连（默认）：在 `js/config.js` 中设置 `AppConfig.translation.mode = 'direct'`，并填写 `openrouter.apiKey`。也可在浏览器控制台执行：`localStorage.setItem('openrouter_api_key', 'YOUR_KEY')`。可调整 `openrouter.model`（如 `openai/gpt-4o-mini`、`qwen/qwen2.5-72b-instruct`）与 `fallbackModels`，必要时修改 `apiBase`/`extraHeaders` 以满足 OpenRouter 要求（推荐设置 `HTTP-Referer`）。
+- OpenRouter 直连（默认）：也可以直接修改 `js/config.js` 预置值，或通过浏览器控制台执行 `localStorage.setItem('openrouter_api_key', 'YOUR_KEY')` 等命令完成批量注入；支持自定义 `openrouter.model`、`fallbackModels`、`apiBase`、`extraHeaders` 等高级参数（推荐设置 `HTTP-Referer`）。
 
 提示：直连模式会在浏览器内携带 API Key，谨慎在公开环境使用。
 
@@ -199,7 +205,7 @@ $$ \\sum_{i=1}^{n} x_i = n $$
 - 翻译：见第 7 节（代理/直连模式）。
 
 - 本地存储键（可清理恢复默认）：
-- `wechat-converter-theme`、`wechat-converter-custom-color`、`wechat-template`、`openrouter_api_key`、`translation_system_prompt`
+- `wechat-converter-theme`、`wechat-converter-custom-color`、`wechat-template`、`openrouter_api_key`、`openrouter_model`、`translation_system_prompt`
 
 ## 10. 常见问题（FAQ）
 

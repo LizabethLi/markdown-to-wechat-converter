@@ -39,31 +39,31 @@ const Translator = {
                 return await this.translateViaProxy(text, cfg.proxyEndpoint);
             }
 
+            const openRuntime = this.resolveOpenRouterConfig(cfg);
+
             if (cfg.mode === 'direct') {
-                const openCfg = cfg.openrouter || {};
-                const directKey = openCfg.apiKey && openCfg.apiKey.trim();
+                const directKey = openRuntime.configApiKey;
                 if (directKey) {
                     return await this.translateViaOpenRouter(
                         text,
                         directKey,
-                        openCfg.model,
-                        openCfg.apiBase,
-                        openCfg.fallbackModels,
-                        openCfg.extraHeaders
+                        openRuntime.model,
+                        openRuntime.apiBase,
+                        openRuntime.fallbackModels,
+                        openRuntime.extraHeaders
                     );
                 }
             }
 
             const key = this.safeReadLocalStorage('openrouter_api_key');
             if (key) {
-                const openCfg = cfg.openrouter || {};
                 return await this.translateViaOpenRouter(
                     text,
                     key,
-                    openCfg.model,
-                    openCfg.apiBase,
-                    openCfg.fallbackModels,
-                    openCfg.extraHeaders
+                    openRuntime.model,
+                    openRuntime.apiBase,
+                    openRuntime.fallbackModels,
+                    openRuntime.extraHeaders
                 );
             }
         } catch (e) {
@@ -227,6 +227,40 @@ const Translator = {
         } catch (_) {
             return '';
         }
+    },
+
+    parseModelList: function(raw, defaults) {
+        const result = [];
+        const add = (val) => {
+            if (!val || typeof val !== 'string') return;
+            const trimmed = val.trim();
+            if (!trimmed) return;
+            if (!result.includes(trimmed)) result.push(trimmed);
+        };
+        if (raw && typeof raw === 'string') {
+            raw.split(/[\n,]+/).forEach(add);
+        }
+        if (Array.isArray(defaults)) {
+            defaults.forEach(add);
+        }
+        return result;
+    },
+
+    resolveOpenRouterConfig: function(cfg) {
+        const openCfg = (cfg && cfg.openrouter) || {};
+        const modelFromStorage = this.safeReadLocalStorage('openrouter_model');
+        const fallbackRaw = this.safeReadLocalStorage('openrouter_fallback_models');
+        const resolvedModel = (modelFromStorage && modelFromStorage.trim())
+            || (openCfg.model && openCfg.model.trim())
+            || 'openrouter/auto';
+        const fallbackModels = this.parseModelList(fallbackRaw, openCfg.fallbackModels || []);
+        return {
+            model: resolvedModel,
+            fallbackModels,
+            apiBase: openCfg.apiBase,
+            extraHeaders: openCfg.extraHeaders,
+            configApiKey: openCfg.apiKey && openCfg.apiKey.trim()
+        };
     },
 
     // Code protection helpers
