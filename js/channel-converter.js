@@ -1,4 +1,7 @@
 // Channel-specific conversions: Substack (HTML) and GitHub (Markdown)
+const stripLeadMarkers = (text) =>
+    text.replace(/(^|\n)[ \t]*\[\s*lead\s*\][ \t]*/gi, '$1');
+
 const ChannelConverter = {
     // Substack: translate to EN, then combine EN HTML + ZH HTML
     convertToSubstack: async function(markdown) {
@@ -17,8 +20,9 @@ const ChannelConverter = {
 
     // GitHub: translate to EN, then combine EN markdown + divider + ZH markdown
     convertToGithub: async function(markdown) {
-        const enMd = await Translator.translateMarkdownToEnglish(markdown);
-        const combined = `${enMd}\n\n---\n\n${markdown}`;
+        const sanitized = stripLeadMarkers(markdown);
+        const enMd = await Translator.translateMarkdownToEnglish(sanitized);
+        const combined = `${stripLeadMarkers(enMd)}\n\n---\n\n${sanitized}`;
         return combined;
     }
 };
@@ -30,4 +34,3 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
     window.ChannelConverter = ChannelConverter;
 }
-
