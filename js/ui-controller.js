@@ -474,6 +474,7 @@ const UIController = {
                 htmlOutput.value = combinedMd; // For GitHub channel, textarea holds Markdown
                 // Render preview as HTML using marked
                 preview.innerHTML = marked(combinedMd);
+                this.typesetMath(preview);
                 // 预览样式切换
                 preview.classList.add('markdown-preview');
                 preview.classList.remove('wechat-preview');
@@ -491,6 +492,29 @@ const UIController = {
             console.error('Error converting markdown:', error);
             htmlOutput.value = 'Conversion error: ' + error.message;
             preview.innerHTML = '<p style="color: red;">转换出错：' + error.message + '</p>';
+        }
+    },
+
+    typesetMath: function(container) {
+        if (!container) return;
+        if (typeof MathRenderer !== 'undefined' && typeof MathRenderer.isMathJaxReady === 'function') {
+            if (!MathRenderer.isMathJaxReady()) return;
+        }
+        if (typeof MathJax === 'undefined') return;
+
+        const clear = typeof MathJax.typesetClear === 'function'
+            ? () => MathJax.typesetClear([container])
+            : null;
+
+        try {
+            if (clear) clear();
+            if (typeof MathJax.typesetPromise === 'function') {
+                MathJax.typesetPromise([container]).catch(err => console.error('MathJax typeset error:', err));
+            } else if (typeof MathJax.typeset === 'function') {
+                MathJax.typeset([container]);
+            }
+        } catch (error) {
+            console.error('Failed to typeset math in preview:', error);
         }
     },
 

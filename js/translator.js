@@ -16,10 +16,22 @@ const Translator = {
     // Restore math placeholders back to Markdown math
     restoreMathMarkdown: function(text, mathPlaceholders) {
         if (!mathPlaceholders) return text;
-        // Block math
-        text = text.replace(/MATHBLOCK(\d+)PLACEHOLDER/g, (match) => {
+        // Block math - ensure standalone blocks for GitHub-flavoured markdown
+        text = text.replace(/MATHBLOCK(\d+)PLACEHOLDER/g, (match, _index, offset, original) => {
             const latex = mathPlaceholders[match];
-            return latex ? `$$ ${latex} $$` : match;
+            if (!latex) return match;
+            const body = latex.trim().replace(/\s+$/g, '');
+            const beforeSlice = offset > 0 ? original.slice(0, offset) : '';
+            const afterSlice = original.slice(offset + match.length);
+            const beforeMatch = beforeSlice.match(/\n+$/);
+            const afterMatch = afterSlice.match(/^\n+/);
+            const beforeCount = beforeMatch ? beforeMatch[0].length : 0;
+            const afterCount = afterMatch ? afterMatch[0].length : 0;
+            const neededBefore = offset === 0 ? 0 : Math.max(0, 2 - beforeCount);
+            const neededAfter = Math.max(0, 2 - afterCount);
+            const prefix = '\n'.repeat(neededBefore);
+            const suffix = '\n'.repeat(neededAfter);
+            return `${prefix}$$\n${body}\n$$${suffix}`;
         });
         // Inline math
         text = text.replace(/MATHINLINE(\d+)PLACEHOLDER/g, (match) => {
