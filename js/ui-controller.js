@@ -622,16 +622,18 @@ const UIController = {
         }
     },
 
-    copyHtmlToClipboard: async function(html) {
+    copyHtmlToClipboard: async function(html, plainText = '') {
         if (!html || typeof html !== 'string') {
             return false;
         }
+
+        const safePlainText = typeof plainText === 'string' ? plainText : '';
 
         try {
             if (navigator.clipboard && typeof window.ClipboardItem !== 'undefined' && typeof navigator.clipboard.write === 'function') {
                 const item = new ClipboardItem({
                     'text/html': new Blob([html], { type: 'text/html' }),
-                    'text/plain': new Blob([html], { type: 'text/plain' })
+                    'text/plain': new Blob([safePlainText], { type: 'text/plain' })
                 });
                 await navigator.clipboard.write([item]);
                 return true;
@@ -704,12 +706,13 @@ const UIController = {
 
         if (channel === 'wechat') {
             const previewHtml = preview ? preview.innerHTML : '';
-            success = await this.copyHtmlToClipboard(previewHtml);
+            const previewText = preview ? preview.innerText : '';
+            success = this.copyRenderedPreviewToClipboard(preview);
             if (!success) {
-                success = this.copyRenderedPreviewToClipboard(preview);
+                success = await this.copyHtmlToClipboard(previewHtml, previewText);
             }
             if (!success) {
-                success = await this.copyToClipboard(previewHtml);
+                success = await this.copyToClipboard(previewText);
             }
         } else {
             const markdown = htmlOutput.value;
