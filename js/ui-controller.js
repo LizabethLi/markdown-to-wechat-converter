@@ -589,18 +589,48 @@ const UIController = {
         }
     },
 
+    copyHtmlToClipboard: async function(html) {
+        if (!html || typeof html !== 'string') {
+            return false;
+        }
+
+        try {
+            if (navigator.clipboard && typeof window.ClipboardItem !== 'undefined' && typeof navigator.clipboard.write === 'function') {
+                const item = new ClipboardItem({
+                    'text/html': new Blob([html], { type: 'text/html' }),
+                    'text/plain': new Blob([html], { type: 'text/plain' })
+                });
+                await navigator.clipboard.write([item]);
+                return true;
+            }
+        } catch (error) {
+            console.warn('Rich HTML clipboard write failed, falling back to plain text copy:', error);
+        }
+
+        return this.copyToClipboard(html);
+    },
+
     // 复制预览样式
     copyPreview: async function() {
         const htmlOutput = document.getElementById('htmlOutput');
+        const preview = document.getElementById('preview');
         const button = document.getElementById('copyPreviewBtn');
+        const channel = this.getCurrentChannel();
         
         if (!htmlOutput || !button) {
             console.error('HTML output or button not found');
             return;
         }
 
-        const html = htmlOutput.value;
-        const success = await this.copyToClipboard(html);
+        let success = false;
+
+        if (channel === 'wechat') {
+            const previewHtml = preview ? preview.innerHTML : '';
+            success = await this.copyHtmlToClipboard(previewHtml);
+        } else {
+            const markdown = htmlOutput.value;
+            success = await this.copyToClipboard(markdown);
+        }
         
         if (success) {
             this.showCopySuccess(button, '复制样式代码');
