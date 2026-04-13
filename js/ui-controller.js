@@ -110,11 +110,13 @@ const UIController = {
         this.populateTemplateOptions();
         // 更新渠道提醒状态
         this.updateChannelReminder(this.currentChannel);
+        this.updateCopyButtonLabels();
     },
 
     handleChannelChange: function(channel) {
         this.currentChannel = channel || 'wechat';
         this.updateChannelReminder(this.currentChannel);
+        this.updateCopyButtonLabels();
         this.updateOutput();
     },
 
@@ -484,6 +486,7 @@ const UIController = {
                 if (codeBtn) codeBtn.textContent = '📄 Markdown';
                 if (codeTitle) codeTitle.textContent = '📋 Markdown 代码 (可滚动查看)';
             }
+            this.updateCopyButtonLabels();
             // 自动滚动到预览顶部
             if (AppConfig.defaults.autoScrollToTop) {
                 preview.scrollTop = 0;
@@ -532,6 +535,8 @@ const UIController = {
         if (targetContent) {
             targetContent.classList.add('active');
         }
+
+        this.updateCopyButtonLabels();
     },
 
     // 复制到剪贴板
@@ -553,6 +558,34 @@ const UIController = {
             const success = document.execCommand('copy');
             document.body.removeChild(textArea);
             return success;
+        }
+    },
+
+    getCopyPreviewButtonLabel: function() {
+        const channel = this.getCurrentChannel();
+        if (channel === 'wechat') {
+            return '复制样式';
+        }
+        return '复制 Markdown';
+    },
+
+    getCopyHtmlButtonLabel: function() {
+        const channel = this.getCurrentChannel();
+        if (channel === 'github') {
+            return '复制 Markdown';
+        }
+        return '复制代码';
+    },
+
+    updateCopyButtonLabels: function() {
+        const previewButton = document.getElementById('copyPreviewBtn');
+        const htmlButton = document.getElementById('copyHtmlBtn');
+
+        if (previewButton && !previewButton.classList.contains('success')) {
+            previewButton.textContent = this.getCopyPreviewButtonLabel();
+        }
+        if (htmlButton && !htmlButton.classList.contains('success')) {
+            htmlButton.textContent = this.getCopyHtmlButtonLabel();
         }
     },
 
@@ -583,7 +616,7 @@ const UIController = {
         const success = await this.copyToClipboard(html);
         
         if (success) {
-            this.showCopySuccess(button, '复制代码');
+            this.showCopySuccess(button, this.getCopyHtmlButtonLabel());
         } else {
             alert('复制失败，请手动复制');
         }
@@ -604,10 +637,55 @@ const UIController = {
                 return true;
             }
         } catch (error) {
-            console.warn('Rich HTML clipboard write failed, falling back to plain text copy:', error);
+            console.warn('Rich HTML clipboard write failed, falling back to DOM copy:', error);
         }
 
-        return this.copyToClipboard(html);
+        return false;
+    },
+
+    copyRenderedPreviewToClipboard: function(previewElement) {
+        if (!previewElement) {
+            return false;
+        }
+
+        const selection = window.getSelection ? window.getSelection() : null;
+        const savedRanges = [];
+        if (selection && selection.rangeCount) {
+            for (let i = 0; i < selection.rangeCount; i += 1) {
+                savedRanges.push(selection.getRangeAt(i).cloneRange());
+            }
+        }
+
+        const sandbox = document.createElement('div');
+        sandbox.setAttribute('aria-hidden', 'true');
+        sandbox.contentEditable = 'true';
+        sandbox.style.cssText = 'position: fixed; left: -99999px; top: 0; opacity: 0; pointer-events: none; user-select: text; -webkit-user-select: text;';
+        sandbox.innerHTML = previewElement.innerHTML;
+        document.body.appendChild(sandbox);
+
+        try {
+            const range = document.createRange();
+            range.selectNodeContents(sandbox);
+
+            if (selection) {
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+
+            const success = document.execCommand('copy');
+            return !!success;
+        } catch (error) {
+            console.warn('DOM rich copy failed:', error);
+            return false;
+        } finally {
+            if (selection) {
+                selection.removeAllRanges();
+                savedRanges.forEach(range => selection.addRange(range));
+            }
+            if (sandbox.parentNode) {
+                sandbox.parentNode.removeChild(sandbox);
+            }
+        }
     },
 
     // 复制预览样式
@@ -627,13 +705,19 @@ const UIController = {
         if (channel === 'wechat') {
             const previewHtml = preview ? preview.innerHTML : '';
             success = await this.copyHtmlToClipboard(previewHtml);
+            if (!success) {
+                success = this.copyRenderedPreviewToClipboard(preview);
+            }
+            if (!success) {
+                success = await this.copyToClipboard(previewHtml);
+            }
         } else {
             const markdown = htmlOutput.value;
             success = await this.copyToClipboard(markdown);
         }
         
         if (success) {
-            this.showCopySuccess(button, '复制样式代码');
+            this.showCopySuccess(button, this.getCopyPreviewButtonLabel());
         } else {
             alert('复制失败，请手动复制');
         }
