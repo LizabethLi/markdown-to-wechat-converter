@@ -707,9 +707,9 @@ const UIController = {
         if (channel === 'wechat') {
             const previewHtml = preview ? preview.innerHTML : '';
             const previewText = preview ? preview.innerText : '';
-            success = this.copyRenderedPreviewToClipboard(preview);
+            success = await this.copyHtmlToClipboard(previewHtml, previewText);
             if (!success) {
-                success = await this.copyHtmlToClipboard(previewHtml, previewText);
+                success = this.copyRenderedPreviewToClipboard(preview);
             }
             if (!success) {
                 success = await this.copyToClipboard(previewText);
