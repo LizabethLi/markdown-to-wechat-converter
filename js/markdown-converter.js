@@ -497,16 +497,12 @@ const MarkdownConverter = {
             AppConfig.syntaxHighlighting.themeStyles[AppConfig.defaults.theme] ||
             Object.values(AppConfig.syntaxHighlighting.themeStyles)[0];
         const isCompact = mode === 'compact';
-        
-        // 语言标签
-        const languageLabel = language ? 
-            `<div style="background: ${themeStyles.keyword}; color: white; padding: 4px 8px; border-radius: 4px 4px 0 0; font-size: 12px; font-weight: 500; display: inline-block; margin-bottom: -1px;">${language.toUpperCase()}</div>` : '';
 
         // 代码块样式
         const codeBlockStyle = `
             background: ${themeStyles.background};
             border: 1px solid ${themeStyles.border};
-            border-radius: ${languageLabel ? '0 6px 6px 6px' : '6px'};
+            border-radius: 6px;
             padding: ${isCompact ? '14px' : '16px'};
             margin: ${isCompact ? '12px 0' : '16px 0'};
             overflow-x: auto;
@@ -521,7 +517,7 @@ const MarkdownConverter = {
         // 生成内联CSS样式
         const inlineStyledCode = this.applyInlineSyntaxStyles(code, themeStyles);
 
-        return `${languageLabel}<pre style="${codeBlockStyle}"><code class="hljs">${inlineStyledCode}</code></pre>`;
+        return `<pre style="${codeBlockStyle}"><code class="hljs">${inlineStyledCode}</code></pre>`;
     },
 
     // 将语法高亮样式直接写入元素的 style 属性，避免被微信清理
