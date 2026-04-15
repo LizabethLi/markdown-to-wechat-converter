@@ -36,20 +36,95 @@ body {
 .header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 2rem 0;
+    padding: 2.5rem 1.25rem 2rem;
     text-align: center;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
+.header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
 .header h1 {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    font-weight: 600;
+    font-size: clamp(2rem, 4vw, 3rem);
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+    line-height: 1.15;
 }
 
 .header p {
-    opacity: 0.9;
-    font-size: 1.1rem;
+    opacity: 0.95;
+    font-size: 1.05rem;
+}
+
+.hero-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1.25rem;
+}
+
+.hero-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 160px;
+    padding: 0.85rem 1.35rem;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: all 0.2s ease;
+    background: white;
+    color: #5b21b6 !important;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+}
+
+.hero-primary:hover {
+    transform: translateY(-1px);
+}
+
+.hero-feature-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1.75rem;
+    text-align: left;
+}
+
+.hero-feature-card {
+    display: flex;
+    gap: 0.9rem;
+    padding: 1rem 1.1rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(8px);
+}
+
+.hero-feature-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 2.25rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.18);
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.hero-feature-title {
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+}
+
+.hero-feature-text {
+    font-size: 0.94rem;
+    line-height: 1.55;
+    opacity: 0.88;
 }
 
 /* 头部区域链接：白色文字，保留默认下划线 */
@@ -65,7 +140,6 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
-    height: calc(100vh - 180px);
     min-height: 600px;
 }
 
@@ -272,7 +346,25 @@ body {
     display: flex;
 }
 
+@media (max-width: 900px) {
+    .hero-feature-strip {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 768px) {
+    .header {
+        padding: 2rem 1rem 1.5rem;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+        align-items: stretch;
+        max-width: 320px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
     .container {
         grid-template-columns: 1fr;
         height: auto;
