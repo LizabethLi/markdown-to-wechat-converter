@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lizabethli.github.io/markdown-to-wechat-converter/sitemap.xml
