@@ -13,7 +13,7 @@
                 </section>`,
 
             h1: (_m, text) => `
-                <section style="margin:22px 0 12px;">
+                <section style="margin:36px 0 12px;">
                   <div style="text-align:center;font-size:22px;line-height:1.35;color:#111;font-weight:800;letter-spacing:0.5px;">${text}</div>
                   <div style="height:6px;width:84px;background:{{THEME_COLOR}};border-radius:3px;margin:8px auto 0;"></div>
                 </section>`,
@@ -58,12 +58,12 @@
 
             paragraph: (_m, text) => {
                 if ((text||'').trim() === '') return '';
-                return `<p style="margin:12px 0;line-height:1.75;color:#222;font-size:15px;">${text}</p>`;
+                return `<p style="margin:12px 0;line-height:1.9;color:#222;font-size:16px;text-align:left;">${text}</p>`;
             },
 
             leadParagraph: (_m, text) => `
                 <section style="margin:18px 0;padding:16px;border-radius:10px;background:{{THEME_TINT_BG}};border:1px solid rgba(0,0,0,.05);">
-                  <p style="margin:0;line-height:1.75;color:#222;font-size:15px;">${text}</p>
+                  <p style="margin:0;line-height:1.9;color:#222;font-size:16px;text-align:left;">${text}</p>
                 </section>`
         },
 
@@ -109,7 +109,7 @@
                 this.standard = {
                     sectionNumber: c.sectionNumber,
                     h1: (_m, text) => `
-                        <section style=\"margin:26px 0 14px;\">
+                        <section style=\"margin:40px 0 14px;\">
                           <div style=\"text-align:center;font-size:24px;line-height:1.35;color:#111;font-weight:800;letter-spacing:0.6px;\">${text}</div>
                           <div style=\"height:7px;width:96px;background:{{THEME_COLOR}};border-radius:4px;margin:10px auto 0;\"></div>
                         </section>`,
@@ -123,9 +123,9 @@
                     inlineCode: c.inlineCode,
                     image: c.image,
                     link: c.link,
-                    paragraph: (_m, text) => text.trim() ? `<p style=\"margin:14px 0;line-height:1.8;color:#222;font-size:15px;\">${text}</p>` : '',
+                    paragraph: (_m, text) => text.trim() ? `<p style=\"margin:14px 0;line-height:1.95;color:#222;font-size:16px;text-align:left;\">${text}</p>` : '',
                     leadParagraph: (_m, text) => `
-                        <section style=\"margin:20px 0;padding:18px;border-radius:12px;background:{{THEME_TINT_BG}};border:1px solid rgba(0,0,0,.06);\"><p style=\"margin:0;line-height:1.8;color:#222;font-size:15px;\">${text}</p></section>`
+                        <section style=\"margin:20px 0;padding:18px;border-radius:12px;background:{{THEME_TINT_BG}};border:1px solid rgba(0,0,0,.06);\"><p style=\"margin:0;line-height:1.95;color:#222;font-size:16px;text-align:left;\">${text}</p></section>`
                 };
             }
             const base = (mode === 'standard') ? this.standard : this.compact;
@@ -135,4 +135,3 @@
 
     TemplateManager.register(MagazineTemplate);
 })();
-
