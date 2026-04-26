@@ -11,7 +11,7 @@
                 `<section style="text-align:center;margin:18px 0 10px;"><p style="font-size:24px;color:#111;font-weight:700;margin:0;letter-spacing:1px;">${number.padStart(2, '0')}</p></section>`,
 
             h1: (_m, text) =>
-                `<h1 style="font-size:22px;margin:36px 0 10px;line-height:1.3;color:#111;border-left:4px solid {{THEME_COLOR}};padding-left:10px;">${text}</h1>`,
+                `<h1 style="font-size:22px;margin:0 0 10px;line-height:1.3;color:#111;border-left:4px solid {{THEME_COLOR}};padding:36px 0 0 10px;">${text}</h1>`,
 
             h2: (_m, text) =>
                 `<h2 style="font-size:18px;margin:16px 0 8px;line-height:1.35;color:#111;border-left:3px solid {{THEME_COLOR}};padding-left:10px;">${text}</h2>`,
@@ -95,7 +95,7 @@
                 const c = this.compact;
                 this.standard = {
                     sectionNumber: c.sectionNumber,
-                    h1: (_m, t) => `<h1 style="font-size:24px;margin:40px 0 12px;line-height:1.35;color:#111;border-left:5px solid {{THEME_COLOR}};padding-left:12px;">${t}</h1>`,
+                    h1: (_m, t) => `<h1 style="font-size:24px;margin:0 0 12px;line-height:1.35;color:#111;border-left:5px solid {{THEME_COLOR}};padding:40px 0 0 12px;">${t}</h1>`,
                     h2: (_m, t) => `<h2 style="font-size:20px;margin:18px 0 10px;line-height:1.4;color:#111;border-left:4px solid {{THEME_COLOR}};padding-left:12px;">${t}</h2>`,
                     h3: (_m, t) => `<h3 style="font-size:17px;margin:16px 0 8px;line-height:1.45;color:#222;font-weight:600;">${t}</h3>`,
                     bold: c.bold,

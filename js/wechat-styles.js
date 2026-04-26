@@ -10,7 +10,7 @@ const WechatStyles = {
         h1: (match, text, index) => {
             const numberLine = index ? `<p style="font-size: 28px; color: rgb(0, 0, 0); line-height: 1.2; font-weight: bold; margin: 0;">${String(index).padStart(2, '0')}</p>` : '';
             const titleLine = `<p style="min-height: 1em; color: rgb(51, 51, 51); line-height: 1.4; margin: 0;"><strong><span style="background: {{THEME_COLOR}}; color: white; padding: 6px 12px; border-radius: 4px; font-size: 16px;">${text}</span></strong></p>`;
-            return `<section style="text-align: center; margin: 36px 0 14px 0;">${numberLine}${titleLine}</section>`;
+            return `<section style="text-align: center; margin: 0 0 14px 0; padding-top: 36px;">${numberLine}${titleLine}</section>`;
         },
         
         h2: (match, text) => 
@@ -82,7 +82,7 @@ const WechatStyles = {
                         <span style="background: {{THEME_COLOR}}; color: white; padding: 6px 12px; border-radius: 4px;">${text}</span>
                     </strong>
                 </p>`;
-            return `<section style="text-align: center; margin: 40px 0 20px 0;">${numberLine}${titleLine}</section>`;
+            return `<section style="text-align: center; margin: 0 0 20px 0; padding-top: 40px;">${numberLine}${titleLine}</section>`;
         },
         
         h2: (match, text) => 
