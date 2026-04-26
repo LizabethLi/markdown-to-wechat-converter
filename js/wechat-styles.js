@@ -10,7 +10,7 @@ const WechatStyles = {
         h1: (match, text, index) => {
             const numberLine = index ? `<p style="font-size: 28px; color: rgb(0, 0, 0); line-height: 1.2; font-weight: bold; margin: 0;">${String(index).padStart(2, '0')}</p>` : '';
             const titleLine = `<p style="min-height: 1em; color: rgb(51, 51, 51); line-height: 1.4; margin: 0;"><strong><span style="background: {{THEME_COLOR}}; color: white; padding: 6px 12px; border-radius: 4px; font-size: 16px;">${text}</span></strong></p>`;
-            return `<section style="text-align: center; margin: 25px 0 14px 0;">${numberLine}${titleLine}</section>`;
+            return `<section style="text-align: center; margin: 36px 0 14px 0;">${numberLine}${titleLine}</section>`;
         },
         
         h2: (match, text) => 
@@ -48,13 +48,13 @@ const WechatStyles = {
         
         paragraph: (match, text) => {
             if (text.trim() === '') return '';
-            return `<p style="line-height: 1.7; margin: 12px 0; font-size: 14px; color: #333; text-align: left;">${text}</p>`;
+            return `<p style="line-height: 1.85; margin: 12px 0; font-size: 15px; color: #333; text-align: left;">${text}</p>`;
         },
 
         // 主题色强调段落（通过 [lead] 标记触发），浅色背景块
         leadParagraph: (match, text) =>
             `<section style="margin: 20px 0; padding: 20px; background: {{THEME_TINT_BG}};">
-                <p style="line-height: 1.7; margin: 0; font-size: 14px; color: #333; text-align: left;">${text}</p>
+                <p style="line-height: 1.85; margin: 0; font-size: 15px; color: #333; text-align: left;">${text}</p>
             </section>`,
 
         diagram: (match, svg) =>
@@ -82,7 +82,7 @@ const WechatStyles = {
                         <span style="background: {{THEME_COLOR}}; color: white; padding: 6px 12px; border-radius: 4px;">${text}</span>
                     </strong>
                 </p>`;
-            return `<section style="text-align: center; margin: 30px 0 20px 0;">${numberLine}${titleLine}</section>`;
+            return `<section style="text-align: center; margin: 40px 0 20px 0;">${numberLine}${titleLine}</section>`;
         },
         
         h2: (match, text) => 
@@ -135,12 +135,12 @@ const WechatStyles = {
         
         paragraph: (match, text) => {
             if (text.trim() === '') return '';
-            return `<p style="line-height: 1.8; margin: 14px 0; font-size: 14px; color: #333; text-align: left;">${text}</p>`;
+            return `<p style="line-height: 1.95; margin: 14px 0; font-size: 15px; color: #333; text-align: left;">${text}</p>`;
         },
         // 主题色强调段落（通过 [lead] 标记触发），浅色背景块
         leadParagraph: (match, text) =>
             `<section style="margin: 20px 0; padding: 20px; background: {{THEME_TINT_BG}};">
-                <p style="line-height: 1.8; margin: 0; font-size: 14px; color: #333; text-align: left;">${text}</p>
+                <p style="line-height: 1.95; margin: 0; font-size: 15px; color: #333; text-align: left;">${text}</p>
             </section>`,
 
         diagram: (match, svg) =>
@@ -221,4 +221,4 @@ if (typeof module !== 'undefined' && module.exports) {
 // 浏览器环境下赋值给全局变量
 if (typeof window !== 'undefined') {
     window.WechatStyles = WechatStyles;
-} 
+}
