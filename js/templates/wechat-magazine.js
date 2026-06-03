@@ -13,9 +13,10 @@
                 </section>`,
 
             h1: (_m, text) => `
-                <section style="margin:0 0 12px;padding-top:44px;">
-                  <h1 style="text-align:center;font-size:22px;line-height:1.35;color:#111;font-weight:800;letter-spacing:0.5px;margin:0;">${text}</h1>
-                  <div style="height:6px;width:84px;background:{{THEME_COLOR}};border-radius:3px;margin:8px auto 0;"></div>
+                <section style="margin:0 0 12px;padding-top:44px;text-align:center;">
+                  <h1 style="font-size:22px;line-height:1.35;color:#111;font-weight:800;letter-spacing:0.5px;margin:0;">
+                    <span style="display:inline-block;padding:0 6px 8px;border-bottom:6px solid {{THEME_COLOR}};">${text}</span>
+                  </h1>
                 </section>`,
 
             h2: (_m, text) => `
@@ -109,9 +110,10 @@
                 this.standard = {
                     sectionNumber: c.sectionNumber,
                     h1: (_m, text) => `
-                        <section style=\"margin:0 0 14px;padding-top:48px;\">
-                          <h1 style=\"text-align:center;font-size:24px;line-height:1.35;color:#111;font-weight:800;letter-spacing:0.6px;margin:0;\">${text}</h1>
-                          <div style=\"height:7px;width:96px;background:{{THEME_COLOR}};border-radius:4px;margin:10px auto 0;\"></div>
+                        <section style=\"margin:0 0 14px;padding-top:48px;text-align:center;\">
+                          <h1 style=\"font-size:24px;line-height:1.35;color:#111;font-weight:800;letter-spacing:0.6px;margin:0;\">
+                            <span style=\"display:inline-block;padding:0 8px 10px;border-bottom:7px solid {{THEME_COLOR}};\">${text}</span>
+                          </h1>
                         </section>`,
                     h2: (_m, text) => `<h2 style=\"font-size:20px;margin:20px 0 12px;color:#111;line-height:1.4;font-weight:700;\"><span style=\"background:linear-gradient(90deg, {{THEME_TINT_BG}}, transparent);padding:0 8px 0 12px;border-left:5px solid {{THEME_COLOR}};\">${text}</span></h2>`,
                     h3: (_m, text) => `<h3 style=\"font-size:18px;margin:16px 0 10px;color:#222;line-height:1.45;font-weight:700;\">${text}</h3>`,
