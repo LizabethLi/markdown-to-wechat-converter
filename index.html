@@ -109,7 +109,9 @@
                 <div>
                     <select id="channelSelect" style="margin-right: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateOutput()" title="选择输出渠道">
                         <option value="wechat">WeChat</option>
-                        <option value="github">GitHub (Markdown)</option>
+                        <option value="substack">Substack / GitHub (Markdown)</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="x">X Article + Thread</option>
                     </select>
                     <select id="templateSelect" style="margin-right: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" title="选择模板">
                         <option value="wechat-default">默认模板</option>
@@ -180,11 +182,11 @@
                         </div>
                     </div>
                     <div class="theme-selector" style="display: inline-block; position: relative; margin-right: 10px;">
-                        <button id="translatorButton" class="btn theme-btn" onclick="toggleTranslatorPanel()" title="翻译设置">
+                        <button id="translatorButton" class="btn theme-btn" onclick="toggleTranslatorPanel()" title="翻译与 AI 设置">
                             ⚙️
                         </button>
                         <div id="translatorPanel" class="theme-panel" style="display: none;">
-                            <div class="theme-panel-header">翻译设置</div>
+                            <div class="theme-panel-header">翻译与 AI 设置</div>
                             <div class="theme-options">
                                 <div class="theme-option" style="cursor: default;">
                                     <div class="theme-info" style="width: 100%;">
@@ -197,8 +199,8 @@
                                     <div class="theme-info" style="width: 100%;">
                                         <div class="theme-name">选择模型</div>
                                         <select id="translatorModelSelect" class="custom-color-input" style="width: 100%; margin-top: 6px;" onchange="UIController.onTranslatorModelChange()">
-                                            <option value="openai/gpt-4o-mini">GPT-4o（openai/gpt-4o-mini）</option>
-                                            <option value="google/gemini-1.5-flash-latest">Gemini 1.5 Flash（google/gemini-1.5-flash-latest）</option>
+                                            <option value="openai/gpt-4o-mini">GPT-4o mini（openai/gpt-4o-mini）</option>
+                                            <option value="google/gemini-3.5-flash">Gemini 3.5 Flash（google/gemini-3.5-flash）</option>
                                             <option value="deepseek/deepseek-chat">DeepSeek Chat（deepseek/deepseek-chat）</option>
                                             <option value="custom">自定义模型 ID...</option>
                                         </select>
@@ -221,6 +223,7 @@
                         </div>
                     </div>
                     <button class="btn" onclick="loadExample()">Load Example</button>
+                    <button class="btn x-generate-btn" id="generateXButton" onclick="generateXPublishingContent()" style="display: none;">✨ 生成 X Article + Thread</button>
                 </div>
             </div>
             <div id="channelReminder" class="channel-reminder" role="alert"></div>

@@ -2,229 +2,163 @@
 
 [🌐 在线体验](https://lizabethli.github.io/markdown-to-wechat-converter/)
 
-## 1. 项目简介
+一个把单份 Markdown 文稿整理成**不同平台可直接复制粘贴格式**的小工具。
 
-`markdown-to-wechat-converter` 是一个将标准 Markdown 文档快速转换为适配微信公众号排版格式的工具。它支持常见的 Markdown 语法，并针对微信平台的排版需求进行了优化，支持数学公式渲染、语法高亮、主题配色和可插拔模板。
+当前定位不是 schedule / auto-post，而是 **format-first**：
+- 你输入一份 Markdown 原稿
+- 选择目标平台
+- 工具输出适合该平台的格式
+- 你自己复制粘贴去发布
 
-## 2. 功能特性
-- 支持标准 Markdown 语法解析与转换
-- 自动适配微信公众平台的排版样式
-- 支持数学公式（MathJax，LaTeX 语法）渲染
-- 语法高亮（highlight.js），多语言自动/指定高亮
-- 主题配色与自定义颜色（保存到本地）
-- 可插拔模板系统（默认/极简/杂志风，可扩展）
-- 可视化界面，所见即所得，支持一键复制
-- 多渠道输出：WeChat（HTML）、GitHub（Markdown），可选翻译合并（中英）
+---
 
-## 3. 安装与使用说明
+## 支持的输出渠道
 
-### 克隆仓库
-```bash
-git clone https://github.com/你的用户名/markdown-to-wechat-converter.git
-cd markdown-to-wechat-converter
-```
+### 1. WeChat
+输出微信公众号友好的富文本 HTML：
+- 保留主题色、模板、代码高亮、数学公式、Mermaid 图表
+- 适合“复制样式”后粘贴到公众号编辑器
 
-### 本地运行
-无需安装依赖，直接用浏览器打开 `index.html` 即可使用。
+### 2. Substack / GitHub (Markdown)
+输出适合复制到 Substack 或 GitHub 的 Markdown 文案：
+- 英文翻译在前
+- `---` 分隔
+- 中文原文在后
+
+这条渠道现在默认就是“可复制的 Markdown 输出”，不再强调调度或自动发布。
+
+### 3. LinkedIn
+输出适合 LinkedIn 的纯文本文案：
+- 英文版在前
+- `——` 分隔
+- 中文版在后
+
+### 4. X Article + Thread
+输出一份完整的 X 发布包：
+- X Article：保留标题、小标题、粗体和列表，支持富文本复制
+- 主 Thread：AI 生成一段简短推荐，并列出文章要点
+- 要点 Thread：每个 Bullet Point 单独展开为一条 post
+- 自动编号 `1/N`, `2/N`, `3/N`，并限制每条不超过 280 字符
+
+点击 `✨ 生成 X Article + Thread` 才会调用 OpenRouter，正常输入和预览不会持续消耗 API 额度。
+
+注意：[X Articles](https://help.x.com/en/using-x/articles) 的发布资格目前限于 X Premium、Premium+、Premium Business 和 Premium Organizations。
+
+---
+
+## 主要能力
+
+- 支持标准 Markdown
+- WeChat 渠道支持模板化排版
+- 支持主题色切换与自定义颜色
+- 支持数学公式（MathJax）
+- 支持 Mermaid 图表
+- 支持代码高亮
+- 支持通过 OpenRouter 翻译内容、生成 X 推荐语和提取文章要点
+- 支持多平台 copy/paste-ready 输出
+
+---
+
+## 使用方式
+
+### 本地打开
+无需安装依赖，直接打开：
 
 ```bash
 open index.html
 ```
-或手动在浏览器中打开。
 
-### 主要入口文件说明
-- `index.html`：主页面入口
-- `js/`：主要功能实现的 JavaScript 文件夹
-- `styles/`：样式文件夹
+或者在浏览器中手动打开 `index.html`。
 
-启动后：
-- 在“Channel/渠道”选择 WeChat 或 GitHub（Markdown）。
-- 在“模板”选择默认、极简、杂志风等模板。
-- 在主题选择器中选择主题色或输入自定义颜色。
+### 基本流程
+1. 在左侧输入 Markdown
+2. 选择输出渠道
+3. 如有需要，配置翻译和 AI 生成（OpenRouter）
+4. 查看右侧预览
+5. 点击复制按钮，把内容粘贴到目标平台
 
-## 4. 文件结构说明
+---
 
-```
+## 翻译与 AI 配置（OpenRouter）
+
+在页面顶部点击 `⚙️` 可配置：
+- OpenRouter API Key
+- 模型
+- System Prompt（可选，用于控制语言风格）
+
+这些信息会保存在浏览器 localStorage。
+
+如果没有配置翻译：
+- Substack / GitHub 会直接复用原文
+- LinkedIn 会直接输出原文整理版
+- X Article + Thread 会提供本地预览；配置 API Key 并点击生成按钮后，AI 才会生成推荐语和要点
+
+---
+
+## 当前前端结构
+
+```text
 markdown-to-wechat-converter/
-├── assets/                    # 示例数据等资源
-├── index.html                 # 主页面入口
-├── js/                        # 主要 JS 功能模块
-│   ├── app.js                 # 应用主逻辑
-│   ├── channel-converter.js   # 子栈/GitHub 转换
-│   ├── config.js              # 配置项（主题/语法高亮/翻译）
-│   ├── markdown-converter.js  # Markdown -> WeChat 渲染（marked 渲染器）
-│   ├── math-renderer.js       # 数学公式渲染（MathJax）
-│   ├── template-manager.js    # 模板注册与选择（新增）
-│   ├── translator.js          # 翻译模块（OpenRouter/代理）
-│   ├── ui-controller.js       # UI 控制
-│   ├── wechat-styles.js       # 现有微信模板的实现（仍可直接使用）
-│   └── templates/             # 模板目录（新增）
-│       ├── wechat-default.js  # 默认模板（包装 wechat-styles）
-│       ├── wechat-minimal.js  # 极简风模板
-│       └── wechat-magazine.js # 杂志风模板
-├── styles/
-│   └── main.css               # 主样式表
-└── README.md                  # 项目说明文档
+├── index.html
+├── README.md
+├── assets/
+│   └── examples.js
+├── js/
+│   ├── app.js
+│   ├── channel-converter.js     # 平台输出 adapter / formatter registry
+│   ├── config.js
+│   ├── markdown-converter.js    # WeChat HTML 渲染
+│   ├── math-renderer.js
+│   ├── template-manager.js
+│   ├── translator.js
+│   ├── ui-controller.js
+│   ├── wechat-styles.js
+│   └── templates/
+│       ├── wechat-default.js
+│       ├── wechat-minimal.js
+│       └── wechat-magazine.js
+└── styles/
+    └── main.css
 ```
 
-## 5. 示例
+---
 
-**Markdown 输入：**
-```markdown
-# 微信公众号排版示例
+## 架构说明
 
-## 代码语法高亮示例
+### WeChat 路径
+- `markdown-converter.js` 负责把 Markdown 渲染成公众号风格 HTML
+- `template-manager.js` + `js/templates/*` 负责模板切换
 
-### Python 代码示例
+### 其他平台路径
+- `channel-converter.js` 维护统一的 formatter registry
+- 每个 channel 都定义自己的：
+  - 输出格式
+  - 预览模式
+  - 复制按钮文案
+  - 提醒文案
 
-```python
-def fibonacci(n):
-    """计算斐波那契数列的第n项"""
-    if n <= 1:
-        return n
-    else:
-        return fibonacci(n-1) + fibonacci(n-2)
+这样后续新增渠道（比如 Medium、Notion、Slack）时，只需要新增一个 formatter adapter。
 
-# 生成前10项斐波那契数列
-for i in range(10):
-    print(f"F({i}) = {fibonacci(i)}")
-```
+---
 
-## 引用和列表
+## 适合继续扩展的方向
 
-> 💡 **提示**：这个工具现在支持190+种编程语言的语法高亮。
-> 
-> - **前端开发**：JavaScript、TypeScript、HTML、CSS
-> - **后端开发**：Python、Java、C#、PHP、Go
-> - **数据科学**：Python、R、SQL
+- 给 LinkedIn 加 hook / CTA / hashtag 策略
+- 给 X Article 加封面图和发布链接占位
+- 新增 Medium / Notion / Slack formatter
+- 增加“只输出英文 / 只输出中文 / bilingual”切换
+- 把平台策略抽成更细的 formatter pipeline
 
-## 数学公式
+---
 
-行内公式：$E = mc^2$
+## 注意事项
 
-块级公式：
-$$ \\sum_{i=1}^{n} x_i = n $$
-```
+- WeChat 复制时建议使用“粘贴并保留格式”
+- 浏览器内直连 API Key 仅适合个人本地使用
+- 若要减少密钥暴露，可把翻译切到代理模式
 
-**转换后效果预览：**
+---
 
-将以上 Markdown 内容粘贴到 `index.html` 的编辑器中，即可在右侧实时预览适配微信的精美排版效果。
+## License
 
-## 6. 格式化小技巧
-
-- H1 自动编号：每个 `# 一级标题` 会自动添加两位序号作为前缀，例如 `01 标题`。
-- 左对齐段落：除一级标题外，普通段落均为左对齐，便于中英文混排阅读。
-- 主题色强调段落：在段落开头加入 `[lead]` 可将本段以主题色背景强调显示，例如：
-
-  ```markdown
-  [lead] 这是一个被主题色强调的段落
-  ```
-
-  生成效果是一个带有主题色背景的小胶囊样式，适合做引导语或关键信息提示。
-
-- 模板切换：在“模板”下拉框中选择不同模板（默认 / 极简 / 杂志风），预览会实时更新。
-- 代码块：可自动检测语言高亮，也可通过围栏语法指定语言（如 ```js、```python 等）。
-
-## 7. 新增渠道：Substack 与 GitHub
-
-- 渠道选择：在左上角“Channel/渠道”下拉框选择输出类型：
-  - `WeChat`：输出微信公众号样式 HTML（原有功能）
-  - `Substack (HTML)`：将中文 Markdown 翻译为英文（OpenRouter），然后按“英文在前，中文在后”合并为一份 HTML，便于直接粘贴至 Substack 编辑器
-  - `GitHub (Markdown)`：将中文 Markdown 翻译为英文（OpenRouter），按“英文在前，中文在后”合并为一份 Markdown，便于使用在 GitHub README/文档
-
-### 7.1 启用翻译（OpenRouter）
-
-在输入栏上方点击“⚙️ 翻译设置”按钮即可配置翻译：
-
-- 粘贴 OpenRouter API Key（仅保存在本地浏览器）
-- 选择模型：内置 GPT‑4o、Gemini 1.5 Flash、DeepSeek Chat，或切换到“自定义”自行填写 OpenRouter 模型 ID
-- （可选）填写 System Prompt 以调整风格/术语
-
-所有字段都会被保存到浏览器 localStorage，刷新后会自动回填。
-
-此外，也支持下列方式：
-
-- 代理模式（推荐）：在 `js/config.js` 中设置 `AppConfig.translation.mode = 'proxy'`，并配置 `proxyEndpoint` 指向你自有的服务端代理（例如 Cloudflare Worker 或服务器接口）。代理接收 JSON：`{ text, sourceLang, targetLang, format, instructions }`，返回：`{ translation }`。
-- OpenRouter 直连（默认）：也可以直接修改 `js/config.js` 预置值，或通过浏览器控制台执行 `localStorage.setItem('openrouter_api_key', 'YOUR_KEY')` 等命令完成批量注入；支持自定义 `openrouter.model`、`fallbackModels`、`apiBase`、`extraHeaders` 等高级参数（推荐设置 `HTTP-Referer`）。
-
-提示：直连模式会在浏览器内携带 API Key，谨慎在公开环境使用。
-
-### 7.2 Substack 输出
-
-- 输入：中文 Markdown
-- 输出：一份 HTML，包含英文（翻译）在前、中文在后，样式简洁、左对齐，便于直接复制进 Substack。
-
-### 7.3 GitHub 输出
-
-- 输入：中文 Markdown
-- 输出：一份合并后的 Markdown，结构为：英文（翻译） + 分隔线 `---` + 中文原文。
-
-在应用内切换到 `GitHub (Markdown)` 渠道后，右侧将显示 Markdown 风格的预览（非微信样式）。我们已修复了渲染器全局污染问题，WeChat 和 GitHub 预览互不影响。
-
-## 8. 模板系统（可插拔）
-
-现在的样式采用模板化架构，任何人都可以“增量添加”新模板，而无需修改现有文件。
-
-- 模板契约（必须暴露）：
-  - `id: string` 唯一标识
-  - `name: string` 展示名称
-  - `getStyles(mode, themeColor)` 返回样式函数集合（与现有 WechatStyles 兼容），包括：
-    - `sectionNumber`、`h1`、`h2`、`h3`、`bold`、`italic`、`blockquote`、`codeBlock`、`inlineCode`、`image`、`link`、`paragraph`、`leadParagraph`
-
-- 注册方式：模板文件中调用 `TemplateManager.register(template)` 即可；注册后会自动出现在“模板”下拉框。
-
-- 目录结构：将模板放到 `js/templates/` 下，示例：
-
-```js
-// js/templates/my-template.js
-(function(){
-  if (typeof TemplateManager === 'undefined') return;
-  const MyTemplate = {
-    id: 'my-template',
-    name: '我的模板',
-    getStyles(mode, themeColor) {
-      // 返回与 WechatStyles.getStyles 等价的函数集合
-      return { /* ...sectionNumber/h1/h2/... 等函数 ... */ };
-    }
-  };
-  TemplateManager.register(MyTemplate);
-})();
-```
-
-- 引入方式：在 `index.html` 中、`wechat-default.js` 之后新增 `<script src="js/templates/my-template.js"></script>`。
-
-- 兼容性：旧的 `js/wechat-styles.js` 仍可直接使用（默认模板通过 `js/templates/wechat-default.js` 进行注册包装）。
-
-## 9. 配置与定制
-
-- 主题与语法高亮：
-  - `js/config.js` 中 `AppConfig.themes` 定义主题主色；
-  - `AppConfig.syntaxHighlighting.themeStyles` 定义各主题下代码高亮配色；
-  - 可使用 `mint` 或自定义主题色（保存在 `localStorage`）。
-
-- 翻译：见第 7 节（代理/直连模式）。
-
-- 本地存储键（可清理恢复默认）：
-- `wechat-converter-theme`、`wechat-converter-custom-color`、`wechat-template`、`openrouter_api_key`、`openrouter_model`、`translation_system_prompt`
-
-## 10. 常见问题（FAQ）
-
-- GitHub 预览仍显示微信样式？
-  - 强制刷新页面（清缓存），我们已改为每次调用使用局部 `marked(..., { renderer })`，不会污染全局。
-
-- 报错 “Cannot read properties of undefined (reading 'keyword')”？
-  - 该问题由主题高亮样式缺失引发，已修复；如仍遇到，请清理本地存储：
-    ```js
-    localStorage.removeItem('wechat-converter-theme');
-    localStorage.removeItem('wechat-converter-custom-color');
-    ```
-
-- 复制到公众号排版粘贴后样式丢失？
-  - 使用“粘贴并保留样式/格式”（或 `Ctrl+Shift+V`/编辑器对应选项）。
-
-## 11. 贡献
-
-欢迎提交 PR：
-- 新模板（在 `js/templates/` 下新增并注册）
-- 样式调整/主题配色完善
-- Bug 修复与文档改进
+MIT

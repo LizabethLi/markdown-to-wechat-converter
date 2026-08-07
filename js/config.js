@@ -195,7 +195,7 @@ AppConfig.translation = {
         apiKey: '', // 可留空并通过 localStorage.setItem('openrouter_api_key', '...') 注入
         model: 'openai/gpt-4o-mini',
         apiBase: 'https://openrouter.ai/api/v1',
-        fallbackModels: ['google/gemini-1.5-flash-latest', 'deepseek/deepseek-chat'], // 自定义备用模型顺序
+        fallbackModels: ['google/gemini-3.5-flash', 'deepseek/deepseek-chat'], // 自定义备用模型顺序
         extraHeaders: {} // 可设置 HTTP-Referer、X-Title 等推荐 Header
     }
 };

@@ -395,7 +395,7 @@ body {
     line-height: 1.5em;
 }
 
-/* 通用 Markdown 预览样式（用于 GitHub 渠道） */
+/* 通用 Markdown 预览样式（用于 GitHub / Substack 渠道） */
 .markdown-preview {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
     color: #111827;
@@ -411,6 +411,190 @@ body {
 .markdown-preview table { border-collapse: collapse; width: 100%; margin: 16px 0; }
 .markdown-preview th, .markdown-preview td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; }
 .markdown-preview th { background: #f9fafb; }
+
+.plain-text-preview-host,
+.thread-preview-host,
+.x-publishing-preview-host {
+    background: #f8fafc !important;
+}
+
+.x-generate-btn {
+    align-items: center;
+    gap: 0.35rem;
+    color: #ffffff;
+    background: linear-gradient(135deg, #111827, #2563eb);
+    border-color: transparent;
+}
+
+.x-generate-btn:hover {
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.x-generate-btn:disabled {
+    cursor: wait;
+    opacity: 0.7;
+    transform: none;
+}
+
+.x-publishing-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    max-width: 820px;
+    margin: 0 auto;
+}
+
+.x-generation-status {
+    align-self: flex-start;
+    padding: 0.38rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.x-generation-status.is-ai {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.x-generation-status.is-fallback {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.x-ai-error {
+    padding: 0.8rem 1rem;
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+}
+
+.x-article-card,
+.x-thread-section {
+    padding: 1.25rem;
+    background: #ffffff;
+    border: 1px solid #dbe3f0;
+    border-radius: 18px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+}
+
+.x-section-toolbar,
+.thread-card-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.x-section-toolbar {
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.x-section-toolbar h2 {
+    margin: 0.2rem 0 0;
+    font-size: 1.15rem;
+    color: #111827;
+}
+
+.x-section-kicker {
+    color: #2563eb;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+}
+
+.x-copy-part-btn {
+    flex: 0 0 auto;
+    padding: 0.38rem 0.7rem;
+    color: #1d4ed8;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.x-copy-part-btn:hover {
+    background: #dbeafe;
+}
+
+.x-article-content {
+    padding: 0.25rem 0.5rem;
+}
+
+.x-empty-state {
+    padding: 3rem 1rem;
+    color: #64748b;
+    text-align: center;
+}
+
+.plain-text-preview {
+    white-space: normal;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    color: #111827;
+    line-height: 1.8;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.linkedin-preview {
+    font-size: 1rem;
+}
+
+.thread-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.thread-card {
+    background: #ffffff;
+    border: 1px solid #dbe3f0;
+    border-radius: 18px;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.thread-card-header {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #2563eb;
+    margin-bottom: 0.7rem;
+}
+
+.thread-card-toolbar .thread-card-header {
+    margin-bottom: 0;
+}
+
+.thread-card-toolbar {
+    margin-bottom: 0.7rem;
+}
+
+@media (max-width: 640px) {
+    .x-section-toolbar,
+    .thread-card-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+.thread-card-body {
+    color: #111827;
+    line-height: 1.7;
+    white-space: normal;
+}
 
 /* Markdown list styles (restore indentation and nesting) */
 .markdown-preview ul,
