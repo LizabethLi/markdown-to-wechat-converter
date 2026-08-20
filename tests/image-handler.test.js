@@ -73,7 +73,7 @@ test('pasted image size guard reports an actionable error before reading the fil
     await assert.rejects(ImageHandler.filesToMarkdown([oversized]), /不能超过 10 MB/);
 });
 
-test('local files are converted to self-contained Markdown images', async () => {
+test('local files use short Markdown references while retaining image data for rendering', async () => {
     const OriginalFileReader = global.FileReader;
     global.FileReader = class FakeFileReader {
         readAsDataURL() {
@@ -86,13 +86,18 @@ test('local files are converted to self-contained Markdown images', async () => 
         const markdown = await ImageHandler.filesToMarkdown([
             { name: 'architecture.png', type: 'image/png', size: 5 }
         ]);
-        assert.equal(markdown, '![architecture](data:image/png;base64,AAECAwQ=)');
+        assert.match(markdown, /^!\[architecture\]\(local-image:\/\/asset-[a-z0-9-]+\)$/);
+        assert.doesNotMatch(markdown, /base64/);
+        assert.equal(
+            ImageHandler.hydrateLocalImageReferences(markdown),
+            '![architecture](data:image/png;base64,AAECAwQ=)'
+        );
     } finally {
         global.FileReader = OriginalFileReader;
     }
 });
 
-test('selecting a matching local file resolves an Obsidian image reference in place', async () => {
+test('selecting a matching file keeps the Obsidian reference short and hydrates it for rendering', async () => {
     const OriginalFileReader = global.FileReader;
     global.FileReader = class FakeFileReader {
         readAsDataURL() {
@@ -119,9 +124,10 @@ test('selecting a matching local file resolves an Obsidian image reference in pl
         assert.equal(resolved.resolvedCount, 1);
         assert.equal(resolved.unresolvedReferences.length, 0);
         assert.equal(resolved.unusedFiles.length, 0);
-        assert.doesNotMatch(resolved.markdown, /!\[\[/);
+        assert.equal(resolved.markdown, source);
+        assert.doesNotMatch(resolved.markdown, /base64/);
         assert.match(
-            resolved.markdown,
+            ImageHandler.hydrateLocalImageReferences(resolved.markdown),
             /!\[Pasted image 20260818133657\]\(data:image\/png;base64,AAECAwQ=\)/
         );
         assert.match(resolved.markdown, /做完一波调研之后/);
@@ -141,4 +147,18 @@ test('non-matching files leave Obsidian references unresolved', async () => {
     assert.equal(resolved.resolvedCount, 0);
     assert.equal(resolved.unresolvedReferences.length, 1);
     assert.deepEqual(resolved.unusedFiles, [file]);
+});
+
+test('existing embedded image Markdown can be compacted without losing render data', () => {
+    const compacted = ImageHandler.compactEmbeddedImages(
+        '正文\n\n![diagram](data:image/png;base64,AAECAwQ=)\n\n结尾'
+    );
+
+    assert.equal(compacted.compactedCount, 1);
+    assert.doesNotMatch(compacted.markdown, /base64/);
+    assert.match(compacted.markdown, /!\[diagram\]\(local-image:\/\/asset-/);
+    assert.equal(
+        ImageHandler.hydrateLocalImageReferences(compacted.markdown),
+        '正文\n\n![diagram](data:image/png;base64,AAECAwQ=)\n\n结尾'
+    );
 });

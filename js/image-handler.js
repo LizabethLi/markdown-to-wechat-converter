@@ -4,6 +4,8 @@ const ImageHandler = {
     maxEmbeddedImageBytes: 12 * 1024 * 1024,
     fetchTimeoutMs: 8000,
     imageDataUrlCache: new Map(),
+    localImageAssets: new Map(),
+    localImageAssetCounter: 0,
 
     isImageFile: function(file) {
         if (!file) return false;
@@ -16,7 +18,39 @@ const ImageHandler = {
         try {
             normalized = decodeURIComponent(normalized);
         } catch (_) {}
-        return normalized.normalize('NFC').toLocaleLowerCase();
+        return normalized.normalize('NFC').toLowerCase();
+    },
+
+    getObsidianAssetKey: function(fileName) {
+        return `obsidian:${this.normalizeFileName(fileName)}`;
+    },
+
+    createLocalImageAsset: function(dataUrl, fileName) {
+        this.localImageAssetCounter += 1;
+        const id = `asset-${Date.now().toString(36)}-${this.localImageAssetCounter}`;
+        this.localImageAssets.set(`local:${id}`, {
+            dataUrl: String(dataUrl || ''),
+            fileName: String(fileName || '')
+        });
+        return id;
+    },
+
+    getLocalImageReferences: function(markdown) {
+        const references = [];
+        const pattern = /!\[([^\]\n]*)\]\(local-image:\/\/([a-z0-9-]+)\)/gi;
+        let match;
+
+        while ((match = pattern.exec(String(markdown || ''))) !== null) {
+            references.push({
+                raw: match[0],
+                alt: match[1],
+                id: match[2],
+                assetKey: `local:${match[2]}`,
+                start: match.index,
+                end: match.index + match[0].length
+            });
+        }
+        return references;
     },
 
     getObsidianImageReferences: function(markdown) {
@@ -52,6 +86,59 @@ const ImageHandler = {
         throw new Error(`图片 ${oversized.name || ''} 为 ${sizeInMb} MB，单张图片不能超过 10 MB`);
     },
 
+    getLocalImageReferenceStatus: function(markdown) {
+        const obsidianReferences = this.getObsidianImageReferences(markdown).map(reference => ({
+            ...reference,
+            assetKey: this.getObsidianAssetKey(reference.fileName)
+        }));
+        const localReferences = this.getLocalImageReferences(markdown);
+        const references = obsidianReferences.concat(localReferences);
+        const unresolvedReferences = references.filter(
+            reference => !this.localImageAssets.has(reference.assetKey)
+        );
+
+        return {
+            references,
+            unresolvedReferences,
+            total: references.length,
+            loaded: references.length - unresolvedReferences.length
+        };
+    },
+
+    hydrateLocalImageReferences: function(markdown) {
+        let output = String(markdown || '');
+        const references = this.getObsidianImageReferences(output)
+            .map(reference => ({
+                ...reference,
+                assetKey: this.getObsidianAssetKey(reference.fileName),
+                alt: this.sanitizeAltText(reference.fileName)
+            }))
+            .concat(this.getLocalImageReferences(output));
+
+        for (const reference of references.sort((a, b) => b.start - a.start)) {
+            const asset = this.localImageAssets.get(reference.assetKey);
+            if (!asset || !asset.dataUrl) continue;
+            const alt = reference.alt || this.sanitizeAltText(asset.fileName);
+            const replacement = `![${alt}](${asset.dataUrl})`;
+            output = `${output.slice(0, reference.start)}${replacement}${output.slice(reference.end)}`;
+        }
+        return output;
+    },
+
+    compactEmbeddedImages: function(markdown) {
+        let compactedCount = 0;
+        const output = String(markdown || '').replace(
+            /!\[([^\]\n]*)\]\((data:image\/[a-z0-9.+-]+(?:;[a-z0-9=.+-]+)*;base64,[a-z0-9+\/_=-]+)\)/gi,
+            (_match, alt, dataUrl) => {
+                const fileName = String(alt || '').trim() || `image-${compactedCount + 1}`;
+                const id = this.createLocalImageAsset(dataUrl, fileName);
+                compactedCount += 1;
+                return `![${alt || fileName}](local-image://${id})`;
+            }
+        );
+        return { markdown: output, compactedCount };
+    },
+
     resolveObsidianImageReferences: async function(markdown, files) {
         const source = String(markdown || '');
         const references = this.getObsidianImageReferences(source);
@@ -76,9 +163,8 @@ const ImageHandler = {
         const dataUrlPromises = new Map();
         const usedFiles = new Set();
         let resolvedCount = 0;
-        let output = source;
 
-        for (const reference of references.slice().reverse()) {
+        for (const reference of references) {
             const file = filesByName.get(reference.normalizedFileName);
             if (!file) continue;
 
@@ -86,17 +172,18 @@ const ImageHandler = {
                 dataUrlPromises.set(file, this.blobToDataUrl(file));
             }
             const dataUrl = await dataUrlPromises.get(file);
-            const alt = this.sanitizeAltText(reference.fileName, resolvedCount);
-            const replacement = `![${alt}](${dataUrl})`;
-            output = `${output.slice(0, reference.start)}${replacement}${output.slice(reference.end)}`;
+            this.localImageAssets.set(this.getObsidianAssetKey(reference.fileName), {
+                dataUrl,
+                fileName: reference.fileName
+            });
             usedFiles.add(file);
             resolvedCount += 1;
         }
 
         return {
-            markdown: output,
+            markdown: source,
             resolvedCount,
-            unresolvedReferences: this.getObsidianImageReferences(output),
+            unresolvedReferences: this.getLocalImageReferenceStatus(source).unresolvedReferences,
             unusedFiles: imageFiles.filter(file => !usedFiles.has(file))
         };
     },
@@ -152,7 +239,8 @@ const ImageHandler = {
         const markdownImages = await Promise.all(imageFiles.map(async (file, index) => {
             const dataUrl = await this.blobToDataUrl(file);
             const alt = this.sanitizeAltText(file.name, index);
-            return `![${alt}](${dataUrl})`;
+            const id = this.createLocalImageAsset(dataUrl, file.name);
+            return `![${alt}](local-image://${id})`;
         }));
 
         return markdownImages.join('\n\n');

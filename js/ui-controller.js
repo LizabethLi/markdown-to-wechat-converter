@@ -227,16 +227,16 @@ const UIController = {
 
         try {
             const resolution = await ImageHandler.resolveObsidianImageReferences(
-                markdownInput.value,
+                valueBeforeRead,
                 imageFiles
             );
             if (resolution.resolvedCount > 0) {
-                markdownInput.value = resolution.markdown;
-                markdownInput.selectionStart = markdownInput.value.length;
-                markdownInput.selectionEnd = markdownInput.value.length;
-
                 if (resolution.unusedFiles.length > 0) {
                     const unusedMarkdown = await ImageHandler.filesToMarkdown(resolution.unusedFiles);
+                    if (markdownInput.value === valueBeforeRead) {
+                        markdownInput.selectionStart = start;
+                        markdownInput.selectionEnd = end;
+                    }
                     ImageHandler.insertMarkdownAtSelection(markdownInput, unusedMarkdown);
                 } else {
                     markdownInput.focus();
@@ -247,7 +247,7 @@ const UIController = {
                     ? `，还有 ${remainingCount} 张同名文件未选择`
                     : '';
                 this.showCopyNotice(
-                    `已匹配并内嵌 ${resolution.resolvedCount} 张 Obsidian 本地图片${remainingText}。`,
+                    `已加载 ${resolution.resolvedCount} 张 Obsidian 本地图片${remainingText}，编辑区继续保留短引用。`,
                     remainingCount > 0
                 );
                 this.updateOutput();
@@ -260,7 +260,7 @@ const UIController = {
                 markdownInput.selectionEnd = end;
             }
             ImageHandler.insertMarkdownAtSelection(markdownInput, imageMarkdown);
-            this.showCopyNotice(`已插入 ${imageFiles.length} 张本地图片，图片数据会随 Markdown 保留。`, false);
+            this.showCopyNotice(`已加载 ${imageFiles.length} 张本地图片，编辑区只显示短引用。`, false);
             this.updateOutput();
             return true;
         } catch (error) {
@@ -271,32 +271,39 @@ const UIController = {
     },
 
     updateLocalImageReferenceStatus: function(markdown) {
-        if (typeof ImageHandler === 'undefined') return [];
+        if (typeof ImageHandler === 'undefined') {
+            return { references: [], unresolvedReferences: [], total: 0, loaded: 0 };
+        }
 
-        const references = ImageHandler.getObsidianImageReferences(markdown);
+        const referenceStatus = ImageHandler.getLocalImageReferenceStatus(markdown);
         const status = document.getElementById('localImageStatus');
         const button = document.getElementById('imageFileButton');
-        const count = references.length;
+        const missingCount = referenceStatus.unresolvedReferences.length;
 
         if (status) {
-            status.textContent = count
-                ? `检测到 ${count} 张 Obsidian 本地图片，请选择或拖入同名文件`
-                : '也可以把图片粘贴或拖到下方编辑框';
-            status.classList.toggle('warning', count > 0);
+            if (missingCount > 0) {
+                status.textContent = `本地图片已加载 ${referenceStatus.loaded}/${referenceStatus.total}，请补充 ${missingCount} 张同名文件`;
+            } else if (referenceStatus.total > 0) {
+                status.textContent = `本地图片已加载 ${referenceStatus.loaded}/${referenceStatus.total}，编辑区保留短引用`;
+            } else {
+                status.textContent = '也可以把图片粘贴或拖到下方编辑框';
+            }
+            status.classList.toggle('warning', missingCount > 0);
         }
         if (button) {
-            button.textContent = count ? `选择本地图片（缺 ${count} 张）` : '选择本地图片';
-            button.classList.toggle('needs-attention', count > 0);
+            button.textContent = missingCount > 0 ? `选择本地图片（缺 ${missingCount} 张）` : '选择本地图片';
+            button.classList.toggle('needs-attention', missingCount > 0);
         }
-        return references;
+        return referenceStatus;
     },
 
     ensureLocalImageReferencesResolved: function(markdown) {
-        const references = this.updateLocalImageReferenceStatus(markdown);
-        if (!references.length) return true;
+        const referenceStatus = this.updateLocalImageReferenceStatus(markdown);
+        const unresolvedReferences = referenceStatus.unresolvedReferences;
+        if (!unresolvedReferences.length) return true;
 
         this.showCopyNotice(
-            `还有 ${references.length} 张 Obsidian 本地图片未导入。请选择或拖入同名图片后再复制图文。`,
+            `还有 ${unresolvedReferences.length} 张本地图片未加载。请选择或拖入同名图片后再复制图文。`,
             true
         );
         const button = document.getElementById('imageFileButton');
@@ -775,7 +782,10 @@ const UIController = {
         const button = document.getElementById('generateXButton');
         if (!markdownInput || !htmlOutput || !preview) return;
 
-        const markdown = markdownInput.value;
+        const sourceMarkdown = markdownInput.value;
+        const markdown = typeof ImageHandler !== 'undefined'
+            ? ImageHandler.hydrateLocalImageReferences(sourceMarkdown)
+            : sourceMarkdown;
         if (!markdown.trim()) {
             this.showError('请先输入一篇 Markdown 文章');
             return;
@@ -876,8 +886,25 @@ const UIController = {
             return;
         }
 
-        const markdown = markdownInput.value;
+        let markdown = markdownInput.value;
+        if (typeof ImageHandler !== 'undefined') {
+            const selectionStart = markdownInput.selectionStart;
+            const selectionEnd = markdownInput.selectionEnd;
+            const wasAtEnd = selectionStart === markdown.length && selectionEnd === markdown.length;
+            const compacted = ImageHandler.compactEmbeddedImages(markdown);
+            if (compacted.compactedCount > 0) {
+                markdown = compacted.markdown;
+                markdownInput.value = markdown;
+                const nextStart = wasAtEnd ? markdown.length : Math.min(selectionStart, markdown.length);
+                const nextEnd = wasAtEnd ? markdown.length : Math.min(selectionEnd, markdown.length);
+                markdownInput.setSelectionRange(nextStart, nextEnd);
+                this.showCopyNotice(`已把 ${compacted.compactedCount} 张内嵌图片收起为短引用。`, false);
+            }
+        }
         this.updateLocalImageReferenceStatus(markdown);
+        const renderMarkdown = typeof ImageHandler !== 'undefined'
+            ? ImageHandler.hydrateLocalImageReferences(markdown)
+            : markdown;
         const channel = channelSelect ? channelSelect.value : 'wechat';
         const themeColor = this.getCurrentThemeColor();
         this.currentChannel = channel;
@@ -886,7 +913,7 @@ const UIController = {
 
         try {
             const shouldShowWechatLoading = channel === 'wechat'
-                && markdown.includes('```mermaid')
+                && renderMarkdown.includes('```mermaid')
                 && typeof MarkdownConverter.hasMermaidSupport === 'function'
                 && MarkdownConverter.hasMermaidSupport();
 
@@ -894,7 +921,7 @@ const UIController = {
                 this.showLoading();
             }
 
-            const rendered = await ChannelConverter.renderForChannel(channel, markdown, {
+            const rendered = await ChannelConverter.renderForChannel(channel, renderMarkdown, {
                 themeColor,
                 mode: AppConfig.defaults.mode,
                 outputLanguage: this.outputLanguage

@@ -203,6 +203,14 @@ const ChannelConverter = {
             images.push({ token, dataUrl: reference });
             return token;
         });
+        protectedMarkdown = protectedMarkdown.replace(
+            /!\[[^\]\n]*\]\(local-image:\/\/[a-z0-9-]+\)/gi,
+            (reference) => {
+                const token = `__LOCAL_IMAGE_REFERENCE_${images.length}__`;
+                images.push({ token, dataUrl: reference });
+                return token;
+            }
+        );
         return { markdown: protectedMarkdown, images };
     },
 
@@ -430,7 +438,7 @@ const ChannelConverter = {
 
         text = text.replace(/`([^`]+)`/g, '$1');
         text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_m, alt, url) => {
-            if (/^data:image\//i.test(url.trim())) {
+            if (/^(?:data:image\/|local-image:\/\/)/i.test(url.trim())) {
                 return alt ? `[图片：${alt}]` : '[内嵌图片]';
             }
             return alt ? `${alt} (${url})` : url;

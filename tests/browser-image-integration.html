@@ -65,14 +65,16 @@
                     value: [localImage]
                 });
                 imageFileInput.dispatchEvent(new appWindow.Event('change', { bubbles: true }));
-                await waitFor(() => markdownInput.value.includes('data:image/png;base64,'));
+                await waitFor(() => (
+                    appWindow.ImageHandler.getLocalImageReferenceStatus(markdownInput.value).loaded === 1
+                ));
                 assert(
-                    markdownInput.value.includes('![local-test](data:image/png;base64,'),
-                    'Markdown does not contain an embedded local image'
+                    markdownInput.value.includes('![[local-test.png]]'),
+                    'Obsidian image reference was not kept in the editor'
                 );
                 assert(
-                    !markdownInput.value.includes('![[local-test.png]]'),
-                    'Obsidian image reference was not replaced'
+                    !markdownInput.value.includes('data:image/png;base64,'),
+                    'Editor still exposes embedded Base64 image data'
                 );
 
                 await appWindow.UIController.updateOutput();
@@ -108,14 +110,36 @@
                     'Copied HTML does not contain the embedded image data'
                 );
 
+                markdownInput.value = [
+                    '# Existing embedded image',
+                    '',
+                    '![legacy](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nUwAAAAASUVORK5CYII=)'
+                ].join('\n');
+                markdownInput.selectionStart = markdownInput.value.length;
+                markdownInput.selectionEnd = markdownInput.value.length;
+                await appWindow.UIController.updateOutput();
+                assert(
+                    markdownInput.value.includes('local-image://asset-'),
+                    'Existing Base64 Markdown was not compacted to a short reference'
+                );
+                assert(
+                    !markdownInput.value.includes('data:image/png;base64,'),
+                    'Existing Base64 data is still visible after compaction'
+                );
+                assert(
+                    preview.querySelector('img').getAttribute('src').startsWith('data:image/png;base64,'),
+                    'Compacted image no longer renders in preview'
+                );
+
                 result.dataset.status = 'passed';
                 result.textContent = JSON.stringify({
                     status: 'PASS',
                     fileInputEventImportedImage: true,
-                    obsidianReferenceResolved: true,
-                    markdownHasEmbeddedImage: true,
+                    editorKeptShortImageReference: true,
+                    editorHidesBase64Data: true,
                     previewHasEmbeddedImage: true,
-                    clipboardHtmlHasEmbeddedImage: true
+                    clipboardHtmlHasEmbeddedImage: true,
+                    existingBase64WasCompacted: true
                 });
             } catch (error) {
                 result.dataset.status = 'failed';
