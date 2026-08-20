@@ -125,6 +125,24 @@ test('embedded image data bypasses translation and is restored in the translated
     assert.match(rendered.output, /data:image\/png;base64,AAECAwQ=/);
 });
 
+test('Obsidian image references bypass translation and retain the exact attachment name', async () => {
+    let translationInput = '';
+    global.Translator.translateMarkdownToEnglish = async (markdown) => {
+        translationInput = markdown;
+        return markdown.replace('中文正文', 'English body');
+    };
+
+    const rendered = await ChannelConverter.renderForChannel(
+        'substack',
+        '中文正文\n\n![[Pasted image 20260818133657.png]]',
+        { outputLanguage: 'en' }
+    );
+
+    assert.doesNotMatch(translationInput, /Pasted image/);
+    assert.match(translationInput, /__OBSIDIAN_IMAGE_REFERENCE_0__/);
+    assert.match(rendered.output, /!\[\[Pasted image 20260818133657\.png\]\]/);
+});
+
 test('plain-text channels describe embedded images without copying Base64 payloads', () => {
     const output = ChannelConverter.markdownToPlainText(
         '![Screenshot](data:image/png;base64,AAECAwQ=)'

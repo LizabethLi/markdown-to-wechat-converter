@@ -63,6 +63,17 @@ body {
     font-size: 12px;
 }
 
+.image-import-button.needs-attention {
+    color: #92400e;
+    background: #fffbeb;
+    border-color: #f59e0b;
+}
+
+#localImageStatus.warning {
+    color: #b45309;
+    font-weight: 600;
+}
+
 #markdownInput.is-image-dragover {
     outline: 2px dashed #2563eb;
     outline-offset: -5px;

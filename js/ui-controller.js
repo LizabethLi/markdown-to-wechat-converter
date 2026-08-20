@@ -167,6 +167,8 @@ const UIController = {
         this.updateOutputLanguageUI();
         this.updateXGeneratorVisibility();
         this.updateCopyButtonLabels();
+        const markdownInput = document.getElementById('markdownInput');
+        this.updateLocalImageReferenceStatus(markdownInput ? markdownInput.value : '');
     },
 
     handleChannelChange: function(channel) {
@@ -224,6 +226,34 @@ const UIController = {
         const valueBeforeRead = markdownInput.value;
 
         try {
+            const resolution = await ImageHandler.resolveObsidianImageReferences(
+                markdownInput.value,
+                imageFiles
+            );
+            if (resolution.resolvedCount > 0) {
+                markdownInput.value = resolution.markdown;
+                markdownInput.selectionStart = markdownInput.value.length;
+                markdownInput.selectionEnd = markdownInput.value.length;
+
+                if (resolution.unusedFiles.length > 0) {
+                    const unusedMarkdown = await ImageHandler.filesToMarkdown(resolution.unusedFiles);
+                    ImageHandler.insertMarkdownAtSelection(markdownInput, unusedMarkdown);
+                } else {
+                    markdownInput.focus();
+                }
+
+                const remainingCount = resolution.unresolvedReferences.length;
+                const remainingText = remainingCount
+                    ? `，还有 ${remainingCount} 张同名文件未选择`
+                    : '';
+                this.showCopyNotice(
+                    `已匹配并内嵌 ${resolution.resolvedCount} 张 Obsidian 本地图片${remainingText}。`,
+                    remainingCount > 0
+                );
+                this.updateOutput();
+                return true;
+            }
+
             const imageMarkdown = await ImageHandler.filesToMarkdown(imageFiles);
             if (markdownInput.value === valueBeforeRead) {
                 markdownInput.selectionStart = start;
@@ -238,6 +268,40 @@ const UIController = {
             this.showCopyNotice(error && error.message ? error.message : '图片粘贴失败', true);
             return false;
         }
+    },
+
+    updateLocalImageReferenceStatus: function(markdown) {
+        if (typeof ImageHandler === 'undefined') return [];
+
+        const references = ImageHandler.getObsidianImageReferences(markdown);
+        const status = document.getElementById('localImageStatus');
+        const button = document.getElementById('imageFileButton');
+        const count = references.length;
+
+        if (status) {
+            status.textContent = count
+                ? `检测到 ${count} 张 Obsidian 本地图片，请选择或拖入同名文件`
+                : '也可以把图片粘贴或拖到下方编辑框';
+            status.classList.toggle('warning', count > 0);
+        }
+        if (button) {
+            button.textContent = count ? `选择本地图片（缺 ${count} 张）` : '选择本地图片';
+            button.classList.toggle('needs-attention', count > 0);
+        }
+        return references;
+    },
+
+    ensureLocalImageReferencesResolved: function(markdown) {
+        const references = this.updateLocalImageReferenceStatus(markdown);
+        if (!references.length) return true;
+
+        this.showCopyNotice(
+            `还有 ${references.length} 张 Obsidian 本地图片未导入。请选择或拖入同名图片后再复制图文。`,
+            true
+        );
+        const button = document.getElementById('imageFileButton');
+        if (button) button.focus();
+        return false;
     },
 
     handleOutputLanguageChange: function(language) {
@@ -771,6 +835,12 @@ const UIController = {
         }
 
         if (!content) return;
+        if (kind === 'article') {
+            const markdownInput = document.getElementById('markdownInput');
+            if (!this.ensureLocalImageReferencesResolved(markdownInput ? markdownInput.value : '')) {
+                return;
+            }
+        }
         const originalLabel = button.textContent;
         let success = false;
         let imageReport = null;
@@ -807,6 +877,7 @@ const UIController = {
         }
 
         const markdown = markdownInput.value;
+        this.updateLocalImageReferenceStatus(markdown);
         const channel = channelSelect ? channelSelect.value : 'wechat';
         const themeColor = this.getCurrentThemeColor();
         this.currentChannel = channel;
@@ -1090,6 +1161,10 @@ const UIController = {
         const useRichCopy = activeChannel && activeChannel.previewCopyMode === 'rich';
 
         if (useRichCopy) {
+            const markdownInput = document.getElementById('markdownInput');
+            if (!this.ensureLocalImageReferencesResolved(markdownInput ? markdownInput.value : '')) {
+                return;
+            }
             const originalLabel = button.textContent;
             if (preview && preview.querySelector('img')) {
                 button.textContent = '正在准备图片...';

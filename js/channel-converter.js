@@ -190,7 +190,7 @@ const ChannelConverter = {
 
     protectInlineImageData(markdown) {
         const images = [];
-        const protectedMarkdown = String(markdown || '').replace(
+        let protectedMarkdown = String(markdown || '').replace(
             /data:image\/[a-z0-9.+-]+(?:;[a-z0-9=.+-]+)*;base64,[a-z0-9+/_=-]+/gi,
             (dataUrl) => {
                 const token = `__INLINE_IMAGE_DATA_${images.length}__`;
@@ -198,6 +198,11 @@ const ChannelConverter = {
                 return token;
             }
         );
+        protectedMarkdown = protectedMarkdown.replace(/!\[\[[^\]\n]+\]\]/g, (reference) => {
+            const token = `__OBSIDIAN_IMAGE_REFERENCE_${images.length}__`;
+            images.push({ token, dataUrl: reference });
+            return token;
+        });
         return { markdown: protectedMarkdown, images };
     },
 

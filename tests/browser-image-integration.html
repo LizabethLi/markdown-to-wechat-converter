@@ -42,7 +42,7 @@
                 }
 
                 const markdownInput = appDocument.getElementById('markdownInput');
-                markdownInput.value = '# Local image test';
+                markdownInput.value = '# Local image test\n\n![[local-test.png]]';
                 markdownInput.selectionStart = markdownInput.value.length;
                 markdownInput.selectionEnd = markdownInput.value.length;
 
@@ -69,6 +69,10 @@
                 assert(
                     markdownInput.value.includes('![local-test](data:image/png;base64,'),
                     'Markdown does not contain an embedded local image'
+                );
+                assert(
+                    !markdownInput.value.includes('![[local-test.png]]'),
+                    'Obsidian image reference was not replaced'
                 );
 
                 await appWindow.UIController.updateOutput();
@@ -108,6 +112,7 @@
                 result.textContent = JSON.stringify({
                     status: 'PASS',
                     fileInputEventImportedImage: true,
+                    obsidianReferenceResolved: true,
                     markdownHasEmbeddedImage: true,
                     previewHasEmbeddedImage: true,
                     clipboardHtmlHasEmbeddedImage: true

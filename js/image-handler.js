@@ -11,6 +11,96 @@ const ImageHandler = {
         return /\.(?:avif|gif|jpe?g|png|svg|webp)$/i.test(file.name || '');
     },
 
+    normalizeFileName: function(fileName) {
+        let normalized = String(fileName || '').trim();
+        try {
+            normalized = decodeURIComponent(normalized);
+        } catch (_) {}
+        return normalized.normalize('NFC').toLocaleLowerCase();
+    },
+
+    getObsidianImageReferences: function(markdown) {
+        const source = String(markdown || '');
+        const references = [];
+        const pattern = /!\[\[([^\]\n]+)\]\]/g;
+        let match;
+
+        while ((match = pattern.exec(source)) !== null) {
+            const target = String(match[1] || '').split('|')[0].trim();
+            const normalizedPath = target.replace(/\\/g, '/');
+            const fileName = normalizedPath.split('/').pop() || '';
+            if (!/\.(?:avif|gif|jpe?g|png|svg|webp)$/i.test(fileName)) continue;
+            references.push({
+                raw: match[0],
+                target,
+                fileName,
+                normalizedFileName: this.normalizeFileName(fileName),
+                start: match.index,
+                end: match.index + match[0].length
+            });
+        }
+
+        return references;
+    },
+
+    validateImageFileSizes: function(files) {
+        const oversized = Array.from(files || [])
+            .find(file => file && file.size > this.maxPastedImageBytes);
+        if (!oversized) return;
+
+        const sizeInMb = (oversized.size / 1024 / 1024).toFixed(1);
+        throw new Error(`图片 ${oversized.name || ''} 为 ${sizeInMb} MB，单张图片不能超过 10 MB`);
+    },
+
+    resolveObsidianImageReferences: async function(markdown, files) {
+        const source = String(markdown || '');
+        const references = this.getObsidianImageReferences(source);
+        const imageFiles = Array.from(files || []).filter(file => this.isImageFile(file));
+        this.validateImageFileSizes(imageFiles);
+
+        if (!references.length || !imageFiles.length) {
+            return {
+                markdown: source,
+                resolvedCount: 0,
+                unresolvedReferences: references,
+                unusedFiles: imageFiles
+            };
+        }
+
+        const filesByName = new Map();
+        imageFiles.forEach((file) => {
+            const key = this.normalizeFileName(file.name);
+            if (!filesByName.has(key)) filesByName.set(key, file);
+        });
+
+        const dataUrlPromises = new Map();
+        const usedFiles = new Set();
+        let resolvedCount = 0;
+        let output = source;
+
+        for (const reference of references.slice().reverse()) {
+            const file = filesByName.get(reference.normalizedFileName);
+            if (!file) continue;
+
+            if (!dataUrlPromises.has(file)) {
+                dataUrlPromises.set(file, this.blobToDataUrl(file));
+            }
+            const dataUrl = await dataUrlPromises.get(file);
+            const alt = this.sanitizeAltText(reference.fileName, resolvedCount);
+            const replacement = `![${alt}](${dataUrl})`;
+            output = `${output.slice(0, reference.start)}${replacement}${output.slice(reference.end)}`;
+            usedFiles.add(file);
+            resolvedCount += 1;
+        }
+
+        return {
+            markdown: output,
+            resolvedCount,
+            unresolvedReferences: this.getObsidianImageReferences(output),
+            unusedFiles: imageFiles.filter(file => !usedFiles.has(file))
+        };
+    },
+
     getClipboardImageFiles: function(clipboardData) {
         if (!clipboardData) return [];
 
@@ -57,11 +147,7 @@ const ImageHandler = {
 
         if (!imageFiles.length) return '';
 
-        const oversized = imageFiles.find(file => file.size > this.maxPastedImageBytes);
-        if (oversized) {
-            const sizeInMb = (oversized.size / 1024 / 1024).toFixed(1);
-            throw new Error(`图片 ${oversized.name || ''} 为 ${sizeInMb} MB，单张图片不能超过 10 MB`);
-        }
+        this.validateImageFileSizes(imageFiles);
 
         const markdownImages = await Promise.all(imageFiles.map(async (file, index) => {
             const dataUrl = await this.blobToDataUrl(file);

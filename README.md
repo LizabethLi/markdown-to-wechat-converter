@@ -86,6 +86,7 @@ open index.html
 ### 图片说明
 
 - 可点击“选择本地图片”，也可把图片直接粘贴或拖入左侧编辑框；工具会转成内嵌 Markdown 图片（单张不超过 10 MB）。
+- 从 Obsidian 复制的 `![[Pasted image.png]]` 只包含附件名；页面会提示缺图。选择或拖入同名本地文件后，会自动替换为可复制的内嵌图片。
 - 也可继续使用 `![图片描述](https://example.com/image.png)` 或仓库内相对路径。
 - WeChat、Substack 富文本预览和 X Article 支持图文富文本复制。
 - LinkedIn 正文和 X Thread 是纯文本渠道，图片需要在目标平台单独上传；文案中会保留原图片地址。
