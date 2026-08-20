@@ -16,6 +16,12 @@ test('clipboard image discovery ignores non-image files', () => {
     assert.deepEqual(ImageHandler.getClipboardImageFiles(clipboardData), [imageFile]);
 });
 
+test('local image detection accepts browser MIME types and common image extensions', () => {
+    assert.equal(ImageHandler.isImageFile({ name: 'photo', type: 'image/jpeg' }), true);
+    assert.equal(ImageHandler.isImageFile({ name: 'diagram.PNG', type: '' }), true);
+    assert.equal(ImageHandler.isImageFile({ name: 'notes.txt', type: '' }), false);
+});
+
 test('image Markdown is inserted at the current selection with readable spacing', () => {
     const textarea = {
         value: 'beforeafter',
@@ -52,4 +58,23 @@ test('pasted image size guard reports an actionable error before reading the fil
     };
 
     await assert.rejects(ImageHandler.filesToMarkdown([oversized]), /不能超过 10 MB/);
+});
+
+test('local files are converted to self-contained Markdown images', async () => {
+    const OriginalFileReader = global.FileReader;
+    global.FileReader = class FakeFileReader {
+        readAsDataURL() {
+            this.result = 'data:image/png;base64,AAECAwQ=';
+            this.onload();
+        }
+    };
+
+    try {
+        const markdown = await ImageHandler.filesToMarkdown([
+            { name: 'architecture.png', type: 'image/png', size: 5 }
+        ]);
+        assert.equal(markdown, '![architecture](data:image/png;base64,AAECAwQ=)');
+    } finally {
+        global.FileReader = OriginalFileReader;
+    }
 });

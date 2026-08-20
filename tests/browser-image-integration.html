@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>Local image browser integration test</title>
+</head>
+<body>
+    <pre id="result" data-status="running">RUNNING</pre>
+    <iframe id="app" src="../index.html" hidden></iframe>
+    <script>
+        const result = document.getElementById('result');
+        const appFrame = document.getElementById('app');
+
+        const assert = (condition, message) => {
+            if (!condition) throw new Error(message);
+        };
+
+        const waitFor = async (predicate, timeoutMs = 10000) => {
+            const startedAt = Date.now();
+            while (!predicate()) {
+                if (Date.now() - startedAt > timeoutMs) {
+                    throw new Error('Timed out waiting for application scripts');
+                }
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        };
+
+        appFrame.addEventListener('load', async () => {
+            try {
+                const appWindow = appFrame.contentWindow;
+                const appDocument = appFrame.contentDocument;
+                await waitFor(() => (
+                    appWindow.UIController
+                    && appWindow.ImageHandler
+                    && appWindow.ChannelConverter
+                    && typeof appWindow.marked === 'function'
+                ));
+
+                if (!appWindow.App || !appWindow.App.isInitialized) {
+                    appWindow.UIController.initializeElements();
+                    appWindow.UIController.bindEvents();
+                }
+
+                const markdownInput = appDocument.getElementById('markdownInput');
+                markdownInput.value = '# Local image test';
+                markdownInput.selectionStart = markdownInput.value.length;
+                markdownInput.selectionEnd = markdownInput.value.length;
+
+                const pngBinary = appWindow.atob(
+                    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nUwAAAAASUVORK5CYII='
+                );
+                const pngBytes = new appWindow.Uint8Array(pngBinary.length);
+                for (let index = 0; index < pngBinary.length; index += 1) {
+                    pngBytes[index] = pngBinary.charCodeAt(index);
+                }
+                const localImage = new appWindow.File(
+                    [pngBytes],
+                    'local-test.png',
+                    { type: 'image/png' }
+                );
+
+                const imageFileInput = appDocument.getElementById('imageFileInput');
+                Object.defineProperty(imageFileInput, 'files', {
+                    configurable: true,
+                    value: [localImage]
+                });
+                imageFileInput.dispatchEvent(new appWindow.Event('change', { bubbles: true }));
+                await waitFor(() => markdownInput.value.includes('data:image/png;base64,'));
+                assert(
+                    markdownInput.value.includes('![local-test](data:image/png;base64,'),
+                    'Markdown does not contain an embedded local image'
+                );
+
+                await appWindow.UIController.updateOutput();
+                const preview = appDocument.getElementById('preview');
+                const previewImage = preview.querySelector('img');
+                assert(previewImage, 'WeChat preview does not contain an image');
+                assert(
+                    previewImage.getAttribute('src').startsWith('data:image/png;base64,'),
+                    'Preview image is not self-contained'
+                );
+
+                let clipboardItem = null;
+                appWindow.ClipboardItem = class ClipboardItemMock {
+                    constructor(data) {
+                        this.data = data;
+                        clipboardItem = this;
+                    }
+                };
+                Object.defineProperty(appWindow.navigator, 'clipboard', {
+                    configurable: true,
+                    value: {
+                        write: async () => {},
+                        writeText: async () => {}
+                    }
+                });
+
+                await appWindow.UIController.copyPreview();
+                assert(clipboardItem, 'Rich clipboard item was not created');
+                const copiedHtml = await clipboardItem.data['text/html'].text();
+                assert(copiedHtml.includes('<img'), 'Copied HTML does not contain an image');
+                assert(
+                    copiedHtml.includes('data:image/png;base64,'),
+                    'Copied HTML does not contain the embedded image data'
+                );
+
+                result.dataset.status = 'passed';
+                result.textContent = JSON.stringify({
+                    status: 'PASS',
+                    fileInputEventImportedImage: true,
+                    markdownHasEmbeddedImage: true,
+                    previewHasEmbeddedImage: true,
+                    clipboardHtmlHasEmbeddedImage: true
+                });
+            } catch (error) {
+                result.dataset.status = 'failed';
+                result.textContent = JSON.stringify({
+                    status: 'FAIL',
+                    message: error && error.message ? error.message : String(error)
+                });
+            }
+        });
+    </script>
+</body>
+</html>

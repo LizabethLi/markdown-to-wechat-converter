@@ -5,20 +5,26 @@ const ImageHandler = {
     fetchTimeoutMs: 8000,
     imageDataUrlCache: new Map(),
 
+    isImageFile: function(file) {
+        if (!file) return false;
+        if (/^image\//i.test(file.type || '')) return true;
+        return /\.(?:avif|gif|jpe?g|png|svg|webp)$/i.test(file.name || '');
+    },
+
     getClipboardImageFiles: function(clipboardData) {
         if (!clipboardData) return [];
 
         const files = [];
         const items = Array.from(clipboardData.items || []);
         items.forEach((item) => {
-            if (item.kind !== 'file' || !/^image\//i.test(item.type || '')) return;
+            if (item.kind !== 'file') return;
             const file = item.getAsFile && item.getAsFile();
-            if (file) files.push(file);
+            if (this.isImageFile(file)) files.push(file);
         });
 
         if (files.length > 0) return files;
         return Array.from(clipboardData.files || [])
-            .filter(file => file && /^image\//i.test(file.type || ''));
+            .filter(file => this.isImageFile(file));
     },
 
     sanitizeAltText: function(fileName, index = 0) {
@@ -47,7 +53,7 @@ const ImageHandler = {
 
     filesToMarkdown: async function(files) {
         const imageFiles = Array.from(files || [])
-            .filter(file => file && /^image\//i.test(file.type || ''));
+            .filter(file => this.isImageFile(file));
 
         if (!imageFiles.length) return '';
 

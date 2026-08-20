@@ -49,6 +49,20 @@ const UIController = {
                 }
             });
             markdownInput.addEventListener('paste', (event) => this.handleMarkdownImagePaste(event));
+            markdownInput.addEventListener('dragenter', (event) => this.handleMarkdownImageDrag(event));
+            markdownInput.addEventListener('dragover', (event) => this.handleMarkdownImageDrag(event));
+            markdownInput.addEventListener('dragleave', () => markdownInput.classList.remove('is-image-dragover'));
+            markdownInput.addEventListener('drop', (event) => this.handleMarkdownImageDrop(event));
+        }
+
+        const imageFileButton = document.getElementById('imageFileButton');
+        const imageFileInput = document.getElementById('imageFileInput');
+        if (imageFileButton && imageFileInput) {
+            imageFileButton.addEventListener('click', () => imageFileInput.click());
+            imageFileInput.addEventListener('change', async () => {
+                await this.handleMarkdownImageFiles(imageFileInput.files, markdownInput);
+                imageFileInput.value = '';
+            });
         }
 
         const preview = document.getElementById('preview');
@@ -171,22 +185,58 @@ const UIController = {
         if (!markdownInput || !files.length) return;
 
         event.preventDefault();
+        await this.handleMarkdownImageFiles(files, markdownInput);
+    },
+
+    handleMarkdownImageDrag: function(event) {
+        if (typeof ImageHandler === 'undefined' || !event || !event.dataTransfer) return;
+
+        const files = Array.from(event.dataTransfer.files || []);
+        const hasImage = files.some(file => ImageHandler.isImageFile(file))
+            || Array.from(event.dataTransfer.items || []).some(item => /^image\//i.test(item.type || ''));
+        if (!hasImage) return;
+
+        event.preventDefault();
+        event.currentTarget.classList.add('is-image-dragover');
+        event.dataTransfer.dropEffect = 'copy';
+    },
+
+    handleMarkdownImageDrop: async function(event) {
+        const markdownInput = event && event.currentTarget;
+        if (markdownInput) markdownInput.classList.remove('is-image-dragover');
+        if (typeof ImageHandler === 'undefined' || !event || !event.dataTransfer) return;
+
+        const files = Array.from(event.dataTransfer.files || [])
+            .filter(file => ImageHandler.isImageFile(file));
+        if (!files.length) return;
+
+        event.preventDefault();
+        await this.handleMarkdownImageFiles(files, markdownInput);
+    },
+
+    handleMarkdownImageFiles: async function(files, markdownInput) {
+        const imageFiles = Array.from(files || [])
+            .filter(file => typeof ImageHandler !== 'undefined' && ImageHandler.isImageFile(file));
+        if (!markdownInput || !imageFiles.length) return false;
+
         const start = markdownInput.selectionStart;
         const end = markdownInput.selectionEnd;
         const valueBeforeRead = markdownInput.value;
 
         try {
-            const imageMarkdown = await ImageHandler.filesToMarkdown(files);
+            const imageMarkdown = await ImageHandler.filesToMarkdown(imageFiles);
             if (markdownInput.value === valueBeforeRead) {
                 markdownInput.selectionStart = start;
                 markdownInput.selectionEnd = end;
             }
             ImageHandler.insertMarkdownAtSelection(markdownInput, imageMarkdown);
-            this.showCopyNotice(`已插入 ${files.length} 张图片，图片数据会随 Markdown 保留。`, false);
+            this.showCopyNotice(`已插入 ${imageFiles.length} 张本地图片，图片数据会随 Markdown 保留。`, false);
             this.updateOutput();
+            return true;
         } catch (error) {
             console.error('Failed to paste image into Markdown:', error);
             this.showCopyNotice(error && error.message ? error.message : '图片粘贴失败', true);
+            return false;
         }
     },
 

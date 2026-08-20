@@ -46,6 +46,29 @@ body {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+.image-import-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    color: #64748b;
+    background: #f8fafc;
+    border-bottom: 1px solid #eef2f7;
+    font-size: 12px;
+}
+
+.image-import-button {
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+#markdownInput.is-image-dragover {
+    outline: 2px dashed #2563eb;
+    outline-offset: -5px;
+    background: #eff6ff;
+}
+
 .copy-notice {
     display: none;
     margin: 10px 14px 0;

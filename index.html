@@ -233,6 +233,11 @@
             </div>
             <div id="channelReminder" class="channel-reminder" role="alert"></div>
             <div class="panel-content">
+                <div class="image-import-toolbar">
+                    <button type="button" class="btn image-import-button" id="imageFileButton">选择本地图片</button>
+                    <input id="imageFileInput" type="file" accept="image/*" multiple hidden>
+                    <span>也可以把图片粘贴或拖到下方编辑框</span>
+                </div>
                 <textarea id="markdownInput" placeholder="在这里输入你的 Markdown 内容...
 
 💡 使用提示：
@@ -271,7 +276,7 @@ console.log('Hello, world!');
 
 🔥 复制到微信公众号时请使用【粘贴并保留格式】或【Ctrl+Shift+V】
 "></textarea>
-                <div class="markdown-input-hint">支持直接粘贴截图或本地图片；单张不超过 10 MB。公网图片也可继续使用 <code>![描述](图片地址)</code>。</div>
+                <div class="markdown-input-hint">本地图片会直接内嵌到 Markdown，不会上传到服务器；单张不超过 10 MB。公网图片也可继续使用 <code>![描述](图片地址)</code>。</div>
             </div>
         </div>
         
