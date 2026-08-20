@@ -3,8 +3,12 @@ const UIController = {
     currentTheme: null,
     customColor: null, // 新增：自定义颜色
     currentChannel: 'wechat',
+    outputLanguage: 'zh',
     renderTaskToken: 0,
     currentRenderedResult: null,
+    inputRenderTimer: null,
+    previewImagePreparation: null,
+    copyNoticeTimer: null,
 
     // 初始化应用
     init: function() {
@@ -34,7 +38,17 @@ const UIController = {
         // 输入框变化事件
         const markdownInput = document.getElementById('markdownInput');
         if (markdownInput) {
-            markdownInput.addEventListener('input', () => this.updateOutput());
+            markdownInput.addEventListener('input', () => {
+                if (this.inputRenderTimer) {
+                    clearTimeout(this.inputRenderTimer);
+                }
+                if (this.outputLanguage === 'en') {
+                    this.inputRenderTimer = setTimeout(() => this.updateOutput(), 500);
+                } else {
+                    this.updateOutput();
+                }
+            });
+            markdownInput.addEventListener('paste', (event) => this.handleMarkdownImagePaste(event));
         }
 
         const preview = document.getElementById('preview');
@@ -47,6 +61,16 @@ const UIController = {
         if (channelSelect) {
             channelSelect.addEventListener('change', (e) => {
                 this.handleChannelChange(e.target.value);
+            });
+        }
+
+        const outputLanguageToggle = document.getElementById('outputLanguageToggle');
+        if (outputLanguageToggle) {
+            outputLanguageToggle.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-output-language]');
+                if (button) {
+                    this.handleOutputLanguageChange(button.getAttribute('data-output-language'));
+                }
             });
         }
 
@@ -73,11 +97,13 @@ const UIController = {
             const translatorPanel = document.getElementById('translatorPanel');
             const translatorButton = document.getElementById('translatorButton');
             const generateXButton = document.getElementById('generateXButton');
+            const languageButton = e.target.closest && e.target.closest('[data-output-language]');
             if (
                 translatorPanel
                 && !translatorPanel.contains(e.target)
                 && e.target !== translatorButton
                 && e.target !== generateXButton
+                && !languageButton
             ) {
                 translatorPanel.style.display = 'none';
             }
@@ -119,10 +145,12 @@ const UIController = {
         this.updateThemeUI();
         // 加载翻译设置
         this.loadTranslatorSettingsFromStorage();
+        this.loadOutputLanguageFromStorage();
         // 加载模板列表
         this.populateTemplateOptions();
         // 更新渠道提醒状态
         this.updateChannelReminder(this.currentChannel);
+        this.updateOutputLanguageUI();
         this.updateXGeneratorVisibility();
         this.updateCopyButtonLabels();
     },
@@ -135,9 +163,77 @@ const UIController = {
         this.updateOutput();
     },
 
+    handleMarkdownImagePaste: async function(event) {
+        if (typeof ImageHandler === 'undefined') return;
+
+        const markdownInput = event && event.currentTarget;
+        const files = ImageHandler.getClipboardImageFiles(event && event.clipboardData);
+        if (!markdownInput || !files.length) return;
+
+        event.preventDefault();
+        const start = markdownInput.selectionStart;
+        const end = markdownInput.selectionEnd;
+        const valueBeforeRead = markdownInput.value;
+
+        try {
+            const imageMarkdown = await ImageHandler.filesToMarkdown(files);
+            if (markdownInput.value === valueBeforeRead) {
+                markdownInput.selectionStart = start;
+                markdownInput.selectionEnd = end;
+            }
+            ImageHandler.insertMarkdownAtSelection(markdownInput, imageMarkdown);
+            this.showCopyNotice(`已插入 ${files.length} 张图片，图片数据会随 Markdown 保留。`, false);
+            this.updateOutput();
+        } catch (error) {
+            console.error('Failed to paste image into Markdown:', error);
+            this.showCopyNotice(error && error.message ? error.message : '图片粘贴失败', true);
+        }
+    },
+
+    handleOutputLanguageChange: function(language) {
+        const nextLanguage = language === 'en' ? 'en' : 'zh';
+        if (nextLanguage === this.outputLanguage) return;
+
+        this.outputLanguage = nextLanguage;
+        try {
+            localStorage.setItem('publishing_output_language', nextLanguage);
+        } catch (error) {
+            console.warn('Failed to save output language:', error);
+        }
+        this.updateOutputLanguageUI();
+        this.updateChannelReminder(this.currentChannel);
+
+        if (nextLanguage === 'en' && !this.hasTranslatorConfiguration()) {
+            const panel = document.getElementById('translatorPanel');
+            const keyInput = document.getElementById('translatorApiKey');
+            if (panel) panel.style.display = 'block';
+            if (keyInput) keyInput.focus();
+        }
+        this.updateOutput();
+    },
+
+    loadOutputLanguageFromStorage: function() {
+        const stored = this.safeReadLocalStorage('publishing_output_language');
+        this.outputLanguage = stored === 'en' ? 'en' : 'zh';
+    },
+
+    updateOutputLanguageUI: function() {
+        document.querySelectorAll('[data-output-language]').forEach((button) => {
+            const isActive = button.getAttribute('data-output-language') === this.outputLanguage;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-pressed', String(isActive));
+        });
+    },
+
     updateChannelReminder: function(channel) {
         const reminderEl = document.getElementById('channelReminder');
         if (!reminderEl) return;
+
+        if (this.outputLanguage === 'en' && !this.hasTranslatorConfiguration()) {
+            reminderEl.textContent = 'English 输出需要 OpenRouter API Key；请在 ⚙️ 中配置后重新生成。';
+            reminderEl.classList.add('show');
+            return;
+        }
 
         const activeChannel = (typeof ChannelConverter !== 'undefined' && typeof ChannelConverter.getChannel === 'function')
             ? ChannelConverter.getChannel(channel)
@@ -386,6 +482,9 @@ const UIController = {
             } else if (AppConfig.translation.mode === 'direct') {
                 AppConfig.translation.mode = 'disabled';
             }
+            if (typeof ChannelConverter !== 'undefined' && typeof ChannelConverter.clearLocalizationCache === 'function') {
+                ChannelConverter.clearLocalizationCache();
+            }
             this.updateChannelReminder(this.currentChannel);
             // 关闭面板
             const panel = document.getElementById('translatorPanel');
@@ -507,6 +606,38 @@ const UIController = {
         if (rendered.needsMathTypeset) {
             this.typesetMath(preview);
         }
+
+        this.preparePreviewImages(preview);
+    },
+
+    preparePreviewImages: function(preview) {
+        if (typeof ImageHandler === 'undefined' || !preview) {
+            this.previewImagePreparation = null;
+            return Promise.resolve({ total: 0, embedded: 0, alreadyEmbedded: 0, external: 0, failures: [] });
+        }
+
+        const promise = ImageHandler.embedImagesInElement(preview);
+        this.previewImagePreparation = { preview, promise, report: null };
+        promise.then((report) => {
+            if (this.previewImagePreparation && this.previewImagePreparation.promise === promise) {
+                this.previewImagePreparation.report = report;
+            }
+        }).catch((error) => {
+            console.warn('Failed to prepare preview images:', error);
+        });
+        return promise;
+    },
+
+    ensurePreviewImagesReady: async function(preview) {
+        const current = this.previewImagePreparation;
+        if (current && current.preview === preview) {
+            try {
+                return current.report || await current.promise;
+            } catch (_) {
+                return { total: 0, embedded: 0, alreadyEmbedded: 0, external: 0, failures: [] };
+            }
+        }
+        return this.preparePreviewImages(preview);
     },
 
     generateXPublishingContent: async function() {
@@ -546,7 +677,8 @@ const UIController = {
 
         try {
             const rendered = await ChannelConverter.renderForChannel('x', markdown, {
-                useAI: true
+                useAI: true,
+                outputLanguage: this.outputLanguage
             });
             if (taskToken !== this.renderTaskToken) return;
             this.applyRenderedChannelResult(rendered, htmlOutput, preview);
@@ -591,16 +723,22 @@ const UIController = {
         if (!content) return;
         const originalLabel = button.textContent;
         let success = false;
+        let imageReport = null;
         if (kind === 'article' && typeof marked === 'function') {
-            const articleHtml = marked(content);
-            const articleText = ChannelConverter.markdownToPlainText(content);
+            const preview = document.getElementById('preview');
+            imageReport = await this.ensurePreviewImagesReady(preview);
+            const articleContent = button.closest('.x-article-card')
+                && button.closest('.x-article-card').querySelector('.x-article-content');
+            const articleHtml = articleContent ? articleContent.innerHTML : marked(content);
+            const articleText = articleContent ? articleContent.innerText : ChannelConverter.markdownToPlainText(content);
             success = await this.copyHtmlToClipboard(articleHtml, articleText);
         }
         if (!success) {
             success = await this.copyToClipboard(content);
         }
         if (success) {
-            this.showCopySuccess(button, originalLabel);
+            this.showCopySuccess(button, originalLabel, this.getRichCopySuccessText(imageReport));
+            this.showImageCopyReport(imageReport);
         } else {
             alert('复制失败，请手动复制');
         }
@@ -637,7 +775,8 @@ const UIController = {
 
             const rendered = await ChannelConverter.renderForChannel(channel, markdown, {
                 themeColor,
-                mode: AppConfig.defaults.mode
+                mode: AppConfig.defaults.mode,
+                outputLanguage: this.outputLanguage
             });
 
             if (taskToken !== this.renderTaskToken) {
@@ -761,6 +900,40 @@ const UIController = {
         }, AppConfig.ui.copySuccessDisplayTime);
     },
 
+    showCopyNotice: function(message, warning = false) {
+        const notice = document.getElementById('copyNotice');
+        if (!notice) return;
+
+        if (this.copyNoticeTimer) clearTimeout(this.copyNoticeTimer);
+        notice.textContent = message || '';
+        notice.classList.toggle('show', !!message);
+        notice.classList.toggle('warning', !!warning);
+        if (message) {
+            this.copyNoticeTimer = setTimeout(() => {
+                notice.classList.remove('show', 'warning');
+                notice.textContent = '';
+            }, 7000);
+        }
+    },
+
+    getRichCopySuccessText: function(report) {
+        if (!report || !report.total) return '✅ 已复制';
+        if (!report.external) return '✅ 图文已复制';
+        return `⚠️ 已复制（${report.external} 张外链图）`;
+    },
+
+    showImageCopyReport: function(report) {
+        if (!report || !report.total) return;
+        if (report.external) {
+            this.showCopyNotice(
+                `正文已复制；${report.external} 张图片因图片服务器限制未能内嵌，仍保留原地址，目标平台可能需要手动上传。`,
+                true
+            );
+            return;
+        }
+        this.showCopyNotice(`正文和 ${report.total} 张图片已一起写入剪贴板。`, false);
+    },
+
     // 复制HTML代码
     copyHtml: async function() {
         const htmlOutput = document.getElementById('htmlOutput');
@@ -862,8 +1035,16 @@ const UIController = {
         }
 
         let success = false;
+        let imageReport = null;
+        const activeChannel = this.getActiveChannelConfig();
+        const useRichCopy = activeChannel && activeChannel.previewCopyMode === 'rich';
 
-        if (channel === 'wechat') {
+        if (useRichCopy) {
+            const originalLabel = button.textContent;
+            if (preview && preview.querySelector('img')) {
+                button.textContent = '正在准备图片...';
+            }
+            imageReport = await this.ensurePreviewImagesReady(preview);
             const previewHtml = preview ? preview.innerHTML : '';
             const previewText = preview ? preview.innerText : '';
             success = await this.copyHtmlToClipboard(previewHtml, previewText);
@@ -873,13 +1054,15 @@ const UIController = {
             if (!success) {
                 success = await this.copyToClipboard(previewText);
             }
+            if (!success) button.textContent = originalLabel;
         } else {
             const markdown = htmlOutput.value;
             success = await this.copyToClipboard(markdown);
         }
         
         if (success) {
-            this.showCopySuccess(button, this.getCopyPreviewButtonLabel());
+            this.showCopySuccess(button, this.getCopyPreviewButtonLabel(), this.getRichCopySuccessText(imageReport));
+            this.showImageCopyReport(imageReport);
         } else {
             alert('复制失败，请手动复制');
         }

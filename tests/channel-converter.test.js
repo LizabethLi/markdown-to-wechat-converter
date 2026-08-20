@@ -11,39 +11,156 @@ global.marked = (markdown) => markdown;
 
 const ChannelConverter = require('../js/channel-converter.js');
 
-test('passthrough translation does not duplicate bilingual Markdown', async () => {
-    const source = '# 标题\n\n这是原文。';
-
-    assert.equal(await ChannelConverter.buildBilingualMarkdown(source), source);
+test.beforeEach(() => {
+    global.Translator.translateMarkdownToEnglish = async (markdown) => markdown;
+    global.Translator.generateXPublishingPlan = async () => null;
+    global.MarkdownConverter.convertMarkdownToWechat = async (markdown) => markdown;
+    ChannelConverter.clearLocalizationCache();
 });
 
-test('passthrough translation does not duplicate a LinkedIn post', async () => {
+test('Chinese output keeps the original Markdown without calling the translator', async () => {
+    let translationCalls = 0;
+    global.Translator.translateMarkdownToEnglish = async () => {
+        translationCalls += 1;
+        return '# Title';
+    };
     const source = '# 标题\n\n这是原文。';
 
-    assert.equal(await ChannelConverter.buildLinkedInPost(source), '标题\n\n这是原文。');
+    assert.equal(await ChannelConverter.buildLocalizedMarkdown(source, 'zh'), source);
+    assert.equal(translationCalls, 0);
 });
 
-test('distinct translation keeps both translated and original content', async () => {
+test('English output translates once and returns only the translated Markdown', async () => {
+    let translationCalls = 0;
     global.Translator.translateMarkdownToEnglish = async () => '# Title\n\nEnglish body.';
     const source = '# 标题\n\n中文正文。';
 
-    assert.equal(
-        await ChannelConverter.buildBilingualMarkdown(source),
-        '# Title\n\nEnglish body.\n\n---\n\n# 标题\n\n中文正文。'
-    );
-    assert.equal(
-        await ChannelConverter.buildLinkedInPost(source),
-        'Title\n\nEnglish body.\n\n——\n\n标题\n\n中文正文。'
-    );
+    global.Translator.translateMarkdownToEnglish = async () => {
+        translationCalls += 1;
+        return '# Title\n\nEnglish body.';
+    };
+    const rendered = await ChannelConverter.renderForChannel('substack', source, {
+        outputLanguage: 'en'
+    });
+
+    assert.equal(rendered.output, '# Title\n\nEnglish body.');
+    assert.doesNotMatch(rendered.output, /中文正文|---/);
+    assert.equal(translationCalls, 1);
+});
+
+test('all channels receive the selected single-language Markdown', async () => {
+    const source = '# 标题\n\n中文正文。';
+    const translated = '# Title\n\nEnglish body.';
+    let translationCalls = 0;
+    global.Translator.translateMarkdownToEnglish = async () => {
+        translationCalls += 1;
+        return translated;
+    };
+
+    const wechat = await ChannelConverter.renderForChannel('wechat', source, { outputLanguage: 'en' });
+    const linkedin = await ChannelConverter.renderForChannel('linkedin', source, { outputLanguage: 'en' });
+    const chineseSubstack = await ChannelConverter.renderForChannel('substack', source, { outputLanguage: 'zh' });
+
+    assert.equal(wechat.output, translated);
+    assert.equal(linkedin.output, 'Title\n\nEnglish body.');
+    assert.equal(chineseSubstack.output, source);
+    assert.equal(translationCalls, 1);
+});
+
+test('a stale translation cannot overwrite the cache for newer source text', async () => {
+    const resolvers = {};
+    global.Translator.translateMarkdownToEnglish = (markdown) => new Promise((resolve) => {
+        resolvers[markdown.trim()] = resolve;
+    });
+
+    const oldRequest = ChannelConverter.buildLocalizedMarkdown('旧正文', 'en');
+    const newRequest = ChannelConverter.buildLocalizedMarkdown('新正文', 'en');
+    resolvers['新正文']('New body');
+    assert.equal(await newRequest, 'New body');
+    resolvers['旧正文']('Old body');
+    assert.equal(await oldRequest, 'Old body');
+
+    assert.equal(await ChannelConverter.buildLocalizedMarkdown('新正文', 'en'), 'New body');
 });
 
 test('empty source produces empty channel output', async () => {
-    global.Translator.translateMarkdownToEnglish = async (markdown) => markdown;
-
-    assert.equal(await ChannelConverter.buildBilingualMarkdown(''), '');
-    assert.equal(await ChannelConverter.buildLinkedInPost('  \n'), '');
+    assert.equal(await ChannelConverter.buildLocalizedMarkdown('', 'en'), '');
+    assert.equal(ChannelConverter.buildSingleLanguageMarkdown('  \n'), '');
+    assert.equal(ChannelConverter.buildSingleLanguagePlainText('  \n'), '');
     assert.equal(await ChannelConverter.buildXThread(''), '');
     assert.deepEqual(ChannelConverter.splitIntoXThread(''), []);
+});
+
+test('image Markdown is preserved for rich channels and remains referenced in plain text', async () => {
+    const source = '# Article\n\n![Architecture](https://example.com/architecture.png)';
+
+    const substack = await ChannelConverter.renderForChannel('substack', source, { outputLanguage: 'zh' });
+    const wechat = await ChannelConverter.renderForChannel('wechat', source, { outputLanguage: 'zh' });
+    const linkedin = await ChannelConverter.renderForChannel('linkedin', source, { outputLanguage: 'zh' });
+    const x = await ChannelConverter.renderForChannel('x', source, { outputLanguage: 'zh' });
+
+    assert.match(substack.output, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
+    assert.match(wechat.output, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
+    assert.match(linkedin.output, /Architecture \(https:\/\/example\.com\/architecture\.png\)/);
+    assert.match(x.data.articleMarkdown, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
+});
+
+test('embedded image data bypasses translation and is restored in the translated article', async () => {
+    const dataUrl = 'data:image/png;base64,AAECAwQ=';
+    let translationInput = '';
+    global.Translator.translateMarkdownToEnglish = async (markdown) => {
+        translationInput = markdown;
+        return markdown.replace('中文正文', 'English body');
+    };
+
+    const rendered = await ChannelConverter.renderForChannel(
+        'substack',
+        `中文正文\n\n![Screenshot](${dataUrl})`,
+        { outputLanguage: 'en' }
+    );
+
+    assert.doesNotMatch(translationInput, /AAECAwQ/);
+    assert.match(translationInput, /__INLINE_IMAGE_DATA_0__/);
+    assert.match(rendered.output, /English body/);
+    assert.match(rendered.output, /data:image\/png;base64,AAECAwQ=/);
+});
+
+test('plain-text channels describe embedded images without copying Base64 payloads', () => {
+    const output = ChannelConverter.markdownToPlainText(
+        '![Screenshot](data:image/png;base64,AAECAwQ=)'
+    );
+
+    assert.equal(output, '[图片：Screenshot]');
+    assert.doesNotMatch(output, /base64/);
+});
+
+test('X AI planning receives an image placeholder while the article keeps the image', async () => {
+    const dataUrl = 'data:image/png;base64,AAECAwQ=';
+    let planInput = '';
+    global.Translator.generateXPublishingPlan = async (markdown) => {
+        planInput = markdown;
+        return {
+            recommendation: 'Recommended.',
+            bulletPoints: [{ title: 'Point', detail: 'Detail.' }]
+        };
+    };
+
+    const rendered = await ChannelConverter.renderForChannel(
+        'x',
+        `# Article\n\n![Screenshot](${dataUrl})`,
+        { outputLanguage: 'zh', useAI: true }
+    );
+
+    assert.doesNotMatch(planInput, /AAECAwQ/);
+    assert.match(planInput, /embedded-image:\/\/omitted/);
+    assert.match(rendered.data.articleMarkdown, /data:image\/png;base64,AAECAwQ=/);
+});
+
+test('rich-copy configuration and plain-channel reminders match platform capabilities', () => {
+    assert.equal(ChannelConverter.getChannel('wechat').previewCopyMode, 'rich');
+    assert.equal(ChannelConverter.getChannel('substack').previewCopyMode, 'rich');
+    assert.equal(ChannelConverter.getChannel('substack').reminder, null);
+    assert.match(ChannelConverter.getChannel('linkedin').reminder.text, /单独上传图片/);
 });
 
 test('X thread splitting preserves complete Unicode characters', () => {
@@ -99,7 +216,11 @@ test('X AI publishing bundle creates one main post and one post per bullet point
         ]
     });
 
-    const bundle = await ChannelConverter.buildXPublishingBundle('# 中文标题', { useAI: true });
+    const rendered = await ChannelConverter.renderForChannel('x', '# 中文标题', {
+        useAI: true,
+        outputLanguage: 'en'
+    });
+    const bundle = rendered.data;
 
     assert.equal(bundle.usedAI, true);
     assert.equal(bundle.articleMarkdown, '# English title\n\nEnglish article.');
@@ -108,6 +229,29 @@ test('X AI publishing bundle creates one main post and one post per bullet point
     assert.match(bundle.threadPosts[0], /• First insight/);
     assert.match(bundle.threadPosts[1], /A focused explanation of the first insight/);
     assert.ok(bundle.threadPosts.every(post => post.length <= 280));
+});
+
+test('X Chinese mode sends the Chinese article directly to AI without translation', async () => {
+    let planSource = '';
+    global.Translator.translateMarkdownToEnglish = async () => {
+        throw new Error('translator should not be called in Chinese mode');
+    };
+    global.Translator.generateXPublishingPlan = async (markdown) => {
+        planSource = markdown;
+        return {
+            recommendation: '推荐阅读这篇文章。',
+            bulletPoints: [{ title: '中文要点', detail: '中文解释。' }]
+        };
+    };
+
+    const rendered = await ChannelConverter.renderForChannel('x', '# 中文标题', {
+        useAI: true,
+        outputLanguage: 'zh'
+    });
+
+    assert.equal(planSource, '# 中文标题');
+    assert.equal(rendered.data.articleMarkdown, '# 中文标题');
+    assert.match(rendered.data.threadPosts[0], /推荐阅读/);
 });
 
 test('X AI failure falls back to a usable local publishing bundle', async () => {

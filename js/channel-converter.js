@@ -3,6 +3,12 @@ const stripLeadMarkers = (text) =>
     text.replace(/(^|\n)[ \t]*\[\s*lead\s*\][ \t]*/gi, '$1');
 
 const ChannelConverter = {
+    localizationCache: {
+        source: '',
+        value: '',
+        promise: null
+    },
+
     channels: {
         wechat: {
             id: 'wechat',
@@ -11,6 +17,7 @@ const ChannelConverter = {
             outputTitle: '📋 HTML 代码 (可滚动查看)',
             copyPreviewLabel: '复制样式',
             copyOutputLabel: '复制代码',
+            previewCopyMode: 'rich',
             previewHostClass: 'wechat-preview',
             reminder: null,
             render: async function(markdown, context = {}) {
@@ -30,15 +37,13 @@ const ChannelConverter = {
             name: 'Substack / GitHub (Markdown)',
             outputLabel: 'Markdown',
             outputTitle: '📋 Markdown 文案 (可滚动查看)',
-            copyPreviewLabel: '复制文案',
+            copyPreviewLabel: '复制图文',
             copyOutputLabel: '复制文案',
+            previewCopyMode: 'rich',
             previewHostClass: 'markdown-preview',
-            reminder: {
-                requiresTranslation: true,
-                text: '当前渠道建议配置 OpenRouter API Key + System Prompt。未配置时会直接复用原文。'
-            },
+            reminder: null,
             render: async function(markdown) {
-                const output = await ChannelConverter.buildBilingualMarkdown(markdown);
+                const output = ChannelConverter.buildSingleLanguageMarkdown(markdown);
                 return {
                     output,
                     previewHtml: marked(output),
@@ -56,11 +61,11 @@ const ChannelConverter = {
             copyOutputLabel: '复制文案',
             previewHostClass: 'plain-text-preview-host',
             reminder: {
-                requiresTranslation: true,
-                text: '当前渠道建议配置 OpenRouter API Key + System Prompt。未配置时会直接复用原文。'
+                requiresTranslation: false,
+                text: 'LinkedIn 正文是纯文本；图片地址会保留在文案中，发布时需要在 LinkedIn 单独上传图片。'
             },
             render: async function(markdown) {
-                const output = await ChannelConverter.buildLinkedInPost(markdown);
+                const output = ChannelConverter.buildSingleLanguagePlainText(markdown);
                 return {
                     output,
                     previewHtml: ChannelConverter.renderPlainTextPreview(output, 'linkedin'),
@@ -80,7 +85,7 @@ const ChannelConverter = {
             reminder: {
                 requiresAI: true,
                 missingText: '配置 OpenRouter API Key 后，点击“生成 X Article + Thread”，AI 会写推荐语并提取 3–6 个要点。',
-                text: '点击“生成 X Article + Thread”，AI 会生成首条推荐、要点总览和逐条展开的 Thread。'
+                text: '点击“生成 X Article + Thread”，AI 会生成首条推荐、要点总览和逐条展开的 Thread。Article 可复制图文；Thread 图片需要单独上传。'
             },
             render: async function(markdown, context = {}) {
                 const bundle = await ChannelConverter.buildXPublishingBundle(markdown, {
@@ -107,7 +112,13 @@ const ChannelConverter = {
 
     async renderForChannel(channelId, markdown, context = {}) {
         const channel = this.getChannel(channelId);
-        const result = await channel.render(markdown || '', context);
+        const outputLanguage = context.outputLanguage === 'en' ? 'en' : 'zh';
+        const localizedMarkdown = await this.buildLocalizedMarkdown(markdown || '', outputLanguage);
+        const result = await channel.render(localizedMarkdown, {
+            ...context,
+            outputLanguage,
+            sourceMarkdown: markdown || ''
+        });
         return {
             channel,
             output: result.output || '',
@@ -118,38 +129,91 @@ const ChannelConverter = {
         };
     },
 
-    async buildBilingualMarkdown(markdown) {
+    async buildLocalizedMarkdown(markdown, outputLanguage = 'zh') {
         const sanitized = this.prepareSourceMarkdown(markdown);
         if (!sanitized.trim()) {
             return '';
         }
 
-        const enMd = await Translator.translateMarkdownToEnglish(sanitized);
-        const translated = stripLeadMarkers(enMd || '').trim();
-        const original = sanitized.trim();
-
-        if (!translated || this.isSameContent(translated, original)) {
-            return original;
+        if (outputLanguage !== 'en' || !/[\u3400-\u9fff]/.test(sanitized)) {
+            return sanitized.trim();
         }
 
-        return `${translated}\n\n---\n\n${original}`;
+        const source = sanitized.trim();
+        if (this.localizationCache.source === source) {
+            if (this.localizationCache.value) {
+                return this.localizationCache.value;
+            }
+            if (this.localizationCache.promise) {
+                return this.localizationCache.promise;
+            }
+        }
+
+        const protectedImages = this.protectInlineImageData(sanitized);
+        const translationPromise = Translator.translateMarkdownToEnglish(protectedImages.markdown)
+            .then((translated) => {
+                const restored = this.restoreInlineImageData(translated || protectedImages.markdown, protectedImages.images);
+                return stripLeadMarkers(restored || sanitized).trim() || source;
+            });
+        this.localizationCache = {
+            source,
+            value: '',
+            promise: translationPromise
+        };
+
+        try {
+            const value = await translationPromise;
+            if (this.localizationCache.promise === translationPromise) {
+                this.localizationCache = { source, value, promise: null };
+            }
+            return value;
+        } catch (error) {
+            if (this.localizationCache.promise === translationPromise) {
+                this.clearLocalizationCache();
+            }
+            throw error;
+        }
     },
 
-    async buildLinkedInPost(markdown) {
+    clearLocalizationCache() {
+        this.localizationCache = { source: '', value: '', promise: null };
+    },
+
+    buildSingleLanguageMarkdown(markdown) {
         const sanitized = this.prepareSourceMarkdown(markdown);
-        if (!sanitized.trim()) {
-            return '';
-        }
+        return sanitized.trim();
+    },
 
-        const enMd = await Translator.translateMarkdownToEnglish(sanitized);
-        const enText = this.markdownToPlainText(enMd);
-        const zhText = this.markdownToPlainText(sanitized);
+    buildSingleLanguagePlainText(markdown) {
+        return this.markdownToPlainText(this.prepareSourceMarkdown(markdown));
+    },
 
-        if (!enText || this.isSameContent(enText, zhText)) {
-            return zhText;
-        }
+    protectInlineImageData(markdown) {
+        const images = [];
+        const protectedMarkdown = String(markdown || '').replace(
+            /data:image\/[a-z0-9.+-]+(?:;[a-z0-9=.+-]+)*;base64,[a-z0-9+/_=-]+/gi,
+            (dataUrl) => {
+                const token = `__INLINE_IMAGE_DATA_${images.length}__`;
+                images.push({ token, dataUrl });
+                return token;
+            }
+        );
+        return { markdown: protectedMarkdown, images };
+    },
 
-        return [enText, '——', zhText].filter(Boolean).join('\n\n').trim();
+    restoreInlineImageData(markdown, images) {
+        return (images || []).reduce(
+            (value, image) => String(value || '').split(image.token).join(image.dataUrl),
+            String(markdown || '')
+        );
+    },
+
+    prepareMarkdownForAI(markdown) {
+        const protectedImages = this.protectInlineImageData(markdown);
+        return protectedImages.images.reduce(
+            (value, image) => value.split(image.token).join('embedded-image://omitted'),
+            protectedImages.markdown
+        );
     },
 
     async buildXThread(markdown) {
@@ -184,9 +248,7 @@ const ChannelConverter = {
 
         if (options.useAI && typeof Translator.generateXPublishingPlan === 'function') {
             try {
-                const translated = await Translator.translateMarkdownToEnglish(sanitized);
-                articleMarkdown = stripLeadMarkers(translated || sanitized).trim() || sanitized;
-                plan = await Translator.generateXPublishingPlan(articleMarkdown);
+                plan = await Translator.generateXPublishingPlan(this.prepareMarkdownForAI(articleMarkdown));
                 usedAI = !!plan;
             } catch (error) {
                 aiError = error && error.message ? error.message : String(error || 'AI generation failed');
@@ -362,7 +424,12 @@ const ChannelConverter = {
         });
 
         text = text.replace(/`([^`]+)`/g, '$1');
-        text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_m, alt, url) => alt ? `${alt} (${url})` : url);
+        text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_m, alt, url) => {
+            if (/^data:image\//i.test(url.trim())) {
+                return alt ? `[图片：${alt}]` : '[内嵌图片]';
+            }
+            return alt ? `${alt} (${url})` : url;
+        });
         text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
         text = text.replace(/^\s{0,3}#{1,6}\s+/gm, '');
         text = text.replace(/^\s{0,3}>\s?/gm, '');

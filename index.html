@@ -106,13 +106,17 @@
         <div class="panel">
             <div class="panel-header">
                 <!-- <span class="panel-title"> Markdown Input</span> -->
-                <div>
-                    <select id="channelSelect" style="margin-right: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" onchange="updateOutput()" title="选择输出渠道">
+                <div class="channel-controls">
+                    <select id="channelSelect" style="margin-right: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" title="选择输出渠道">
                         <option value="wechat">WeChat</option>
                         <option value="substack">Substack / GitHub (Markdown)</option>
                         <option value="linkedin">LinkedIn</option>
                         <option value="x">X Article + Thread</option>
                     </select>
+                    <div id="outputLanguageToggle" class="language-toggle" role="group" aria-label="选择输出语言">
+                        <button type="button" class="language-toggle-btn active" data-output-language="zh" aria-pressed="true">中文</button>
+                        <button type="button" class="language-toggle-btn" data-output-language="en" aria-pressed="false">English</button>
+                    </div>
                     <select id="templateSelect" style="margin-right: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" title="选择模板">
                         <option value="wechat-default">默认模板</option>
                     </select>
@@ -214,6 +218,7 @@
                                     <div class="theme-info" style="width: 100%;">
                                         <div class="theme-name">System Prompt（可选）</div>
                                         <textarea id="translatorSystemPrompt" placeholder="例如：保持 Markdown 结构；术语表：LLM→LLM，大模型→foundation model；风格：清晰、简洁" class="custom-color-input" style="width: 100%; height: 120px; margin-top: 6px;"></textarea>
+                                        <div style="font-size: 12px; color: #666; margin-top: 4px;">系统已内置“中文翻译为英文并保留 Markdown/代码/公式”的规则；这里用于补充术语和文风。</div>
                                     </div>
                                 </div>
                                 <div style="display: flex; justify-content: flex-end; gap: 8px; padding: 8px;">
@@ -266,6 +271,7 @@ console.log('Hello, world!');
 
 🔥 复制到微信公众号时请使用【粘贴并保留格式】或【Ctrl+Shift+V】
 "></textarea>
+                <div class="markdown-input-hint">支持直接粘贴截图或本地图片；单张不超过 10 MB。公网图片也可继续使用 <code>![描述](图片地址)</code>。</div>
             </div>
         </div>
         
@@ -280,6 +286,7 @@ console.log('Hello, world!');
                     <span class="panel-title">👀 效果预览 (可滚动查看)</span>
                     <button class="btn" id="copyPreviewBtn" onclick="copyPreview()">复制样式代码</button>
                 </div>
+                <div id="copyNotice" class="copy-notice" role="status" aria-live="polite"></div>
                 <div id="preview" class="wechat-preview"></div>
             </div>
             
@@ -300,12 +307,11 @@ console.log('Hello, world!');
     <script src="js/templates/wechat-default.js"></script>
     <script src="js/templates/wechat-minimal.js"></script>
     <script src="js/templates/wechat-magazine.js"></script>
-    <script src="js/templates/wechat-notebook.js"></script>
-    <script src="js/templates/wechat-winter.js"></script>
     <script src="js/translator.js"></script>
     <script src="js/channel-converter.js"></script>
     <script src="js/math-renderer.js"></script>
     <script src="js/markdown-converter.js"></script>
+    <script src="js/image-handler.js"></script>
     <script src="js/ui-controller.js"></script>
     <script src="assets/examples.js"></script>
     <script src="js/app.js"></script>

@@ -17,21 +17,23 @@
 ### 1. WeChat
 输出微信公众号友好的富文本 HTML：
 - 保留主题色、模板、代码高亮、数学公式、Mermaid 图表
-- 适合“复制样式”后粘贴到公众号编辑器
+- 支持直接把截图或本地图片粘贴进 Markdown 编辑框
+- “复制样式”会尽量把正文和图片本体一起写入剪贴板，再粘贴到公众号编辑器
 
 ### 2. Substack / GitHub (Markdown)
 输出适合复制到 Substack 或 GitHub 的 Markdown 文案：
-- 英文翻译在前
-- `---` 分隔
-- 中文原文在后
+- 选择 `中文` 时只输出中文原稿
+- 选择 `English` 时只输出英文译稿
+- 不再自动把中英文拼接在同一篇内容中
 
 这条渠道现在默认就是“可复制的 Markdown 输出”，不再强调调度或自动发布。
 
+预览区的“复制图文”适合 Substack 等富文本编辑器；HTML/Markdown 标签页仍会复制原始 Markdown，并保留图片地址。GitHub 不接受内嵌的 `data:` 图片，粘贴的本地图片如需发布到 GitHub，应先上传到仓库或图床并换成公网/仓库地址。
+
 ### 3. LinkedIn
 输出适合 LinkedIn 的纯文本文案：
-- 英文版在前
-- `——` 分隔
-- 中文版在后
+- 遵循全局 `中文 / English` 开关
+- 每次只输出一个语言版本，方便直接复制发布
 
 ### 4. X Article + Thread
 输出一份完整的 X 发布包：
@@ -39,8 +41,9 @@
 - 主 Thread：AI 生成一段简短推荐，并列出文章要点
 - 要点 Thread：每个 Bullet Point 单独展开为一条 post
 - 自动编号 `1/N`, `2/N`, `3/N`，并限制每条不超过 280 字符
+- 遵循全局语言开关，生成对应语言的 Article 和 Thread
 
-点击 `✨ 生成 X Article + Thread` 才会调用 OpenRouter，正常输入和预览不会持续消耗 API 额度。
+X 推荐语和要点只会在点击 `✨ 生成 X Article + Thread` 后生成；选择 `English` 时，正文翻译仍会调用 OpenRouter。
 
 注意：[X Articles](https://help.x.com/en/using-x/articles) 的发布资格目前限于 X Premium、Premium+、Premium Business 和 Premium Organizations。
 
@@ -54,6 +57,9 @@
 - 支持数学公式（MathJax）
 - 支持 Mermaid 图表
 - 支持代码高亮
+- 支持全局 `中文 / English` 单语言输出切换
+- 支持 Markdown 远程图片、相对路径图片和直接粘贴的本地图片
+- 富文本复制时自动内嵌浏览器可读取的图片；无法跨域读取时保留原图片地址并提示
 - 支持通过 OpenRouter 翻译内容、生成 X 推荐语和提取文章要点
 - 支持多平台 copy/paste-ready 输出
 
@@ -73,9 +79,17 @@ open index.html
 ### 基本流程
 1. 在左侧输入 Markdown
 2. 选择输出渠道
-3. 如有需要，配置翻译和 AI 生成（OpenRouter）
-4. 查看右侧预览
-5. 点击复制按钮，把内容粘贴到目标平台
+3. 选择 `中文` 或 `English` 输出语言
+4. 如需英文或 AI 生成，配置 OpenRouter
+5. 查看右侧预览并直接复制到目标平台
+
+### 图片说明
+
+- 可在左侧编辑框直接粘贴截图或本地图片，工具会转成内嵌 Markdown 图片（单张不超过 10 MB）。
+- 也可继续使用 `![图片描述](https://example.com/image.png)` 或仓库内相对路径。
+- WeChat、Substack 富文本预览和 X Article 支持图文富文本复制。
+- LinkedIn 正文和 X Thread 是纯文本渠道，图片需要在目标平台单独上传；文案中会保留原图片地址。
+- 远程图片服务器如果禁止跨域读取，工具无法把图片本体写入剪贴板，但仍会保留原地址并显示提示。
 
 ---
 
@@ -88,9 +102,13 @@ open index.html
 
 这些信息会保存在浏览器 localStorage。
 
+翻译自带内置 Prompt：中文翻译为英文、保留 Markdown 结构、不改动代码/公式/URL，并且只返回译文。System Prompt 只用于补充术语表和文风要求。
+
+同一篇原稿的英文译文会在渠道之间复用；切换 WeChat、Substack、LinkedIn 或 X 不会重复翻译。修改原稿或保存新的翻译设置后会重新翻译。
+
 如果没有配置翻译：
-- Substack / GitHub 会直接复用原文
-- LinkedIn 会直接输出原文整理版
+- `中文` 模式仍可在所有渠道直接使用
+- 选择 `English` 时页面会提示配置 OpenRouter API Key
 - X Article + Thread 会提供本地预览；配置 API Key 并点击生成按钮后，AI 才会生成推荐语和要点
 
 ---
