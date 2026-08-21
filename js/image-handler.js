@@ -118,7 +118,9 @@ const ImageHandler = {
         for (const reference of references.sort((a, b) => b.start - a.start)) {
             const asset = this.localImageAssets.get(reference.assetKey);
             if (!asset || !asset.dataUrl) continue;
-            const alt = reference.alt || this.sanitizeAltText(asset.fileName);
+            const alt = typeof reference.alt === 'string'
+                ? reference.alt
+                : this.sanitizeAltText(asset.fileName);
             const replacement = `![${alt}](${asset.dataUrl})`;
             output = `${output.slice(0, reference.start)}${replacement}${output.slice(reference.end)}`;
         }
@@ -130,10 +132,11 @@ const ImageHandler = {
         const output = String(markdown || '').replace(
             /!\[([^\]\n]*)\]\((data:image\/[a-z0-9.+-]+(?:;[a-z0-9=.+-]+)*;base64,[a-z0-9+\/_=-]+)\)/gi,
             (_match, alt, dataUrl) => {
-                const fileName = String(alt || '').trim() || `image-${compactedCount + 1}`;
+                const compactAlt = this.isAutomaticImageAltText(alt) ? '' : String(alt || '');
+                const fileName = compactAlt.trim() || `image-${compactedCount + 1}`;
                 const id = this.createLocalImageAsset(dataUrl, fileName);
                 compactedCount += 1;
-                return `![${alt || fileName}](local-image://${id})`;
+                return `![${compactAlt}](local-image://${id})`;
             }
         );
         return { markdown: output, compactedCount };
@@ -267,11 +270,20 @@ const ImageHandler = {
             : null;
     },
 
+    isAutomaticImageAltText: function(value) {
+        const withoutExtension = String(value || '')
+            .replace(/\.[a-z0-9]+$/i, '')
+            .replace(/[\[\]\\]/g, '')
+            .trim();
+        return /^pasted image(?:\s+\d+)?$/i.test(withoutExtension);
+    },
+
     sanitizeAltText: function(fileName, index = 0) {
         const withoutExtension = String(fileName || '')
             .replace(/\.[a-z0-9]+$/i, '')
             .replace(/[\[\]\\]/g, '')
             .trim();
+        if (this.isAutomaticImageAltText(withoutExtension)) return '';
         return withoutExtension && withoutExtension.toLowerCase() !== 'image'
             ? withoutExtension
             : `粘贴图片-${index + 1}`;

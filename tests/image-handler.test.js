@@ -78,6 +78,11 @@ test('Obsidian image references are detected with folders, spaces, and display s
     );
 });
 
+test('Obsidian generated Pasted image names are not used as visible captions', () => {
+    assert.equal(ImageHandler.sanitizeAltText('Pasted image 20260818133657.png'), '');
+    assert.equal(ImageHandler.sanitizeAltText('Architecture diagram.png'), 'Architecture diagram');
+});
+
 test('image Markdown is inserted at the current selection with readable spacing', () => {
     const textarea = {
         value: 'beforeafter',
@@ -171,7 +176,7 @@ test('selecting a matching file keeps the Obsidian reference short and hydrates 
         assert.doesNotMatch(resolved.markdown, /base64/);
         assert.match(
             ImageHandler.hydrateLocalImageReferences(resolved.markdown),
-            /!\[Pasted image 20260818133657\]\(data:image\/png;base64,AAECAwQ=\)/
+            /!\[\]\(data:image\/png;base64,AAECAwQ=\)/
         );
         assert.match(resolved.markdown, /做完一波调研之后/);
     } finally {
@@ -203,5 +208,17 @@ test('existing embedded image Markdown can be compacted without losing render da
     assert.equal(
         ImageHandler.hydrateLocalImageReferences(compacted.markdown),
         '正文\n\n![diagram](data:image/png;base64,AAECAwQ=)\n\n结尾'
+    );
+});
+
+test('compacting an existing Pasted image caption removes only the generated label', () => {
+    const compacted = ImageHandler.compactEmbeddedImages(
+        '![Pasted image 20260818133657](data:image/png;base64,AAECAwQ=)'
+    );
+
+    assert.match(compacted.markdown, /^!\[\]\(local-image:\/\/asset-/);
+    assert.equal(
+        ImageHandler.hydrateLocalImageReferences(compacted.markdown),
+        '![](data:image/png;base64,AAECAwQ=)'
     );
 });

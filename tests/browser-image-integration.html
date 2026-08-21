@@ -42,7 +42,7 @@
                 }
 
                 const markdownInput = appDocument.getElementById('markdownInput');
-                markdownInput.value = '# Local image test\n\n![[local-test.png]]';
+                markdownInput.value = '# Local image test\n\n![[Pasted image 20260818133657.png]]';
                 markdownInput.selectionStart = markdownInput.value.length;
                 markdownInput.selectionEnd = markdownInput.value.length;
 
@@ -55,7 +55,7 @@
                 }
                 const localImage = new appWindow.File(
                     [pngBytes],
-                    'local-test.png',
+                    'Pasted image 20260818133657.png',
                     { type: 'image/png' }
                 );
 
@@ -69,7 +69,7 @@
                     appWindow.ImageHandler.getLocalImageReferenceStatus(markdownInput.value).loaded === 1
                 ));
                 assert(
-                    markdownInput.value.includes('![[local-test.png]]'),
+                    markdownInput.value.includes('![[Pasted image 20260818133657.png]]'),
                     'Obsidian image reference was not kept in the editor'
                 );
                 assert(
@@ -84,6 +84,10 @@
                 assert(
                     previewImage.getAttribute('src').startsWith('data:image/png;base64,'),
                     'Preview image is not self-contained'
+                );
+                assert(
+                    !preview.textContent.includes('Pasted image 20260818133657'),
+                    'Generated Obsidian image name is still visible as a caption'
                 );
 
                 let clipboardItem = null;
@@ -164,6 +168,7 @@
                     editorKeptShortImageReference: true,
                     editorHidesBase64Data: true,
                     previewHasEmbeddedImage: true,
+                    generatedImageCaptionHidden: true,
                     clipboardHtmlHasEmbeddedImage: true,
                     clipboardBase64PasteCompacted: true,
                     existingBase64WasCompacted: true
