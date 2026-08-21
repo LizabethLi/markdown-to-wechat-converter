@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>Workbench layout browser integration test</title>
+</head>
+<body>
+    <pre id="result" data-status="running">RUNNING</pre>
+    <iframe id="app" src="../index.html" hidden></iframe>
+    <script>
+        const result = document.getElementById('result');
+        const appFrame = document.getElementById('app');
+
+        const assert = (condition, message) => {
+            if (!condition) throw new Error(message);
+        };
+
+        const waitFor = async (predicate, timeoutMs = 10000) => {
+            const startedAt = Date.now();
+            while (!predicate()) {
+                if (Date.now() - startedAt > timeoutMs) throw new Error('Timed out waiting for app');
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        };
+
+        appFrame.addEventListener('load', async () => {
+            try {
+                const appWindow = appFrame.contentWindow;
+                const appDocument = appFrame.contentDocument;
+                await waitFor(() => appWindow.App && appWindow.App.isInitialized && appWindow.UIController);
+
+                const header = appDocument.querySelector('.header');
+                assert(header.getBoundingClientRect().height < 110, 'Header is still too tall');
+                assert(!appDocument.querySelector('.hero-feature-strip'), 'Marketing feature strip still occupies the header');
+
+                const styleControls = appDocument.getElementById('wechatStyleControls');
+                const themeButton = appDocument.getElementById('themeButton');
+                const themePanel = appDocument.getElementById('themePanel');
+                assert(!styleControls.hidden, 'WeChat style controls should be visible');
+                themeButton.click();
+                assert(themePanel.style.display === 'block', 'Style panel did not open');
+
+                const channelSelect = appDocument.getElementById('channelSelect');
+                channelSelect.value = 'linkedin';
+                channelSelect.dispatchEvent(new appWindow.Event('change', { bubbles: true }));
+                assert(styleControls.hidden, 'WeChat-only style controls remain visible for LinkedIn');
+
+                const settingsButton = appDocument.getElementById('translatorButton');
+                const settingsPanel = appDocument.getElementById('translatorPanel');
+                settingsButton.click();
+                assert(settingsPanel.style.display === 'block', 'Settings panel did not open from the app header');
+
+                const imageButton = appDocument.getElementById('imageFileButton');
+                assert(
+                    imageButton.closest('.image-import-toolbar'),
+                    'Image action is not attached to the editor header'
+                );
+
+                channelSelect.value = 'wechat';
+                channelSelect.dispatchEvent(new appWindow.Event('change', { bubbles: true }));
+                const exampleButton = appDocument.querySelector('.preview-empty-example');
+                assert(exampleButton, 'Load example action is missing from the empty state');
+                exampleButton.click();
+                assert(appDocument.getElementById('markdownInput').value.trim(), 'Load example action did not populate Markdown');
+
+                result.dataset.status = 'passed';
+                result.textContent = JSON.stringify({
+                    status: 'PASS',
+                    compactHeader: true,
+                    styleControlsGrouped: true,
+                    channelSpecificControls: true,
+                    settingsMovedToHeader: true,
+                    imageActionAttachedToEditor: true,
+                    exampleMovedToEmptyState: true
+                });
+            } catch (error) {
+                result.dataset.status = 'failed';
+                result.textContent = JSON.stringify({
+                    status: 'FAIL',
+                    message: error && error.message ? error.message : String(error)
+                });
+            }
+        });
+    </script>
+</body>
+</html>

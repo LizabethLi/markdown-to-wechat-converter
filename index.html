@@ -54,7 +54,7 @@
     </script>
     
     <!-- 外部CSS -->
-    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/main.css?v=20260821-workbench-layout">
     
     <!-- Highlight.js for syntax highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
@@ -72,30 +72,52 @@
     
     <div class="header">
         <div class="header-inner">
-            <h1>Markdown 微信公众号排版转换器</h1>
-            <div class="hero-actions">
-                <a class="hero-primary" href="https://github.com/LizabethLi/markdown-to-wechat-converter" target="_blank" rel="noopener noreferrer">查看 GitHub</a>
+            <div class="header-brand">
+                <h1>Markdown 多渠道发布工具</h1>
+                <p>一次编辑，适配 WeChat、Substack、LinkedIn 和 X</p>
             </div>
-            <div class="hero-feature-strip" aria-label="核心能力">
-                <div class="hero-feature-card">
-                    <div class="hero-feature-icon">∫</div>
-                    <div>
-                        <div class="hero-feature-title">复杂公式可复制迁移</div>
-                        <div class="hero-feature-text">减少截图、上传与反复修改的成本。</div>
-                    </div>
-                </div>
-                <div class="hero-feature-card">
-                    <div class="hero-feature-icon">◎</div>
-                    <div>
-                        <div class="hero-feature-title">Mermaid 图表支持</div>
-                        <div class="hero-feature-text">架构图、流程图与技术图示进入同一发布流程。</div>
-                    </div>
-                </div>
-                <div class="hero-feature-card">
-                    <div class="hero-feature-icon">⇄</div>
-                    <div>
-                        <div class="hero-feature-title">所见即所得复制粘贴</div>
-                        <div class="hero-feature-text">页面预览更接近公众号最终呈现效果。</div>
+            <div class="hero-actions">
+                <a class="header-action" href="https://github.com/LizabethLi/markdown-to-wechat-converter" target="_blank" rel="noopener noreferrer">GitHub</a>
+                <div class="theme-selector header-settings">
+                    <button id="translatorButton" class="header-action header-action-button" onclick="toggleTranslatorPanel()" title="翻译与 AI 设置">
+                        ⚙ 设置
+                    </button>
+                    <div id="translatorPanel" class="theme-panel translator-panel" style="display: none;">
+                        <div class="theme-panel-header">翻译与 AI 设置</div>
+                        <div class="theme-options">
+                            <div class="theme-option" style="cursor: default;">
+                                <div class="theme-info" style="width: 100%;">
+                                    <div class="theme-name">OpenRouter API Key</div>
+                                    <input id="translatorApiKey" type="password" placeholder="粘贴你的 OpenRouter API Key" class="custom-color-input" style="width: 100%; margin-top: 6px;" />
+                                    <div style="font-size: 12px; color: #666; margin-top: 4px;">本地保存到浏览器，仅用于当前设备</div>
+                                </div>
+                            </div>
+                            <div class="theme-option" style="cursor: default;">
+                                <div class="theme-info" style="width: 100%;">
+                                    <div class="theme-name">选择模型</div>
+                                    <select id="translatorModelSelect" class="custom-color-input" style="width: 100%; margin-top: 6px;" onchange="UIController.onTranslatorModelChange()">
+                                        <option value="openai/gpt-4o-mini">GPT-4o mini（openai/gpt-4o-mini）</option>
+                                        <option value="google/gemini-3.5-flash">Gemini 3.5 Flash（google/gemini-3.5-flash）</option>
+                                        <option value="deepseek/deepseek-chat">DeepSeek Chat（deepseek/deepseek-chat）</option>
+                                        <option value="custom">自定义模型 ID...</option>
+                                    </select>
+                                    <input id="translatorModelCustom" type="text" placeholder="e.g, openai/gpt-4o-mini" class="custom-color-input" style="width: 100%; margin-top: 6px; display: none;" />
+                                    <div id="translatorModelCustomHint" style="display: none; font-size: 12px; color: #666; margin-top: 4px;">
+                                        check <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer">OpenRouter models</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="theme-option" style="cursor: default;">
+                                <div class="theme-info" style="width: 100%;">
+                                    <div class="theme-name">System Prompt（可选）</div>
+                                    <textarea id="translatorSystemPrompt" placeholder="例如：保持 Markdown 结构；术语表：LLM→LLM，大模型→foundation model；风格：清晰、简洁" class="custom-color-input" style="width: 100%; height: 120px; margin-top: 6px;"></textarea>
+                                    <div style="font-size: 12px; color: #666; margin-top: 4px;">系统已内置“中文翻译为英文并保留 Markdown/代码/公式”的规则；这里用于补充术语和文风。</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; padding: 8px;">
+                                <button class="btn custom-color-btn" onclick="UIController.saveTranslatorSettings()">保存并应用</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -107,26 +129,35 @@
             <div class="panel-header">
                 <!-- <span class="panel-title"> Markdown Input</span> -->
                 <div class="channel-controls">
-                    <select id="channelSelect" style="margin-right: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" title="选择输出渠道">
-                        <option value="wechat">WeChat</option>
-                        <option value="substack">Substack / GitHub (Markdown)</option>
-                        <option value="linkedin">LinkedIn</option>
-                        <option value="x">X Article + Thread</option>
-                    </select>
+                    <label class="control-field">
+                        <span class="control-label">发布到</span>
+                        <select id="channelSelect" class="control-select" title="选择输出渠道">
+                            <option value="wechat">WeChat</option>
+                            <option value="substack">Substack / GitHub</option>
+                            <option value="linkedin">LinkedIn</option>
+                            <option value="x">X Article + Thread</option>
+                        </select>
+                    </label>
                     <div id="outputLanguageToggle" class="language-toggle" role="group" aria-label="选择输出语言">
                         <button type="button" class="language-toggle-btn active" data-output-language="zh" aria-pressed="true">中文</button>
                         <button type="button" class="language-toggle-btn" data-output-language="en" aria-pressed="false">English</button>
                     </div>
-                    <select id="templateSelect" style="margin-right: 10px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" title="选择模板">
-                        <option value="wechat-default">默认模板</option>
-                    </select>
-                    <div class="theme-selector" style="display: inline-block; position: relative; margin-right: 10px;">
-                        <button id="themeButton" class="btn theme-btn" onclick="toggleThemePanel()" title="选择主题色">
-                            🎨
+                    <div id="wechatStyleControls" class="theme-selector style-selector">
+                        <button id="themeButton" class="style-summary-button" onclick="toggleThemePanel()" title="选择模板和主题色">
+                            <span class="style-summary-label">样式</span>
+                            <span id="styleSummary">默认模板 · 经典紫色</span>
+                            <span aria-hidden="true">⌄</span>
                         </button>
                         <div id="themePanel" class="theme-panel" style="display: none;">
-                            <div class="theme-panel-header">选择主题色</div>
+                            <div class="theme-panel-header">排版样式</div>
                             <div class="theme-options">
+                                <label class="style-panel-field">
+                                    <span>模板</span>
+                                    <select id="templateSelect" class="control-select" title="选择模板">
+                                        <option value="wechat-default">默认模板</option>
+                                    </select>
+                                </label>
+                                <div class="style-panel-section-title">主题色</div>
                                 <div class="theme-option" data-theme="purple" onclick="selectTheme('purple')">
                                     <div class="theme-color" style="background: #7E3AF2;"></div>
                                     <div class="theme-info">
@@ -185,58 +216,18 @@
                             </div>
                         </div>
                     </div>
-                    <div class="theme-selector" style="display: inline-block; position: relative; margin-right: 10px;">
-                        <button id="translatorButton" class="btn theme-btn" onclick="toggleTranslatorPanel()" title="翻译与 AI 设置">
-                            ⚙️
-                        </button>
-                        <div id="translatorPanel" class="theme-panel" style="display: none;">
-                            <div class="theme-panel-header">翻译与 AI 设置</div>
-                            <div class="theme-options">
-                                <div class="theme-option" style="cursor: default;">
-                                    <div class="theme-info" style="width: 100%;">
-                                        <div class="theme-name">OpenRouter API Key</div>
-                                        <input id="translatorApiKey" type="password" placeholder="粘贴你的 OpenRouter API Key" class="custom-color-input" style="width: 100%; margin-top: 6px;" />
-                                        <div style="font-size: 12px; color: #666; margin-top: 4px;">本地保存到浏览器，仅用于当前设备</div>
-                                    </div>
-                                </div>
-                                <div class="theme-option" style="cursor: default;">
-                                    <div class="theme-info" style="width: 100%;">
-                                        <div class="theme-name">选择模型</div>
-                                        <select id="translatorModelSelect" class="custom-color-input" style="width: 100%; margin-top: 6px;" onchange="UIController.onTranslatorModelChange()">
-                                            <option value="openai/gpt-4o-mini">GPT-4o mini（openai/gpt-4o-mini）</option>
-                                            <option value="google/gemini-3.5-flash">Gemini 3.5 Flash（google/gemini-3.5-flash）</option>
-                                            <option value="deepseek/deepseek-chat">DeepSeek Chat（deepseek/deepseek-chat）</option>
-                                            <option value="custom">自定义模型 ID...</option>
-                                        </select>
-                                        <input id="translatorModelCustom" type="text" placeholder="e.g, openai/gpt-4o-mini" class="custom-color-input" style="width: 100%; margin-top: 6px; display: none;" />
-                                        <div id="translatorModelCustomHint" style="display: none; font-size: 12px; color: #666; margin-top: 4px;">
-                                            check <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer">https://openrouter.ai/models</a> for more models
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="theme-option" style="cursor: default;">
-                                    <div class="theme-info" style="width: 100%;">
-                                        <div class="theme-name">System Prompt（可选）</div>
-                                        <textarea id="translatorSystemPrompt" placeholder="例如：保持 Markdown 结构；术语表：LLM→LLM，大模型→foundation model；风格：清晰、简洁" class="custom-color-input" style="width: 100%; height: 120px; margin-top: 6px;"></textarea>
-                                        <div style="font-size: 12px; color: #666; margin-top: 4px;">系统已内置“中文翻译为英文并保留 Markdown/代码/公式”的规则；这里用于补充术语和文风。</div>
-                                    </div>
-                                </div>
-                                <div style="display: flex; justify-content: flex-end; gap: 8px; padding: 8px;">
-                                    <button class="btn custom-color-btn" onclick="UIController.saveTranslatorSettings()">保存并应用</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <button class="btn" onclick="loadExample()">Load Example</button>
                     <button class="btn x-generate-btn" id="generateXButton" onclick="generateXPublishingContent()" style="display: none;">✨ 生成 X Article + Thread</button>
                 </div>
             </div>
             <div id="channelReminder" class="channel-reminder" role="alert"></div>
             <div class="panel-content">
                 <div class="image-import-toolbar">
-                    <button type="button" class="btn image-import-button" id="imageFileButton">选择本地图片</button>
-                    <input id="imageFileInput" type="file" accept="image/*" multiple hidden>
-                    <span id="localImageStatus">也可以把图片粘贴或拖到下方编辑框</span>
+                    <span class="editor-section-title">Markdown 输入</span>
+                    <div class="image-import-actions">
+                        <span id="localImageStatus"></span>
+                        <button type="button" class="image-import-button" id="imageFileButton">＋ 添加图片</button>
+                        <input id="imageFileInput" type="file" accept="image/*" multiple hidden>
+                    </div>
                 </div>
                 <textarea id="markdownInput" placeholder="在这里输入你的 Markdown 内容...
 
@@ -317,8 +308,8 @@ console.log('Hello, world!');
     <script src="js/math-renderer.js"></script>
     <script src="js/markdown-converter.js"></script>
     <script src="js/image-handler.js?v=20260821-image-caption"></script>
-    <script src="js/ui-controller.js?v=20260821-clipboard-images"></script>
+    <script src="js/ui-controller.js?v=20260821-workbench-layout"></script>
     <script src="assets/examples.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/app.js?v=20260821-workbench-layout"></script>
 </body>
 </html>

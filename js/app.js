@@ -110,9 +110,19 @@ const App = {
         
         if (preview) {
             preview.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #999;">
-                    <p style="font-size: 16px; margin-bottom: 10px;">👋 欢迎使用 Markdown 转微信公众号工具</p>
-                    <p style="font-size: 14px;">在左侧输入 Markdown 内容，或点击"加载示例"开始体验</p>
+                <div class="preview-empty-state">
+                    <div class="preview-empty-content">
+                        <p class="preview-empty-title">从一篇 Markdown 开始</p>
+                        <p class="preview-empty-text">在左侧粘贴或输入内容，右侧会立即生成当前渠道的发布预览。</p>
+                        <div class="preview-empty-actions">
+                            <button type="button" class="preview-empty-example" onclick="loadExample()">加载示例</button>
+                        </div>
+                        <div class="preview-capabilities" aria-label="支持能力">
+                            <span class="preview-capability">复杂公式</span>
+                            <span class="preview-capability">Mermaid 图表</span>
+                            <span class="preview-capability">图文复制</span>
+                        </div>
+                    </div>
                 </div>
             `;
         }
@@ -231,4 +241,4 @@ if (typeof window !== 'undefined') {
 // 导出模块
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = App;
-} 
+}

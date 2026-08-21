@@ -95,6 +95,7 @@ const UIController = {
                 if (typeof TemplateManager !== 'undefined') {
                     TemplateManager.setActive(e.target.value);
                 }
+                this.updateStyleSummary();
                 this.updateOutput();
             });
         }
@@ -105,7 +106,11 @@ const UIController = {
         document.addEventListener('click', (e) => {
             const themePanel = document.getElementById('themePanel');
             const themeButton = document.getElementById('themeButton');
-            if (themePanel && !themePanel.contains(e.target) && e.target !== themeButton) {
+            if (
+                themePanel
+                && !themePanel.contains(e.target)
+                && !(themeButton && themeButton.contains(e.target))
+            ) {
                 themePanel.style.display = 'none';
             }
             const translatorPanel = document.getElementById('translatorPanel');
@@ -115,7 +120,7 @@ const UIController = {
             if (
                 translatorPanel
                 && !translatorPanel.contains(e.target)
-                && e.target !== translatorButton
+                && !(translatorButton && translatorButton.contains(e.target))
                 && e.target !== generateXButton
                 && !languageButton
             ) {
@@ -164,6 +169,8 @@ const UIController = {
         this.populateTemplateOptions();
         // 更新渠道提醒状态
         this.updateChannelReminder(this.currentChannel);
+        this.updateChannelControlsVisibility();
+        this.updateStyleSummary();
         this.updateOutputLanguageUI();
         this.updateXGeneratorVisibility();
         this.updateCopyButtonLabels();
@@ -174,6 +181,7 @@ const UIController = {
     handleChannelChange: function(channel) {
         this.currentChannel = channel || 'wechat';
         this.updateChannelReminder(this.currentChannel);
+        this.updateChannelControlsVisibility();
         this.updateXGeneratorVisibility();
         this.updateCopyButtonLabels();
         this.updateOutput();
@@ -301,15 +309,39 @@ const UIController = {
             } else if (referenceStatus.total > 0) {
                 status.textContent = `本地图片已加载 ${referenceStatus.loaded}/${referenceStatus.total}，编辑区保留短引用`;
             } else {
-                status.textContent = '也可以把图片粘贴或拖到下方编辑框';
+                status.textContent = '';
             }
             status.classList.toggle('warning', missingCount > 0);
         }
         if (button) {
-            button.textContent = missingCount > 0 ? `选择本地图片（缺 ${missingCount} 张）` : '选择本地图片';
+            button.textContent = missingCount > 0 ? `＋ 补充图片（缺 ${missingCount} 张）` : '＋ 添加图片';
             button.classList.toggle('needs-attention', missingCount > 0);
         }
         return referenceStatus;
+    },
+
+    updateChannelControlsVisibility: function() {
+        const styleControls = document.getElementById('wechatStyleControls');
+        if (styleControls) {
+            styleControls.hidden = this.currentChannel !== 'wechat';
+        }
+    },
+
+    updateStyleSummary: function() {
+        const summary = document.getElementById('styleSummary');
+        if (!summary) return;
+
+        const templateSelect = document.getElementById('templateSelect');
+        const selectedTemplate = templateSelect
+            && templateSelect.options
+            && templateSelect.selectedIndex >= 0
+            ? templateSelect.options[templateSelect.selectedIndex].textContent
+            : '默认模板';
+        const configuredTheme = AppConfig.themes && AppConfig.themes[this.currentTheme];
+        const themeName = this.currentTheme === 'custom'
+            ? `自定义 ${this.customColor || ''}`.trim()
+            : (configuredTheme && configuredTheme.name) || '经典紫色';
+        summary.textContent = `${selectedTemplate} · ${themeName}`;
     },
 
     ensureLocalImageReferencesResolved: function(markdown) {
@@ -505,6 +537,7 @@ const UIController = {
         });
         // 选中当前激活模板
         select.value = TemplateManager.activeId;
+        this.updateStyleSummary();
     },
 
     // 从本地存储加载主题
@@ -688,9 +721,8 @@ const UIController = {
 
         // 更新主题按钮的颜色提示
         const themeButton = document.getElementById('themeButton');
-        if (themeButton && AppConfig.themes[this.currentTheme]) {
-            const themeColor = AppConfig.themes[this.currentTheme].primary;
-            themeButton.style.borderColor = themeColor;
+        if (themeButton) {
+            themeButton.style.borderColor = this.getCurrentThemeColor();
         }
 
         // 高亮自定义颜色
@@ -707,6 +739,7 @@ const UIController = {
                 preview.style.borderColor = '#ddd';
             }
         }
+        this.updateStyleSummary();
     },
 
     // 获取当前主题色，支持自定义
@@ -925,6 +958,18 @@ const UIController = {
         this.currentChannel = channel;
         this.updateChannelReminder(channel);
         const taskToken = ++this.renderTaskToken;
+
+        if (!markdown.trim()) {
+            this.currentRenderedResult = null;
+            if (typeof App !== 'undefined' && typeof App.clearPreview === 'function') {
+                App.clearPreview();
+            } else {
+                htmlOutput.value = '';
+                preview.innerHTML = '';
+            }
+            this.updateCopyButtonLabels();
+            return;
+        }
 
         try {
             const shouldShowWechatLoading = channel === 'wechat'
