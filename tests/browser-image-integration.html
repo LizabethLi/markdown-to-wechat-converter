@@ -110,6 +110,32 @@
                     'Copied HTML does not contain the embedded image data'
                 );
 
+                markdownInput.value = '# Clipboard image';
+                markdownInput.selectionStart = markdownInput.value.length;
+                markdownInput.selectionEnd = markdownInput.value.length;
+                const pasteEvent = new appWindow.Event('paste', { bubbles: true, cancelable: true });
+                Object.defineProperty(pasteEvent, 'clipboardData', {
+                    value: {
+                        items: [],
+                        files: [],
+                        getData: (type) => type === 'text/plain'
+                            ? 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nUwAAAAASUVORK5CYII='
+                            : ''
+                    }
+                });
+                markdownInput.dispatchEvent(pasteEvent);
+                await waitFor(() => markdownInput.value.includes('local-image://asset-'));
+                assert(pasteEvent.defaultPrevented, 'Base64 clipboard paste was not intercepted');
+                assert(
+                    !markdownInput.value.includes('data:image/png;base64,'),
+                    'Clipboard Base64 data is still visible in the editor'
+                );
+                await appWindow.UIController.updateOutput();
+                assert(
+                    preview.querySelector('img').getAttribute('src').startsWith('data:image/png;base64,'),
+                    'Clipboard image does not render after compact paste'
+                );
+
                 markdownInput.value = [
                     '# Existing embedded image',
                     '',
@@ -139,6 +165,7 @@
                     editorHidesBase64Data: true,
                     previewHasEmbeddedImage: true,
                     clipboardHtmlHasEmbeddedImage: true,
+                    clipboardBase64PasteCompacted: true,
                     existingBase64WasCompacted: true
                 });
             } catch (error) {

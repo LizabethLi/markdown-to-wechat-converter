@@ -16,6 +16,49 @@ test('clipboard image discovery ignores non-image files', () => {
     assert.deepEqual(ImageHandler.getClipboardImageFiles(clipboardData), [imageFile]);
 });
 
+test('clipboard Base64 text becomes a short local image reference', () => {
+    const clipboardData = {
+        getData: (type) => type === 'text/plain'
+            ? 'data:image/png;base64,AAECAwQ='
+            : ''
+    };
+
+    const pasted = ImageHandler.getClipboardEmbeddedImageMarkdown(clipboardData);
+    assert.equal(pasted.count, 1);
+    assert.doesNotMatch(pasted.markdown, /base64/);
+    assert.match(pasted.markdown, /^!\[粘贴图片-1\]\(local-image:\/\/asset-/);
+    assert.match(ImageHandler.hydrateLocalImageReferences(pasted.markdown), /data:image\/png;base64,AAECAwQ=/);
+});
+
+test('clipboard Markdown containing Base64 keeps its surrounding text while compacting the image', () => {
+    const source = '前文\n\n![图示](data:image/png;base64,AAECAwQ=)\n\n后文';
+    const pasted = ImageHandler.getClipboardEmbeddedImageMarkdown({
+        getData: (type) => type === 'text/plain' ? source : ''
+    });
+
+    assert.equal(pasted.count, 1);
+    assert.match(pasted.markdown, /^前文/);
+    assert.match(pasted.markdown, /后文$/);
+    assert.doesNotMatch(pasted.markdown, /base64/);
+    assert.equal(ImageHandler.hydrateLocalImageReferences(pasted.markdown), source);
+});
+
+test('clipboard HTML containing only a data image becomes a short reference', () => {
+    const pasted = ImageHandler.getClipboardEmbeddedImageMarkdown({
+        getData: (type) => {
+            if (type === 'text/plain') return '';
+            if (type === 'text/html') {
+                return '<img alt="Clipboard diagram" src="data:image/png;base64,AAECAwQ=">';
+            }
+            return '';
+        }
+    });
+
+    assert.equal(pasted.count, 1);
+    assert.match(pasted.markdown, /^!\[Clipboard diagram\]\(local-image:\/\/asset-/);
+    assert.doesNotMatch(pasted.markdown, /base64/);
+});
+
 test('local image detection accepts browser MIME types and common image extensions', () => {
     assert.equal(ImageHandler.isImageFile({ name: 'photo', type: 'image/jpeg' }), true);
     assert.equal(ImageHandler.isImageFile({ name: 'diagram.PNG', type: '' }), true);

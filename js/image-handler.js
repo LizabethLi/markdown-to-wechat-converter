@@ -204,6 +204,69 @@ const ImageHandler = {
             .filter(file => this.isImageFile(file));
     },
 
+    getClipboardEmbeddedImageMarkdown: function(clipboardData) {
+        if (!clipboardData || typeof clipboardData.getData !== 'function') return null;
+
+        const readClipboardData = (type) => {
+            try {
+                return String(clipboardData.getData(type) || '');
+            } catch (_) {
+                return '';
+            }
+        };
+        const dataUrlPattern = /data:image\/[a-z0-9.+-]+(?:;[a-z0-9=.+-]+)*;base64,[a-z0-9+\/_=-]+/gi;
+        const plainText = readClipboardData('text/plain');
+
+        if (plainText) {
+            const compacted = this.compactEmbeddedImages(plainText);
+            let count = compacted.compactedCount;
+            const markdown = compacted.markdown.replace(dataUrlPattern, (dataUrl) => {
+                count += 1;
+                const alt = `粘贴图片-${count}`;
+                const id = this.createLocalImageAsset(dataUrl, alt);
+                return `![${alt}](local-image://${id})`;
+            });
+            if (count > 0) return { markdown, count };
+        }
+
+        const html = readClipboardData('text/html');
+        if (!html) return null;
+
+        const imageTags = html.match(/<img\b[^>]*>/gi) || [];
+        if (!imageTags.length) return null;
+        const nonImageText = html
+            .replace(/<img\b[^>]*>/gi, '')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&nbsp;|&#160;/gi, ' ')
+            .trim();
+        if (plainText.trim() && nonImageText) return null;
+
+        const markdownImages = [];
+        imageTags.forEach((tag, index) => {
+            const sourceMatch = tag.match(
+                /\bsrc\s*=\s*(?:"(data:image\/[^"\s>]+)"|'(data:image\/[^'\s>]+)'|(data:image\/[^\s>]+))/i
+            );
+            const dataUrl = sourceMatch && (sourceMatch[1] || sourceMatch[2] || sourceMatch[3]);
+            if (!dataUrl || !dataUrlPattern.test(dataUrl)) {
+                dataUrlPattern.lastIndex = 0;
+                return;
+            }
+            dataUrlPattern.lastIndex = 0;
+
+            const altMatch = tag.match(/\balt\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+            const alt = this.sanitizeAltText(
+                (altMatch && (altMatch[1] || altMatch[2])) || `粘贴图片-${index + 1}`,
+                index
+            );
+            const id = this.createLocalImageAsset(dataUrl, alt);
+            markdownImages.push(`![${alt}](local-image://${id})`);
+        });
+
+        return markdownImages.length
+            ? { markdown: markdownImages.join('\n\n'), count: markdownImages.length }
+            : null;
+    },
+
     sanitizeAltText: function(fileName, index = 0) {
         const withoutExtension = String(fileName || '')
             .replace(/\.[a-z0-9]+$/i, '')

@@ -183,11 +183,26 @@ const UIController = {
         if (typeof ImageHandler === 'undefined') return;
 
         const markdownInput = event && event.currentTarget;
-        const files = ImageHandler.getClipboardImageFiles(event && event.clipboardData);
-        if (!markdownInput || !files.length) return;
+        const clipboardData = event && event.clipboardData;
+        const files = ImageHandler.getClipboardImageFiles(clipboardData);
+        if (!markdownInput) return;
+
+        if (files.length) {
+            event.preventDefault();
+            await this.handleMarkdownImageFiles(files, markdownInput);
+            return;
+        }
+
+        const embeddedImages = ImageHandler.getClipboardEmbeddedImageMarkdown(clipboardData);
+        if (!embeddedImages) return;
 
         event.preventDefault();
-        await this.handleMarkdownImageFiles(files, markdownInput);
+        ImageHandler.insertMarkdownAtSelection(markdownInput, embeddedImages.markdown);
+        this.showCopyNotice(
+            `已从剪贴板加载 ${embeddedImages.count} 张图片，编辑区只显示短引用。`,
+            false
+        );
+        this.updateOutput();
     },
 
     handleMarkdownImageDrag: function(event) {
