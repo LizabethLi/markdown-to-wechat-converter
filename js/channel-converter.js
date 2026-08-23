@@ -3,6 +3,10 @@ const stripLeadMarkers = (text) =>
     text.replace(/(^|\n)[ \t]*\[\s*lead\s*\][ \t]*/gi, '$1');
 
 const ChannelConverter = {
+    channelAliases: {
+        linkedin: 'substack'
+    },
+
     localizationCache: {
         source: '',
         value: '',
@@ -13,10 +17,7 @@ const ChannelConverter = {
         wechat: {
             id: 'wechat',
             name: 'WeChat',
-            outputLabel: 'HTML代码',
-            outputTitle: '📋 HTML 代码 (可滚动查看)',
             copyPreviewLabel: '复制样式',
-            copyOutputLabel: '复制代码',
             previewCopyMode: 'rich',
             previewHostClass: 'wechat-preview',
             reminder: null,
@@ -34,68 +35,48 @@ const ChannelConverter = {
         },
         substack: {
             id: 'substack',
-            name: 'Substack / GitHub (Markdown)',
-            outputLabel: 'Markdown',
-            outputTitle: '📋 Markdown 文案 (可滚动查看)',
+            name: 'Substack / LinkedIn',
             copyPreviewLabel: '复制图文',
-            copyOutputLabel: '复制文案',
             previewCopyMode: 'rich',
+            portableRichCopy: true,
             previewHostClass: 'markdown-preview',
             reminder: null,
-            render: async function(markdown) {
+            render: async function(markdown, context = {}) {
                 const output = ChannelConverter.buildSingleLanguageMarkdown(markdown);
+                const preview = await ChannelConverter.renderRichMarkdownPreview(output, context);
                 return {
                     output,
-                    previewHtml: marked(output),
+                    previewHtml: preview.html,
                     previewMode: 'markdown',
-                    needsMathTypeset: true
-                };
-            }
-        },
-        linkedin: {
-            id: 'linkedin',
-            name: 'LinkedIn',
-            outputLabel: 'Copy',
-            outputTitle: '📋 LinkedIn 文案 (可滚动查看)',
-            copyPreviewLabel: '复制文案',
-            copyOutputLabel: '复制文案',
-            previewHostClass: 'plain-text-preview-host',
-            reminder: {
-                requiresTranslation: false,
-                text: 'LinkedIn 正文是纯文本；图片地址会保留在文案中，发布时需要在 LinkedIn 单独上传图片。'
-            },
-            render: async function(markdown) {
-                const output = ChannelConverter.buildSingleLanguagePlainText(markdown);
-                return {
-                    output,
-                    previewHtml: ChannelConverter.renderPlainTextPreview(output, 'linkedin'),
-                    previewMode: 'plain',
-                    needsMathTypeset: false
+                    needsMathTypeset: preview.needsMathTypeset
                 };
             }
         },
         x: {
             id: 'x',
             name: 'X Article + Thread',
-            outputLabel: 'Article + Thread',
-            outputTitle: '📋 X Article + Thread 发布包',
-            copyPreviewLabel: '复制发布包',
-            copyOutputLabel: '复制发布包',
+            copyPreviewLabel: '复制 Article 文字',
             previewHostClass: 'x-publishing-preview-host',
             reminder: {
                 requiresAI: true,
-                missingText: '配置 OpenRouter API Key 后，点击“生成 X Article + Thread”，AI 会写推荐语并提取 3–6 个要点。',
-                text: '点击“生成 X Article + Thread”，AI 会生成首条推荐、要点总览和逐条展开的 Thread。Article 可复制图文；Thread 图片需要单独上传。'
+                title: 'X 的图片需要单独上传',
+                missingText: 'X Article 会忽略剪贴板中的内嵌图片，也不支持代码块。先配置 OpenRouter 生成 Thread；Article 文字可以直接复制，图片、Mermaid、公式和代码块请按编号上传。',
+                text: 'X Article 会忽略剪贴板中的内嵌图片，也不支持代码块。Article 文字可以直接复制，图片、Mermaid、公式和代码块会整理为下方素材，请按编号上传。',
+                steps: ['复制 Article 文字', '按编号上传图片素材']
             },
             render: async function(markdown, context = {}) {
                 const bundle = await ChannelConverter.buildXPublishingBundle(markdown, {
                     useAI: !!context.useAI
                 });
+                const articlePreview = await ChannelConverter.renderRichMarkdownPreview(
+                    bundle.articleMarkdown,
+                    context
+                );
                 return {
                     output: ChannelConverter.formatXPublishingBundle(bundle),
-                    previewHtml: ChannelConverter.renderXPublishingPreview(bundle),
+                    previewHtml: ChannelConverter.renderXPublishingPreview(bundle, articlePreview.html),
                     previewMode: 'x-publishing',
-                    needsMathTypeset: false,
+                    needsMathTypeset: articlePreview.needsMathTypeset,
                     data: bundle
                 };
             }
@@ -103,7 +84,8 @@ const ChannelConverter = {
     },
 
     getChannel(channelId) {
-        return this.channels[channelId] || this.channels.wechat;
+        const resolvedId = this.channelAliases[channelId] || channelId;
+        return this.channels[resolvedId] || this.channels.wechat;
     },
 
     listChannels() {
@@ -126,6 +108,38 @@ const ChannelConverter = {
             previewMode: result.previewMode || 'plain',
             needsMathTypeset: !!result.needsMathTypeset,
             data: result.data || null
+        };
+    },
+
+    async renderRichMarkdownPreview(markdown, context = {}) {
+        const source = String(markdown || '');
+        const canRenderMath = typeof MathRenderer !== 'undefined'
+            && typeof MathRenderer.isMathJaxReady === 'function'
+            && MathRenderer.isMathJaxReady()
+            && typeof MathRenderer.protectMathExpressions === 'function'
+            && typeof MathRenderer.restoreMathExpressions === 'function';
+        const math = canRenderMath
+            ? MathRenderer.protectMathExpressions(source)
+            : { markdown: source, mathPlaceholders: {} };
+
+        let enhancedMarkdown = math.markdown;
+        if (typeof MarkdownConverter !== 'undefined'
+            && typeof MarkdownConverter.replaceMermaidBlocks === 'function') {
+            enhancedMarkdown = await MarkdownConverter.replaceMermaidBlocks(
+                enhancedMarkdown,
+                context.mode || 'compact',
+                context.themeColor || null
+            );
+        }
+
+        let html = marked(enhancedMarkdown);
+        if (canRenderMath) {
+            html = MathRenderer.restoreMathExpressions(html, math.mathPlaceholders);
+        }
+
+        return {
+            html,
+            needsMathTypeset: !canRenderMath
         };
     },
 
@@ -182,10 +196,6 @@ const ChannelConverter = {
     buildSingleLanguageMarkdown(markdown) {
         const sanitized = this.prepareSourceMarkdown(markdown);
         return sanitized.trim();
-    },
-
-    buildSingleLanguagePlainText(markdown) {
-        return this.markdownToPlainText(this.prepareSourceMarkdown(markdown));
     },
 
     protectInlineImageData(markdown) {
@@ -601,14 +611,14 @@ const ChannelConverter = {
         return `<div class="thread-preview">${cards}</div>`;
     },
 
-    renderXPublishingPreview(bundle) {
+    renderXPublishingPreview(bundle, articlePreviewHtml = '') {
         if (!bundle || !bundle.articleMarkdown) {
             return '<div class="x-empty-state">输入 Markdown 后即可预览 X Article 和 Thread。</div>';
         }
 
         const statusLabel = bundle.usedAI ? 'AI 已生成推荐与要点' : '本地预览，点击按钮启用 AI';
         const statusClass = bundle.usedAI ? 'is-ai' : 'is-fallback';
-        const articleHtml = marked(bundle.articleMarkdown);
+        const articleHtml = articlePreviewHtml || marked(bundle.articleMarkdown);
         const threadCards = bundle.threadPosts.map((post, index) => {
             const [header, ...bodyLines] = post.split('\n');
             const body = this.escapeHtml(bodyLines.join('\n')).replace(/\n/g, '<br>');
@@ -632,9 +642,23 @@ const ChannelConverter = {
         <div class="x-section-kicker">X ARTICLE</div>
         <h2>X 长文章</h2>
       </div>
-      <button type="button" class="x-copy-part-btn" data-x-copy="article">复制 Article 富文本</button>
+      <button type="button" class="x-copy-part-btn" data-x-copy="article">复制 Article 文字</button>
+    </div>
+    <div class="x-publishing-guide" role="note">
+      <span><b>1</b> 复制文字</span>
+      <i aria-hidden="true">→</i>
+      <span><b>2</b> 在 X 中按编号上传图片</span>
     </div>
     <div class="x-article-content markdown-preview">${articleHtml}</div>
+    <section class="x-asset-section is-loading" data-x-asset-section aria-live="polite">
+      <div class="x-asset-section-header">
+        <div>
+          <div class="x-asset-title">X 图片素材</div>
+          <p data-x-asset-summary>正在整理正文中的图片、Mermaid、公式和代码块…</p>
+        </div>
+      </div>
+      <div class="x-asset-list" data-x-asset-list></div>
+    </section>
   </section>
   <section class="x-thread-section">
     <div class="x-section-toolbar">

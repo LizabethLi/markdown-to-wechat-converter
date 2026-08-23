@@ -154,6 +154,9 @@ const MarkdownConverter = {
                     startOnLoad: false,
                     securityLevel: 'strict',
                     theme: 'neutral',
+                    flowchart: {
+                        htmlLabels: false
+                    },
                     themeVariables: {
                         primaryColor: activeColor,
                         primaryTextColor: '#0f172a',
@@ -671,7 +674,7 @@ const MarkdownConverter = {
 
         // 3. 使用 marked.js 进行转换
         const renderer = this.createWechatRenderer(mode, themeColor);
-        // 使用局部renderer，避免污染全局marked配置，影响GitHub预览
+        // 使用局部 renderer，避免污染其他渠道的通用富文本预览
         let html = marked(mermaidEnhancedMarkdown, { renderer });
 
         // 4. 恢复数学公式

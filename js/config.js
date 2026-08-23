@@ -184,7 +184,7 @@ const AppConfig = {
     }
 };
 
-// 翻译配置（Substack/GitHub渠道）
+// 翻译配置（所有支持英文输出的渠道）
 AppConfig.translation = {
     // 模式：'disabled' | 'proxy' | 'direct'
     mode: 'disabled',

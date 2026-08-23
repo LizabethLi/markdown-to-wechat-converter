@@ -8,6 +8,11 @@ const UIController = {
     currentRenderedResult: null,
     inputRenderTimer: null,
     previewImagePreparation: null,
+    xArticlePackage: null,
+    xArticlePackagePromise: null,
+    xArticlePackagePreview: null,
+    xAssetQueueIndex: 0,
+    xCopiedAssetIndexes: new Set(),
     copyNoticeTimer: null,
 
     // 初始化应用
@@ -129,8 +134,6 @@ const UIController = {
         });
 
         // 绑定全局函数到window对象，以便HTML中的onclick可以调用
-        window.showTab = this.showTab.bind(this);
-        window.copyHtml = this.copyHtml.bind(this);
         window.copyPreview = this.copyPreview.bind(this);
         window.loadExample = this.loadExample.bind(this);
         window.updateOutput = this.updateOutput.bind(this);
@@ -393,13 +396,61 @@ const UIController = {
         });
     },
 
+    renderChannelReminder: function(channel, reminder, message) {
+        const reminderEl = document.getElementById('channelReminder');
+        if (!reminderEl) return;
+
+        reminderEl.replaceChildren();
+        reminderEl.classList.toggle('x-workflow-reminder', channel === 'x');
+
+        if (reminder && reminder.title) {
+            const title = document.createElement('strong');
+            title.className = 'channel-reminder-title';
+            title.textContent = reminder.title;
+            reminderEl.appendChild(title);
+        }
+
+        const description = document.createElement('span');
+        description.className = 'channel-reminder-description';
+        description.textContent = message || '';
+        reminderEl.appendChild(description);
+
+        if (reminder && Array.isArray(reminder.steps) && reminder.steps.length) {
+            const steps = document.createElement('span');
+            steps.className = 'channel-reminder-steps';
+            reminder.steps.forEach((step, index) => {
+                const item = document.createElement('span');
+                item.className = 'channel-reminder-step';
+                item.textContent = `${index + 1} ${step}`;
+                steps.appendChild(item);
+                if (index < reminder.steps.length - 1) {
+                    const arrow = document.createElement('i');
+                    arrow.setAttribute('aria-hidden', 'true');
+                    arrow.textContent = '→';
+                    steps.appendChild(arrow);
+                }
+            });
+            reminderEl.appendChild(steps);
+        }
+
+        reminderEl.classList.add('show');
+    },
+
     updateChannelReminder: function(channel) {
         const reminderEl = document.getElementById('channelReminder');
         if (!reminderEl) return;
 
+        reminderEl.classList.remove('x-workflow-reminder');
+
         if (this.outputLanguage === 'en' && !this.hasTranslatorConfiguration()) {
-            reminderEl.textContent = 'English 输出需要 OpenRouter API Key；请在 ⚙️ 中配置后重新生成。';
-            reminderEl.classList.add('show');
+            const activeChannel = (typeof ChannelConverter !== 'undefined' && typeof ChannelConverter.getChannel === 'function')
+                ? ChannelConverter.getChannel(channel)
+                : null;
+            const xReminder = channel === 'x' && activeChannel ? activeChannel.reminder : null;
+            const message = channel === 'x'
+                ? 'English 输出需要 OpenRouter API Key；X Article 的文字可直接复制，图片、Mermaid、公式和代码块仍需按编号上传。'
+                : 'English 输出需要 OpenRouter API Key；请在 ⚙️ 中配置后重新生成。';
+            this.renderChannelReminder(channel, xReminder, message);
             return;
         }
 
@@ -409,6 +460,7 @@ const UIController = {
         const reminder = activeChannel && activeChannel.reminder;
 
         if (!reminder) {
+            reminderEl.replaceChildren();
             reminderEl.classList.remove('show');
             return;
         }
@@ -417,29 +469,26 @@ const UIController = {
             const hasAI = typeof Translator !== 'undefined'
                 && typeof Translator.hasAIConfiguration === 'function'
                 && Translator.hasAIConfiguration();
-            reminderEl.textContent = hasAI ? reminder.text : reminder.missingText;
-            reminderEl.classList.add('show');
+            this.renderChannelReminder(channel, reminder, hasAI ? reminder.text : reminder.missingText);
             return;
         }
 
         if (reminder.requiresTranslation && !this.hasTranslatorConfiguration()) {
-            reminderEl.textContent = reminder.text;
-            reminderEl.classList.add('show');
+            this.renderChannelReminder(channel, reminder, reminder.text);
             return;
         }
 
         if (!reminder.requiresTranslation) {
-            reminderEl.textContent = reminder.text;
-            reminderEl.classList.add('show');
+            this.renderChannelReminder(channel, reminder, reminder.text);
             return;
         }
 
         if (channel === 'x') {
-            reminderEl.textContent = reminder.text;
-            reminderEl.classList.add('show');
+            this.renderChannelReminder(channel, reminder, reminder.text);
             return;
         }
 
+        reminderEl.replaceChildren();
         reminderEl.classList.remove('show');
     },
 
@@ -658,7 +707,7 @@ const UIController = {
             // 关闭面板
             const panel = document.getElementById('translatorPanel');
             if (panel) panel.style.display = 'none';
-            // 重新渲染（可能在 Substack/GitHub）
+            // 重新渲染当前渠道
             this.updateOutput();
         } catch (e) {
             console.error('Failed to save translator settings:', e);
@@ -767,16 +816,20 @@ const UIController = {
             preview.classList.add(rendered.channel.previewHostClass);
         }
 
-        const codeBtn = document.getElementById('codeTabButton');
-        const codeTitle = document.getElementById('codeTabTitle');
-        if (codeBtn) codeBtn.textContent = `📄 ${rendered.channel.outputLabel}`;
-        if (codeTitle) codeTitle.textContent = rendered.channel.outputTitle;
-
         if (rendered.needsMathTypeset) {
             this.typesetMath(preview);
         }
 
         this.preparePreviewImages(preview);
+        if (rendered.channel && rendered.channel.id === 'x') {
+            this.prepareXArticlePackage(preview);
+        } else {
+            this.xArticlePackage = null;
+            this.xArticlePackagePromise = null;
+            this.xArticlePackagePreview = null;
+            this.xAssetQueueIndex = 0;
+            this.xCopiedAssetIndexes = new Set();
+        }
     },
 
     preparePreviewImages: function(preview) {
@@ -807,6 +860,446 @@ const UIController = {
             }
         }
         return this.preparePreviewImages(preview);
+    },
+
+    prepareXArticlePackage: function(preview) {
+        const articleContent = preview && preview.querySelector('.x-article-content');
+        if (!articleContent) {
+            return Promise.resolve(null);
+        }
+
+        this.xArticlePackage = null;
+        this.xArticlePackagePreview = preview;
+        this.xAssetQueueIndex = 0;
+        this.xCopiedAssetIndexes = new Set();
+
+        let packagePromise;
+        packagePromise = (async () => {
+            await this.ensurePreviewImagesReady(preview);
+            const publishingPackage = await this.buildXArticlePackage(articleContent);
+            if (this.xArticlePackagePromise === packagePromise
+                && this.xArticlePackagePreview === preview
+                && preview.isConnected) {
+                this.xArticlePackage = publishingPackage;
+                this.renderXArticleAssets(preview, publishingPackage);
+            }
+            return publishingPackage;
+        })().catch((error) => {
+            console.error('Failed to prepare X Article assets:', error);
+            if (this.xArticlePackagePromise === packagePromise) {
+                const section = preview.querySelector('[data-x-asset-section]');
+                const summary = section && section.querySelector('[data-x-asset-summary]');
+                if (section) section.classList.add('has-error');
+                if (summary) summary.textContent = '图片素材整理失败，请重新生成预览后再试。';
+            }
+            throw error;
+        });
+
+        this.xArticlePackagePromise = packagePromise;
+        return packagePromise;
+    },
+
+    ensureXArticlePackageReady: async function() {
+        const preview = document.getElementById('preview');
+        if (this.xArticlePackage && this.xArticlePackagePreview === preview) {
+            return this.xArticlePackage;
+        }
+        if (this.xArticlePackagePromise && this.xArticlePackagePreview === preview) {
+            return this.xArticlePackagePromise;
+        }
+        return this.prepareXArticlePackage(preview);
+    },
+
+    buildXArticlePackage: async function(articleContent) {
+        const clone = articleContent.cloneNode(true);
+        const collectVisuals = (root) => Array.from(root.querySelectorAll('svg, img, pre'))
+            .filter(element => element.tagName.toLowerCase() !== 'svg'
+                || !element.parentElement
+                || !element.parentElement.closest('svg'));
+        const sourceVisuals = collectVisuals(articleContent);
+        const cloneVisuals = collectVisuals(clone);
+
+        if (sourceVisuals.length !== cloneVisuals.length) {
+            throw new Error('X Article visual clone count mismatch');
+        }
+
+        const assets = await Promise.all(sourceVisuals.map(async (visual, index) => {
+            const tagName = visual.tagName.toLowerCase();
+            const isSvg = tagName === 'svg';
+            const isCode = tagName === 'pre';
+            const kind = isCode
+                ? 'code'
+                : isSvg
+                ? (visual.querySelector('[data-mml-node="math"]') ? 'math' : 'mermaid')
+                : 'image';
+            const imageNumber = index + 1;
+            const alt = kind === 'image' ? (visual.getAttribute('alt') || '').trim() : '';
+            const codeElement = kind === 'code' ? visual.querySelector('code') : null;
+            const languageClass = codeElement
+                ? Array.from(codeElement.classList).find(className => className.startsWith('language-'))
+                : '';
+            const language = languageClass ? languageClass.slice('language-'.length) : '';
+            const typeLabel = kind === 'math'
+                ? '数学公式'
+                : kind === 'mermaid'
+                    ? 'Mermaid 图表'
+                    : kind === 'code'
+                        ? (language ? `代码块 · ${language}` : '代码块')
+                        : (alt ? `原文图片：${alt.slice(0, 36)}` : '原文图片');
+            const placeholder = `【图片 ${imageNumber} · ${typeLabel}】`;
+            const filename = `x-article-${String(imageNumber).padStart(2, '0')}-${kind}.png`;
+
+            try {
+                const raster = kind === 'code'
+                    ? await this.rasterizeCodeBlockToPng(visual, language)
+                    : isSvg
+                    ? await this.rasterizeSvgToPng(visual)
+                    : await this.rasterizeImageToPng(visual);
+                return {
+                    index,
+                    number: imageNumber,
+                    kind,
+                    typeLabel,
+                    placeholder,
+                    filename,
+                    dataUrl: raster.dataUrl,
+                    displayWidth: raster.displayWidth,
+                    displayHeight: raster.displayHeight,
+                    error: ''
+                };
+            } catch (error) {
+                return {
+                    index,
+                    number: imageNumber,
+                    kind,
+                    typeLabel,
+                    placeholder,
+                    filename,
+                    dataUrl: '',
+                    displayWidth: 0,
+                    displayHeight: 0,
+                    error: error && error.message ? error.message : '图片转换失败'
+                };
+            }
+        }));
+
+        cloneVisuals.forEach((visual, index) => {
+            const asset = assets[index];
+            const containedSection = visual.closest('section');
+            const isBlockVisual = asset.kind === 'mermaid'
+                || asset.kind === 'code'
+                || (asset.kind === 'math' && containedSection && clone.contains(containedSection));
+            let replacementTarget = visual;
+
+            if (isBlockVisual && containedSection && clone.contains(containedSection)) {
+                replacementTarget = containedSection;
+            } else if (asset.kind === 'image') {
+                const paragraph = visual.closest('p');
+                if (paragraph
+                    && clone.contains(paragraph)
+                    && paragraph.querySelectorAll('img').length === 1
+                    && !(paragraph.textContent || '').trim()) {
+                    replacementTarget = paragraph;
+                }
+            }
+
+            const placeholder = document.createElement(isBlockVisual || replacementTarget !== visual ? 'p' : 'span');
+            placeholder.className = isBlockVisual || replacementTarget !== visual
+                ? 'x-block-asset-placeholder'
+                : 'x-inline-asset-placeholder';
+            placeholder.setAttribute('data-x-asset-placeholder', String(asset.number));
+            placeholder.textContent = asset.placeholder;
+            replacementTarget.replaceWith(placeholder);
+        });
+
+        clone.querySelectorAll('code').forEach((codeElement) => {
+            const inlineCode = document.createTextNode(`\`${codeElement.textContent || ''}\``);
+            codeElement.replaceWith(inlineCode);
+        });
+
+        return {
+            html: clone.innerHTML,
+            text: (clone.innerText || clone.textContent || '').trim(),
+            assets,
+            failedAssets: assets.filter(asset => !asset.dataUrl)
+        };
+    },
+
+    rasterizeImageToPng: async function(imageElement) {
+        if (!imageElement) throw new Error('Missing image source');
+        const source = imageElement.getAttribute('src') || '';
+        if (!source) throw new Error('图片地址为空');
+
+        const rasterSource = await new Promise((resolve, reject) => {
+            const image = new Image();
+            const timeoutId = setTimeout(() => {
+                image.onload = null;
+                image.onerror = null;
+                reject(new Error('图片读取超时'));
+            }, 5000);
+            image.onload = () => {
+                clearTimeout(timeoutId);
+                resolve(image);
+            };
+            image.onerror = () => {
+                clearTimeout(timeoutId);
+                reject(new Error('浏览器无法读取图片'));
+            };
+            image.src = source;
+        });
+
+        const rect = imageElement.getBoundingClientRect();
+        const naturalWidth = rasterSource.naturalWidth || rasterSource.width || 0;
+        const naturalHeight = rasterSource.naturalHeight || rasterSource.height || 0;
+        const displayWidth = rect.width || naturalWidth;
+        const displayHeight = rect.height || naturalHeight;
+        if (!displayWidth || !displayHeight) throw new Error('图片尺寸无效');
+
+        const maxDimension = 4096;
+        const maxPixels = 12000000;
+        const scale = Math.min(
+            1,
+            maxDimension / naturalWidth,
+            maxDimension / naturalHeight,
+            Math.sqrt(maxPixels / (naturalWidth * naturalHeight))
+        );
+        const canvasWidth = Math.max(1, Math.round(naturalWidth * scale));
+        const canvasHeight = Math.max(1, Math.round(naturalHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Canvas 2D context is unavailable');
+        context.clearRect(0, 0, canvasWidth, canvasHeight);
+        context.drawImage(rasterSource, 0, 0, canvasWidth, canvasHeight);
+
+        return {
+            dataUrl: canvas.toDataURL('image/png'),
+            displayWidth,
+            displayHeight
+        };
+    },
+
+    rasterizeCodeBlockToPng: async function(preElement, language = '') {
+        if (!preElement) throw new Error('Missing code block');
+        const codeElement = preElement.querySelector('code') || preElement;
+        const source = (codeElement.textContent || '').replace(/\n$/, '').replace(/\t/g, '    ');
+        const fontSize = 16;
+        const lineHeight = 25;
+        const horizontalPadding = 28;
+        const verticalPadding = 22;
+        const headerHeight = 42;
+        const minWidth = 560;
+        const maxWidth = 1400;
+        const measurementCanvas = document.createElement('canvas');
+        const measurementContext = measurementCanvas.getContext('2d');
+        if (!measurementContext) throw new Error('Canvas 2D context is unavailable');
+        measurementContext.font = `${fontSize}px Menlo, Monaco, Consolas, monospace`;
+
+        const rawLines = source.split('\n');
+        const longestLineWidth = rawLines.reduce(
+            (maximum, line) => Math.max(maximum, measurementContext.measureText(line || ' ').width),
+            0
+        );
+        const displayWidth = Math.round(Math.min(
+            maxWidth,
+            Math.max(minWidth, longestLineWidth + horizontalPadding * 2)
+        ));
+        const availableWidth = displayWidth - horizontalPadding * 2;
+        const wrappedLines = [];
+
+        rawLines.forEach((rawLine) => {
+            if (!rawLine) {
+                wrappedLines.push('');
+                return;
+            }
+            let currentLine = '';
+            Array.from(rawLine).forEach((character) => {
+                const candidate = currentLine + character;
+                if (currentLine && measurementContext.measureText(candidate).width > availableWidth) {
+                    wrappedLines.push(currentLine);
+                    currentLine = `  ${character}`;
+                } else {
+                    currentLine = candidate;
+                }
+            });
+            wrappedLines.push(currentLine);
+        });
+        if (!wrappedLines.length) wrappedLines.push('');
+
+        const displayHeight = headerHeight + verticalPadding * 2 + wrappedLines.length * lineHeight;
+        const maxDimension = 4096;
+        const maxPixels = 12000000;
+        const qualityScale = 2;
+        const scale = Math.max(0.25, Math.min(
+            qualityScale,
+            maxDimension / displayWidth,
+            maxDimension / displayHeight,
+            Math.sqrt(maxPixels / (displayWidth * displayHeight))
+        ));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(displayWidth * scale));
+        canvas.height = Math.max(1, Math.round(displayHeight * scale));
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Canvas 2D context is unavailable');
+        context.scale(scale, scale);
+
+        context.fillStyle = '#0f172a';
+        context.fillRect(0, 0, displayWidth, displayHeight);
+        context.fillStyle = '#111827';
+        context.fillRect(0, 0, displayWidth, headerHeight);
+        ['#fb7185', '#fbbf24', '#4ade80'].forEach((color, index) => {
+            context.beginPath();
+            context.arc(20 + index * 18, headerHeight / 2, 5, 0, Math.PI * 2);
+            context.fillStyle = color;
+            context.fill();
+        });
+
+        context.fillStyle = '#94a3b8';
+        context.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        context.textAlign = 'right';
+        context.textBaseline = 'middle';
+        context.fillText(language || 'code', displayWidth - horizontalPadding, headerHeight / 2);
+
+        context.fillStyle = '#e2e8f0';
+        context.font = `${fontSize}px Menlo, Monaco, Consolas, monospace`;
+        context.textAlign = 'left';
+        context.textBaseline = 'alphabetic';
+        wrappedLines.forEach((line, index) => {
+            const y = headerHeight + verticalPadding + fontSize + index * lineHeight;
+            context.fillText(line || ' ', horizontalPadding, y);
+        });
+
+        return {
+            dataUrl: canvas.toDataURL('image/png'),
+            displayWidth,
+            displayHeight
+        };
+    },
+
+    renderXArticleAssets: function(preview, publishingPackage) {
+        const section = preview && preview.querySelector('[data-x-asset-section]');
+        const list = section && section.querySelector('[data-x-asset-list]');
+        const header = section && section.querySelector('.x-asset-section-header');
+        if (!section || !list || !header) return;
+
+        section.classList.remove('is-loading', 'has-error');
+        const assets = publishingPackage.assets || [];
+        if (!assets.length) {
+            section.hidden = true;
+            return;
+        }
+        section.hidden = false;
+
+        const headingGroup = document.createElement('div');
+        const title = document.createElement('div');
+        title.className = 'x-asset-title';
+        title.textContent = `X 图片素材 · ${assets.length} 张`;
+        const summary = document.createElement('p');
+        summary.setAttribute('data-x-asset-summary', '');
+        summary.textContent = '文中的占位标记与素材编号一一对应。切回 X 后，在对应位置粘贴或上传。';
+        headingGroup.append(title, summary);
+
+        const actions = document.createElement('div');
+        actions.className = 'x-asset-header-actions';
+        const copyNext = document.createElement('button');
+        copyNext.type = 'button';
+        copyNext.className = 'x-copy-part-btn x-copy-next-btn';
+        copyNext.setAttribute('data-x-asset-action', 'copy-next');
+        const downloadAll = document.createElement('button');
+        downloadAll.type = 'button';
+        downloadAll.className = 'x-copy-part-btn x-download-all-btn';
+        downloadAll.setAttribute('data-x-asset-action', 'download-all');
+        downloadAll.textContent = '下载全部 ZIP';
+        actions.append(copyNext, downloadAll);
+        header.replaceChildren(headingGroup, actions);
+
+        list.replaceChildren();
+        assets.forEach((asset) => {
+            const card = document.createElement('article');
+            card.className = 'x-asset-card';
+            card.setAttribute('data-x-asset-index', String(asset.index));
+            if (!asset.dataUrl) card.classList.add('has-error');
+
+            const thumbnail = document.createElement('div');
+            thumbnail.className = 'x-asset-thumbnail';
+            if (asset.dataUrl) {
+                const image = document.createElement('img');
+                image.src = asset.dataUrl;
+                image.alt = asset.typeLabel;
+                thumbnail.appendChild(image);
+            } else {
+                thumbnail.textContent = '转换失败';
+            }
+
+            const details = document.createElement('div');
+            details.className = 'x-asset-details';
+            const assetTitle = document.createElement('strong');
+            assetTitle.textContent = `图片 ${asset.number} · ${asset.typeLabel}`;
+            const marker = document.createElement('code');
+            marker.textContent = asset.placeholder;
+            details.append(assetTitle, marker);
+            if (asset.error) {
+                const error = document.createElement('small');
+                error.textContent = asset.error;
+                details.appendChild(error);
+            }
+
+            const cardActions = document.createElement('div');
+            cardActions.className = 'x-asset-card-actions';
+            const copyButton = document.createElement('button');
+            copyButton.type = 'button';
+            copyButton.className = 'x-asset-action-btn';
+            copyButton.setAttribute('data-x-asset-action', 'copy');
+            copyButton.setAttribute('data-x-asset-index', String(asset.index));
+            copyButton.textContent = '复制图片';
+            const downloadButton = document.createElement('button');
+            downloadButton.type = 'button';
+            downloadButton.className = 'x-asset-action-btn is-secondary';
+            downloadButton.setAttribute('data-x-asset-action', 'download');
+            downloadButton.setAttribute('data-x-asset-index', String(asset.index));
+            downloadButton.textContent = '下载 PNG';
+            copyButton.disabled = !asset.dataUrl;
+            downloadButton.disabled = !asset.dataUrl;
+            cardActions.append(copyButton, downloadButton);
+
+            card.append(thumbnail, details, cardActions);
+            list.appendChild(card);
+        });
+
+        this.updateXAssetQueueUI(section);
+        if (publishingPackage.failedAssets.length) {
+            this.showCopyNotice(
+                `${publishingPackage.failedAssets.length} 张 X 素材转换失败，请检查原图后重新生成。`,
+                true
+            );
+        }
+    },
+
+    updateXAssetQueueUI: function(section) {
+        const root = section || document.querySelector('[data-x-asset-section]');
+        if (!root || !this.xArticlePackage) return;
+        const assets = this.xArticlePackage.assets || [];
+        const nextIndex = assets.findIndex(asset => asset.dataUrl && !this.xCopiedAssetIndexes.has(asset.index));
+        this.xAssetQueueIndex = nextIndex;
+
+        root.querySelectorAll('[data-x-asset-index]').forEach((element) => {
+            const index = Number(element.getAttribute('data-x-asset-index'));
+            if (element.classList.contains('x-asset-card')) {
+                element.classList.toggle('is-copied', this.xCopiedAssetIndexes.has(index));
+            }
+        });
+
+        const copyNext = root.querySelector('[data-x-asset-action="copy-next"]');
+        if (copyNext) {
+            if (nextIndex < 0) {
+                copyNext.textContent = '✅ 素材已复制完';
+                copyNext.disabled = true;
+            } else {
+                copyNext.textContent = `复制下一张（${nextIndex + 1}/${assets.length}）`;
+                copyNext.disabled = false;
+            }
+        }
     },
 
     generateXPublishingContent: async function() {
@@ -870,11 +1363,29 @@ const UIController = {
 
     handlePreviewAction: function(event) {
         const target = event && event.target;
-        const button = target && typeof target.closest === 'function'
+        const copyButton = target && typeof target.closest === 'function'
             ? target.closest('[data-x-copy]')
             : null;
-        if (!button) return;
-        this.copyXPublishingPart(button);
+        if (copyButton) {
+            this.copyXPublishingPart(copyButton);
+            return;
+        }
+
+        const assetButton = target && typeof target.closest === 'function'
+            ? target.closest('[data-x-asset-action]')
+            : null;
+        if (!assetButton) return;
+        const action = assetButton.getAttribute('data-x-asset-action');
+        const index = Number(assetButton.getAttribute('data-x-asset-index'));
+        if (action === 'copy') {
+            this.copyXArticleAsset(index, assetButton);
+        } else if (action === 'copy-next') {
+            this.copyNextXArticleAsset(assetButton);
+        } else if (action === 'download') {
+            this.downloadXArticleAsset(index, assetButton);
+        } else if (action === 'download-all') {
+            this.downloadAllXArticleAssets(assetButton);
+        }
     },
 
     copyXPublishingPart: async function(button) {
@@ -901,24 +1412,271 @@ const UIController = {
         }
         const originalLabel = button.textContent;
         let success = false;
-        let imageReport = null;
-        if (kind === 'article' && typeof marked === 'function') {
-            const preview = document.getElementById('preview');
-            imageReport = await this.ensurePreviewImagesReady(preview);
-            const articleContent = button.closest('.x-article-card')
-                && button.closest('.x-article-card').querySelector('.x-article-content');
-            const articleHtml = articleContent ? articleContent.innerHTML : marked(content);
-            const articleText = articleContent ? articleContent.innerText : ChannelConverter.markdownToPlainText(content);
-            success = await this.copyHtmlToClipboard(articleHtml, articleText);
+        let publishingPackage = null;
+        if (kind === 'article') {
+            button.textContent = '正在整理文字和素材...';
+            try {
+                publishingPackage = await this.ensureXArticlePackageReady();
+            } catch (error) {
+                button.textContent = originalLabel;
+                this.showCopyNotice('X 图片素材整理失败，请重新生成预览后再试。', true);
+                return;
+            }
+            if (publishingPackage) {
+                success = await this.copyHtmlToClipboard(publishingPackage.html, publishingPackage.text);
+                const articleContent = button.closest('.x-article-card')
+                    ? button.closest('.x-article-card').querySelector('.x-article-content')
+                    : document.querySelector('#preview .x-article-content');
+                if (!success && articleContent) {
+                    success = this.copyRenderedPreviewToClipboard(articleContent, publishingPackage.html);
+                }
+            }
         }
         if (!success) {
-            success = await this.copyToClipboard(content);
+            success = await this.copyToClipboard(
+                kind === 'article' && publishingPackage ? publishingPackage.text : content
+            );
         }
         if (success) {
-            this.showCopySuccess(button, originalLabel, this.getRichCopySuccessText(imageReport));
-            this.showImageCopyReport(imageReport);
+            if (kind === 'article') {
+                const assetCount = publishingPackage ? publishingPackage.assets.length : 0;
+                const failedCount = publishingPackage ? publishingPackage.failedAssets.length : 0;
+                this.showCopySuccess(button, originalLabel, '✅ 文字已复制');
+                if (assetCount) {
+                    const failureText = failedCount ? `，其中 ${failedCount} 张转换失败` : '';
+                    this.showCopyNotice(
+                        `Article 文字已复制。请在 X 中按编号上传下方 ${assetCount} 张图片素材${failureText}。`,
+                        failedCount > 0
+                    );
+                } else {
+                    this.showCopyNotice('Article 文字已复制，这篇文章没有需要单独上传的图片。', false);
+                }
+            } else {
+                this.showCopySuccess(button, originalLabel);
+            }
         } else {
             alert('复制失败，请手动复制');
+        }
+    },
+
+    dataUrlToBlob: function(dataUrl) {
+        const match = String(dataUrl || '').match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
+        if (!match) throw new Error('Invalid image data URL');
+        const mimeType = match[1] || 'application/octet-stream';
+        const binary = match[2] ? atob(match[3]) : decodeURIComponent(match[3]);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) {
+            bytes[index] = binary.charCodeAt(index);
+        }
+        return new Blob([bytes], { type: mimeType });
+    },
+
+    copyXArticleAsset: async function(index, button) {
+        let publishingPackage;
+        try {
+            publishingPackage = await this.ensureXArticlePackageReady();
+        } catch (_) {
+            this.showCopyNotice('X 图片素材尚未准备好，请重新生成预览。', true);
+            return false;
+        }
+        const asset = publishingPackage && publishingPackage.assets
+            ? publishingPackage.assets[index]
+            : null;
+        if (!asset || !asset.dataUrl) {
+            this.showCopyNotice('这张素材转换失败，暂时无法复制。', true);
+            return false;
+        }
+
+        const originalLabel = button ? button.textContent : '';
+        if (button) {
+            button.disabled = true;
+            button.textContent = '正在复制...';
+        }
+
+        try {
+            if (!navigator.clipboard
+                || typeof navigator.clipboard.write !== 'function'
+                || typeof window.ClipboardItem === 'undefined') {
+                throw new Error('当前浏览器不支持复制图片');
+            }
+            const pngBlob = this.dataUrlToBlob(asset.dataUrl);
+            const clipboardItem = new ClipboardItem({ 'image/png': pngBlob });
+            await navigator.clipboard.write([clipboardItem]);
+            this.xCopiedAssetIndexes.add(asset.index);
+            this.updateXAssetQueueUI();
+
+            if (button && button.getAttribute('data-x-asset-action') === 'copy') {
+                this.showCopySuccess(button, originalLabel, '✅ 图片已复制');
+            }
+            this.showCopyNotice(
+                `图片 ${asset.number} 已复制。切回 X，在 ${asset.placeholder} 的位置粘贴。`,
+                false
+            );
+            return true;
+        } catch (error) {
+            console.warn('Failed to copy X Article image asset:', error);
+            if (button) {
+                button.disabled = false;
+                button.textContent = originalLabel;
+            }
+            this.showCopyNotice('图片复制失败，可先点击“下载 PNG”再上传到 X。', true);
+            return false;
+        }
+    },
+
+    copyNextXArticleAsset: async function(button) {
+        const publishingPackage = await this.ensureXArticlePackageReady();
+        const assets = publishingPackage ? publishingPackage.assets || [] : [];
+        const nextAsset = assets.find(asset => asset.dataUrl && !this.xCopiedAssetIndexes.has(asset.index));
+        if (!nextAsset) {
+            this.updateXAssetQueueUI();
+            return false;
+        }
+        return this.copyXArticleAsset(nextAsset.index, button);
+    },
+
+    triggerBlobDownload: function(blobOrUrl, filename) {
+        const isBlob = typeof Blob !== 'undefined' && blobOrUrl instanceof Blob;
+        const url = isBlob ? URL.createObjectURL(blobOrUrl) : blobOrUrl;
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        if (isBlob) {
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+    },
+
+    downloadXArticleAsset: async function(index, button) {
+        const publishingPackage = await this.ensureXArticlePackageReady();
+        const asset = publishingPackage && publishingPackage.assets
+            ? publishingPackage.assets[index]
+            : null;
+        if (!asset || !asset.dataUrl) {
+            this.showCopyNotice('这张素材转换失败，暂时无法下载。', true);
+            return;
+        }
+        this.triggerBlobDownload(asset.dataUrl, asset.filename);
+        if (button) this.showCopySuccess(button, button.textContent, '✅ 已下载');
+    },
+
+    createStoredZipBlob: async function(assets) {
+        const encoder = new TextEncoder();
+        const entries = await Promise.all(assets.filter(asset => asset.dataUrl).map(async (asset) => {
+            const blob = this.dataUrlToBlob(asset.dataUrl);
+            return {
+                name: encoder.encode(asset.filename),
+                bytes: new Uint8Array(await blob.arrayBuffer())
+            };
+        }));
+        if (!entries.length) throw new Error('No image assets to archive');
+
+        const crcTable = new Uint32Array(256);
+        for (let index = 0; index < 256; index += 1) {
+            let value = index;
+            for (let bit = 0; bit < 8; bit += 1) {
+                value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
+            }
+            crcTable[index] = value >>> 0;
+        }
+        const crc32 = (bytes) => {
+            let crc = 0xffffffff;
+            bytes.forEach(byte => {
+                crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+            });
+            return (crc ^ 0xffffffff) >>> 0;
+        };
+        const joinBytes = (parts) => {
+            const total = parts.reduce((sum, part) => sum + part.length, 0);
+            const output = new Uint8Array(total);
+            let offset = 0;
+            parts.forEach((part) => {
+                output.set(part, offset);
+                offset += part.length;
+            });
+            return output;
+        };
+
+        const localParts = [];
+        const centralParts = [];
+        let localOffset = 0;
+        entries.forEach((entry) => {
+            const crc = crc32(entry.bytes);
+            const localHeader = new Uint8Array(30 + entry.name.length);
+            const localView = new DataView(localHeader.buffer);
+            localView.setUint32(0, 0x04034b50, true);
+            localView.setUint16(4, 20, true);
+            localView.setUint16(6, 0, true);
+            localView.setUint16(8, 0, true);
+            localView.setUint32(10, 0, true);
+            localView.setUint32(14, crc, true);
+            localView.setUint32(18, entry.bytes.length, true);
+            localView.setUint32(22, entry.bytes.length, true);
+            localView.setUint16(26, entry.name.length, true);
+            localView.setUint16(28, 0, true);
+            localHeader.set(entry.name, 30);
+            localParts.push(localHeader, entry.bytes);
+
+            const centralHeader = new Uint8Array(46 + entry.name.length);
+            const centralView = new DataView(centralHeader.buffer);
+            centralView.setUint32(0, 0x02014b50, true);
+            centralView.setUint16(4, 20, true);
+            centralView.setUint16(6, 20, true);
+            centralView.setUint16(8, 0, true);
+            centralView.setUint16(10, 0, true);
+            centralView.setUint32(12, 0, true);
+            centralView.setUint32(16, crc, true);
+            centralView.setUint32(20, entry.bytes.length, true);
+            centralView.setUint32(24, entry.bytes.length, true);
+            centralView.setUint16(28, entry.name.length, true);
+            centralView.setUint16(30, 0, true);
+            centralView.setUint16(32, 0, true);
+            centralView.setUint16(34, 0, true);
+            centralView.setUint16(36, 0, true);
+            centralView.setUint32(38, 0, true);
+            centralView.setUint32(42, localOffset, true);
+            centralHeader.set(entry.name, 46);
+            centralParts.push(centralHeader);
+            localOffset += localHeader.length + entry.bytes.length;
+        });
+
+        const localData = joinBytes(localParts);
+        const centralData = joinBytes(centralParts);
+        const end = new Uint8Array(22);
+        const endView = new DataView(end.buffer);
+        endView.setUint32(0, 0x06054b50, true);
+        endView.setUint16(4, 0, true);
+        endView.setUint16(6, 0, true);
+        endView.setUint16(8, entries.length, true);
+        endView.setUint16(10, entries.length, true);
+        endView.setUint32(12, centralData.length, true);
+        endView.setUint32(16, localData.length, true);
+        endView.setUint16(20, 0, true);
+        return new Blob([localData, centralData, end], { type: 'application/zip' });
+    },
+
+    downloadAllXArticleAssets: async function(button) {
+        const originalLabel = button ? button.textContent : '';
+        if (button) {
+            button.disabled = true;
+            button.textContent = '正在打包...';
+        }
+        try {
+            const publishingPackage = await this.ensureXArticlePackageReady();
+            const zip = await this.createStoredZipBlob(publishingPackage.assets || []);
+            this.triggerBlobDownload(zip, 'x-article-images.zip');
+            if (button) this.showCopySuccess(button, originalLabel, '✅ ZIP 已下载');
+            this.showCopyNotice('全部 X 图片素材已下载，可按文件编号上传。', false);
+        } catch (error) {
+            console.warn('Failed to download X Article asset archive:', error);
+            if (button) {
+                button.disabled = false;
+                button.textContent = originalLabel;
+            }
+            this.showCopyNotice('图片素材打包失败，请改为逐张下载。', true);
         }
     },
 
@@ -1026,24 +1784,6 @@ const UIController = {
         }
     },
 
-    // 标签切换
-    showTab: function(tabName) {
-        // 移除所有活动状态
-        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        
-        // 激活选中的标签页
-        const clickedTab = event.target;
-        clickedTab.classList.add('active');
-        
-        const targetContent = document.getElementById(tabName + 'Tab');
-        if (targetContent) {
-            targetContent.classList.add('active');
-        }
-
-        this.updateCopyButtonLabels();
-    },
-
     // 复制到剪贴板
     copyToClipboard: async function(text) {
         try {
@@ -1078,20 +1818,11 @@ const UIController = {
         return (activeChannel && activeChannel.copyPreviewLabel) || '复制文案';
     },
 
-    getCopyHtmlButtonLabel: function() {
-        const activeChannel = this.getActiveChannelConfig();
-        return (activeChannel && activeChannel.copyOutputLabel) || '复制文案';
-    },
-
     updateCopyButtonLabels: function() {
         const previewButton = document.getElementById('copyPreviewBtn');
-        const htmlButton = document.getElementById('copyHtmlBtn');
 
         if (previewButton && !previewButton.classList.contains('success')) {
             previewButton.textContent = this.getCopyPreviewButtonLabel();
-        }
-        if (htmlButton && !htmlButton.classList.contains('success')) {
-            htmlButton.textContent = this.getCopyHtmlButtonLabel();
         }
     },
 
@@ -1142,26 +1873,6 @@ const UIController = {
         this.showCopyNotice(`正文和 ${report.total} 张图片已一起写入剪贴板。`, false);
     },
 
-    // 复制HTML代码
-    copyHtml: async function() {
-        const htmlOutput = document.getElementById('htmlOutput');
-        const button = document.getElementById('copyHtmlBtn');
-        
-        if (!htmlOutput || !button) {
-            console.error('HTML output or button not found');
-            return;
-        }
-
-        const html = htmlOutput.value;
-        const success = await this.copyToClipboard(html);
-        
-        if (success) {
-            this.showCopySuccess(button, this.getCopyHtmlButtonLabel());
-        } else {
-            alert('复制失败，请手动复制');
-        }
-    },
-
     copyHtmlToClipboard: async function(html, plainText = '') {
         if (!html || typeof html !== 'string') {
             return false;
@@ -1185,7 +1896,141 @@ const UIController = {
         return false;
     },
 
-    copyRenderedPreviewToClipboard: function(previewElement) {
+    addRasterizedImagesToReport: function(report, converted) {
+        const count = Number(converted) || 0;
+        if (!count) return report;
+        const current = report || {};
+        return {
+            ...current,
+            total: (Number(current.total) || 0) + count,
+            embedded: (Number(current.embedded) || 0) + count,
+            external: Number(current.external) || 0,
+            failures: Array.isArray(current.failures) ? current.failures : []
+        };
+    },
+
+    preparePortableRichClipboard: async function(sourceElement) {
+        if (!sourceElement) {
+            throw new Error('Missing rich clipboard source');
+        }
+
+        const clone = sourceElement.cloneNode(true);
+        const sourceSvgs = Array.from(sourceElement.querySelectorAll('svg'))
+            .filter(svg => !svg.parentElement || !svg.parentElement.closest('svg'));
+        const cloneSvgs = Array.from(clone.querySelectorAll('svg'))
+            .filter(svg => !svg.parentElement || !svg.parentElement.closest('svg'));
+
+        if (sourceSvgs.length !== cloneSvgs.length) {
+            throw new Error('SVG clone count mismatch');
+        }
+
+        for (let index = 0; index < sourceSvgs.length; index += 1) {
+            const sourceSvg = sourceSvgs[index];
+            const cloneSvg = cloneSvgs[index];
+            const raster = await this.rasterizeSvgToPng(sourceSvg);
+            const image = document.createElement('img');
+            const isMath = !!sourceSvg.querySelector('[data-mml-node="math"]');
+            const isBlock = !isMath || !!sourceSvg.closest('section');
+
+            image.src = raster.dataUrl;
+            image.alt = isMath ? '数学公式' : 'Mermaid 图表';
+            image.width = Math.max(1, Math.round(raster.displayWidth));
+            image.height = Math.max(1, Math.round(raster.displayHeight));
+            image.setAttribute('data-rasterized-svg', isMath ? 'math' : 'mermaid');
+            image.style.maxWidth = '100%';
+            image.style.height = 'auto';
+            image.style.verticalAlign = 'middle';
+            image.style.display = isBlock ? 'block' : 'inline-block';
+            image.style.margin = isBlock ? '12px auto' : '0 0.15em';
+            cloneSvg.replaceWith(image);
+        }
+
+        return {
+            html: clone.innerHTML,
+            text: sourceElement.innerText || '',
+            converted: sourceSvgs.length
+        };
+    },
+
+    rasterizeSvgToPng: async function(svgElement) {
+        if (!svgElement || typeof XMLSerializer === 'undefined') {
+            throw new Error('SVG serialization is unavailable');
+        }
+
+        const rect = svgElement.getBoundingClientRect();
+        const viewBox = svgElement.viewBox && svgElement.viewBox.baseVal;
+        const attributeWidth = parseFloat(svgElement.getAttribute('width')) || 0;
+        const attributeHeight = parseFloat(svgElement.getAttribute('height')) || 0;
+        const displayWidth = rect.width || attributeWidth || (viewBox && viewBox.width) || 640;
+        const displayHeight = rect.height || attributeHeight || (viewBox && viewBox.height) || 360;
+
+        if (!Number.isFinite(displayWidth) || !Number.isFinite(displayHeight)
+            || displayWidth <= 0 || displayHeight <= 0) {
+            throw new Error('SVG has invalid dimensions');
+        }
+
+        const maxDimension = 4096;
+        const maxPixels = 12000000;
+        const qualityScale = 2;
+        const scale = Math.max(1, Math.min(
+            qualityScale,
+            maxDimension / displayWidth,
+            maxDimension / displayHeight,
+            Math.sqrt(maxPixels / (displayWidth * displayHeight))
+        ));
+        const canvasWidth = Math.max(1, Math.round(displayWidth * scale));
+        const canvasHeight = Math.max(1, Math.round(displayHeight * scale));
+
+        const svgClone = svgElement.cloneNode(true);
+        svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        svgClone.setAttribute('width', String(displayWidth));
+        svgClone.setAttribute('height', String(displayHeight));
+        svgClone.style.maxWidth = 'none';
+        svgClone.style.width = `${displayWidth}px`;
+        svgClone.style.height = `${displayHeight}px`;
+
+        const serialized = new XMLSerializer().serializeToString(svgClone);
+        const svgBlob = new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' });
+        const objectUrl = URL.createObjectURL(svgBlob);
+
+        try {
+            const rasterSource = await new Promise((resolve, reject) => {
+                const image = new Image();
+                const timeoutId = setTimeout(() => {
+                    image.onload = null;
+                    image.onerror = null;
+                    reject(new Error('SVG decoding timed out'));
+                }, 5000);
+                image.onload = () => {
+                    clearTimeout(timeoutId);
+                    resolve(image);
+                };
+                image.onerror = () => {
+                    clearTimeout(timeoutId);
+                    reject(new Error('Browser could not decode SVG'));
+                };
+                image.src = objectUrl;
+            });
+            const canvas = document.createElement('canvas');
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            const context = canvas.getContext('2d');
+            if (!context) {
+                throw new Error('Canvas 2D context is unavailable');
+            }
+            context.clearRect(0, 0, canvasWidth, canvasHeight);
+            context.drawImage(rasterSource, 0, 0, canvasWidth, canvasHeight);
+            return {
+                dataUrl: canvas.toDataURL('image/png'),
+                displayWidth,
+                displayHeight
+            };
+        } finally {
+            URL.revokeObjectURL(objectUrl);
+        }
+    },
+
+    copyRenderedPreviewToClipboard: function(previewElement, htmlOverride = '') {
         if (!previewElement) {
             return false;
         }
@@ -1202,7 +2047,7 @@ const UIController = {
         sandbox.setAttribute('aria-hidden', 'true');
         sandbox.contentEditable = 'true';
         sandbox.style.cssText = 'position: fixed; left: -99999px; top: 0; opacity: 0; pointer-events: none; user-select: text; -webkit-user-select: text;';
-        sandbox.innerHTML = previewElement.innerHTML;
+        sandbox.innerHTML = htmlOverride || previewElement.innerHTML;
         document.body.appendChild(sandbox);
 
         try {
@@ -1242,6 +2087,13 @@ const UIController = {
             return;
         }
 
+        if (channel === 'x') {
+            button.setAttribute('data-x-copy', 'article');
+            await this.copyXPublishingPart(button);
+            button.removeAttribute('data-x-copy');
+            return;
+        }
+
         let success = false;
         let imageReport = null;
         const activeChannel = this.getActiveChannelConfig();
@@ -1257,11 +2109,27 @@ const UIController = {
                 button.textContent = '正在准备图片...';
             }
             imageReport = await this.ensurePreviewImagesReady(preview);
-            const previewHtml = preview ? preview.innerHTML : '';
+            let previewHtml = preview ? preview.innerHTML : '';
             const previewText = preview ? preview.innerText : '';
+            const needsPortableImages = !!(activeChannel && activeChannel.portableRichCopy)
+                && preview
+                && preview.querySelector('svg');
+            if (needsPortableImages) {
+                button.textContent = '正在转换图表...';
+                try {
+                    const portable = await this.preparePortableRichClipboard(preview);
+                    previewHtml = portable.html;
+                    imageReport = this.addRasterizedImagesToReport(imageReport, portable.converted);
+                } catch (error) {
+                    console.error(`Failed to prepare portable ${channel} clipboard content:`, error);
+                    button.textContent = originalLabel;
+                    this.showCopyNotice('Mermaid 或公式转图片失败，请重试。', true);
+                    return;
+                }
+            }
             success = await this.copyHtmlToClipboard(previewHtml, previewText);
             if (!success) {
-                success = this.copyRenderedPreviewToClipboard(preview);
+                success = this.copyRenderedPreviewToClipboard(preview, previewHtml);
             }
             if (!success) {
                 success = await this.copyToClipboard(previewText);

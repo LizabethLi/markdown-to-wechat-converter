@@ -58,11 +58,12 @@ test('all channels receive the selected single-language Markdown', async () => {
     };
 
     const wechat = await ChannelConverter.renderForChannel('wechat', source, { outputLanguage: 'en' });
-    const linkedin = await ChannelConverter.renderForChannel('linkedin', source, { outputLanguage: 'en' });
+    const legacyLinkedin = await ChannelConverter.renderForChannel('linkedin', source, { outputLanguage: 'en' });
     const chineseSubstack = await ChannelConverter.renderForChannel('substack', source, { outputLanguage: 'zh' });
 
     assert.equal(wechat.output, translated);
-    assert.equal(linkedin.output, 'Title\n\nEnglish body.');
+    assert.equal(legacyLinkedin.output, translated);
+    assert.equal(legacyLinkedin.channel.id, 'substack');
     assert.equal(chineseSubstack.output, source);
     assert.equal(translationCalls, 1);
 });
@@ -86,22 +87,21 @@ test('a stale translation cannot overwrite the cache for newer source text', asy
 test('empty source produces empty channel output', async () => {
     assert.equal(await ChannelConverter.buildLocalizedMarkdown('', 'en'), '');
     assert.equal(ChannelConverter.buildSingleLanguageMarkdown('  \n'), '');
-    assert.equal(ChannelConverter.buildSingleLanguagePlainText('  \n'), '');
     assert.equal(await ChannelConverter.buildXThread(''), '');
     assert.deepEqual(ChannelConverter.splitIntoXThread(''), []);
 });
 
-test('image Markdown is preserved for rich channels and remains referenced in plain text', async () => {
+test('image Markdown is preserved for every publishing workflow', async () => {
     const source = '# Article\n\n![Architecture](https://example.com/architecture.png)';
 
     const substack = await ChannelConverter.renderForChannel('substack', source, { outputLanguage: 'zh' });
     const wechat = await ChannelConverter.renderForChannel('wechat', source, { outputLanguage: 'zh' });
-    const linkedin = await ChannelConverter.renderForChannel('linkedin', source, { outputLanguage: 'zh' });
+    const legacyLinkedin = await ChannelConverter.renderForChannel('linkedin', source, { outputLanguage: 'zh' });
     const x = await ChannelConverter.renderForChannel('x', source, { outputLanguage: 'zh' });
 
     assert.match(substack.output, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
     assert.match(wechat.output, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
-    assert.match(linkedin.output, /Architecture \(https:\/\/example\.com\/architecture\.png\)/);
+    assert.match(legacyLinkedin.output, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
     assert.match(x.data.articleMarkdown, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
 });
 
@@ -192,11 +192,25 @@ test('X AI planning receives an image placeholder while the article keeps the im
     assert.match(rendered.data.articleMarkdown, /data:image\/png;base64,AAECAwQ=/);
 });
 
-test('rich-copy configuration and plain-channel reminders match platform capabilities', () => {
+test('publishing channels expose their platform-specific copy modes', () => {
     assert.equal(ChannelConverter.getChannel('wechat').previewCopyMode, 'rich');
     assert.equal(ChannelConverter.getChannel('substack').previewCopyMode, 'rich');
+    assert.equal(ChannelConverter.getChannel('substack').portableRichCopy, true);
+    assert.equal(ChannelConverter.getChannel('linkedin'), ChannelConverter.getChannel('substack'));
+    assert.equal(ChannelConverter.getChannel('substack').name, 'Substack / LinkedIn');
     assert.equal(ChannelConverter.getChannel('substack').reminder, null);
-    assert.match(ChannelConverter.getChannel('linkedin').reminder.text, /单独上传图片/);
+    assert.deepEqual(ChannelConverter.listChannels().map(channel => channel.id), [
+        'wechat',
+        'substack',
+        'x'
+    ]);
+    assert.match(ChannelConverter.getChannel('x').reminder.text, /按编号上传/);
+    assert.match(ChannelConverter.getChannel('x').reminder.text, /代码块/);
+    assert.deepEqual(ChannelConverter.getChannel('x').reminder.steps, [
+        '复制 Article 文字',
+        '按编号上传图片素材'
+    ]);
+    assert.equal(ChannelConverter.getChannel('x').copyPreviewLabel, '复制 Article 文字');
 });
 
 test('X thread splitting preserves complete Unicode characters', () => {

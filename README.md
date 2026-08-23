@@ -20,22 +20,15 @@
 - 支持直接把截图或本地图片粘贴进 Markdown 编辑框
 - “复制样式”会尽量把正文和图片本体一起写入剪贴板，再粘贴到公众号编辑器
 
-### 2. Substack / GitHub (Markdown)
-输出适合复制到 Substack 或 GitHub 的 Markdown 文案：
+### 2. Substack / LinkedIn
+生成一份可同时粘贴到 Substack 和 LinkedIn 的富文本内容：
 - 选择 `中文` 时只输出中文原稿
 - 选择 `English` 时只输出英文译稿
 - 不再自动把中英文拼接在同一篇内容中
+- 图片、数学公式和 Mermaid 图表会在复制时一并处理
+- 点击一次“复制图文”，即可粘贴到 Substack 或 LinkedIn
 
-这条渠道现在默认就是“可复制的 Markdown 输出”，不再强调调度或自动发布。
-
-预览区的“复制图文”适合 Substack 等富文本编辑器；HTML/Markdown 标签页仍会复制原始 Markdown，并保留图片地址。GitHub 不接受内嵌的 `data:` 图片，粘贴的本地图片如需发布到 GitHub，应先上传到仓库或图床并换成公网/仓库地址。
-
-### 3. LinkedIn
-输出适合 LinkedIn 的纯文本文案：
-- 遵循全局 `中文 / English` 开关
-- 每次只输出一个语言版本，方便直接复制发布
-
-### 4. X Article + Thread
+### 3. X Article + Thread
 输出一份完整的 X 发布包：
 - X Article：保留标题、小标题、粗体和列表，支持富文本复制
 - 主 Thread：AI 生成一段简短推荐，并列出文章要点
@@ -88,8 +81,8 @@ open index.html
 - 可点击“选择本地图片”，也可把图片直接粘贴或拖入左侧编辑框（单张不超过 10 MB）。剪贴板提供图片文件、Base64 文本或仅含图片的 HTML 时都能识别；左侧只保留短引用，预览和复制图文时再自动使用内嵌图片。
 - 从 Obsidian 复制的 `![[Pasted image.png]]` 只包含附件名；页面会提示缺图。选择或拖入同名本地文件后，短引用保持不变，图片会加载到当前页面中。
 - 也可继续使用 `![图片描述](https://example.com/image.png)` 或仓库内相对路径。
-- WeChat、Substack 富文本预览和 X Article 支持图文富文本复制。
-- LinkedIn 正文和 X Thread 是纯文本渠道，图片需要在目标平台单独上传；文案中会保留原图片地址。
+- WeChat 与 Substack / LinkedIn 支持从预览区直接复制图文。
+- X Article 的图片、公式、Mermaid 和代码块会整理为编号素材，需要在 X 中按顺序上传。
 - 远程图片服务器如果禁止跨域读取，工具无法把图片本体写入剪贴板，但仍会保留原地址并显示提示。
 
 ---
@@ -105,7 +98,7 @@ open index.html
 
 翻译自带内置 Prompt：中文翻译为英文、保留 Markdown 结构、不改动代码/公式/URL，并且只返回译文。System Prompt 只用于补充术语表和文风要求。
 
-同一篇原稿的英文译文会在渠道之间复用；切换 WeChat、Substack、LinkedIn 或 X 不会重复翻译。修改原稿或保存新的翻译设置后会重新翻译。
+同一篇原稿的英文译文会在渠道之间复用；切换 WeChat、Substack / LinkedIn 或 X 不会重复翻译。修改原稿或保存新的翻译设置后会重新翻译。
 
 如果没有配置翻译：
 - `中文` 模式仍可在所有渠道直接使用

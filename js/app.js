@@ -194,8 +194,6 @@ const App = {
 
         // 清理全局函数
         if (typeof window !== 'undefined') {
-            delete window.showTab;
-            delete window.copyHtml;
             delete window.copyPreview;
             delete window.loadExample;
             delete window.updateOutput;

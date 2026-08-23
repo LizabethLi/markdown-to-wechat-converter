@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>Channel rich preview browser integration test</title>
+</head>
+<body>
+    <pre id="result" data-status="running">RUNNING</pre>
+    <iframe
+        id="app"
+        src="../index.html"
+        style="position:absolute;left:-10000px;top:0;width:1280px;height:800px;border:0"
+    ></iframe>
+    <script>
+        const result = document.getElementById('result');
+        const appFrame = document.getElementById('app');
+
+        const waitFor = async (predicate, timeoutMs = 15000) => {
+            const startedAt = Date.now();
+            while (!predicate()) {
+                if (Date.now() - startedAt > timeoutMs) throw new Error('Timed out waiting for app');
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        };
+
+        const renderChannel = async (appWindow, appDocument, channel, markdown) => {
+            const input = appDocument.getElementById('markdownInput');
+            const select = appDocument.getElementById('channelSelect');
+            input.value = markdown;
+            select.value = channel;
+            select.dispatchEvent(new appWindow.Event('change', { bubbles: true }));
+            await waitFor(() => {
+                const rendered = appWindow.UIController.currentRenderedResult;
+                return rendered && rendered.channel && rendered.channel.id === channel;
+            });
+            await new Promise(resolve => setTimeout(resolve, 150));
+            return appDocument.getElementById('preview');
+        };
+
+        appFrame.addEventListener('load', async () => {
+            try {
+                const appWindow = appFrame.contentWindow;
+                const appDocument = appFrame.contentDocument;
+                await waitFor(() => appWindow.App && appWindow.App.isInitialized && appWindow.UIController);
+
+                let clipboardItem = null;
+                appWindow.ClipboardItem = class ClipboardItemMock {
+                    constructor(data) {
+                        this.data = data;
+                        clipboardItem = this;
+                    }
+                };
+                Object.defineProperty(appWindow.navigator, 'clipboard', {
+                    configurable: true,
+                    value: {
+                        write: async () => {},
+                        writeText: async () => {}
+                    }
+                });
+                const readClipboardHtml = async () => clipboardItem
+                    ? clipboardItem.data['text/html'].text()
+                    : '';
+                const hasPortableSvgImages = (clipboardDocument) => {
+                    const mermaidImage = clipboardDocument.querySelector(
+                        'img[data-rasterized-svg="mermaid"]'
+                    );
+                    const mathImages = Array.from(clipboardDocument.querySelectorAll(
+                        'img[data-rasterized-svg="math"]'
+                    ));
+                    return !clipboardDocument.querySelector('svg')
+                        && !!mermaidImage
+                        && mermaidImage.getAttribute('src').startsWith('data:image/png;base64,')
+                        && mermaidImage.getAttribute('src').length > 1000
+                        && mathImages.length >= 2
+                        && mathImages.every(image => (
+                            image.getAttribute('src').startsWith('data:image/png;base64,')
+                            && image.getAttribute('src').length > 1000
+                        ));
+                };
+
+                const richMarkdown = [
+                    '# Rich Preview',
+                    '',
+                    '| 指标 | 数值 |',
+                    '|---|---:|',
+                    '| 转化率 | 42% |',
+                    '',
+                    '行内公式：$E = mc^2$，行内代码：`npm run build`',
+                    '',
+                    '$$',
+                    '\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}',
+                    '$$',
+                    '',
+                    '```mermaid',
+                    'graph TD',
+                    '    A[Markdown] --> B[Published article]',
+                    '```',
+                    '',
+                    '```javascript',
+                    'const publish = (article) => article.trim();',
+                    'console.log(publish("X Article"));',
+                    '```',
+                    '',
+                    '![Inline image](data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==)'
+                ].join('\n');
+
+                const wechatPreview = await renderChannel(appWindow, appDocument, 'wechat', richMarkdown);
+                const wechat = {
+                    mermaid: !!wechatPreview.querySelector('svg')
+                        && !wechatPreview.querySelector('foreignObject')
+                        && wechatPreview.textContent.includes('Markdown')
+                        && wechatPreview.textContent.includes('Published article'),
+                    math: wechatPreview.querySelectorAll('[data-mml-node="math"]').length >= 2
+                };
+
+                const substackPreview = await renderChannel(appWindow, appDocument, 'substack', richMarkdown);
+                const rasterDiagnostics = [];
+                for (const svg of Array.from(substackPreview.querySelectorAll('svg'))) {
+                    try {
+                        const raster = await appWindow.UIController.rasterizeSvgToPng(svg);
+                        rasterDiagnostics.push({ ok: true, bytes: raster.dataUrl.length });
+                    } catch (error) {
+                        rasterDiagnostics.push({
+                            ok: false,
+                            message: error && error.message ? error.message : String(error)
+                        });
+                    }
+                }
+                clipboardItem = null;
+                await appWindow.UIController.copyPreview();
+                const substackClipboardHtml = await readClipboardHtml();
+                const substackClipboardDocument = new appWindow.DOMParser().parseFromString(
+                    substackClipboardHtml,
+                    'text/html'
+                );
+                const substack = {
+                    channelName: appWindow.ChannelConverter.getChannel('substack').name,
+                    table: !!substackPreview.querySelector('table'),
+                    mermaid: !!substackPreview.querySelector('svg')
+                        && !substackPreview.querySelector('code.language-mermaid'),
+                    math: substackPreview.querySelectorAll('mjx-container, [data-mml-node="math"]').length >= 2,
+                    richClipboard: substackClipboardHtml.includes('<table')
+                        && hasPortableSvgImages(substackClipboardDocument)
+                };
+
+                const xPreview = await renderChannel(appWindow, appDocument, 'x', richMarkdown);
+                const xArticle = xPreview.querySelector('.x-article-content');
+                await waitFor(() => appWindow.UIController.xArticlePackage);
+                const xPublishingPackage = appWindow.UIController.xArticlePackage;
+                clipboardItem = null;
+                await appWindow.UIController.copyXPublishingPart(
+                    xPreview.querySelector('[data-x-copy="article"]')
+                );
+                const xClipboardHtml = await readClipboardHtml();
+                const xClipboardDocument = new appWindow.DOMParser().parseFromString(
+                    xClipboardHtml,
+                    'text/html'
+                );
+                clipboardItem = null;
+                await appWindow.UIController.copyXArticleAsset(
+                    0,
+                    xPreview.querySelector('[data-x-asset-action="copy"]')
+                );
+                const xAssetClipboardBlob = clipboardItem
+                    ? clipboardItem.data['image/png']
+                    : null;
+                const xZipBlob = await appWindow.UIController.createStoredZipBlob(
+                    xPublishingPackage.assets
+                );
+                const xZipBytes = new Uint8Array(await xZipBlob.arrayBuffer());
+                const xZipView = new appWindow.DataView(xZipBytes.buffer);
+                const x = {
+                    table: !!(xArticle && xArticle.querySelector('table')),
+                    mermaid: !!(xArticle && xArticle.querySelector('svg'))
+                        && !(xArticle && xArticle.querySelector('code.language-mermaid')),
+                    math: !!(xArticle && xArticle.querySelectorAll('mjx-container, [data-mml-node="math"]').length >= 2),
+                    codePreview: !!(xArticle && xArticle.querySelector('pre code')),
+                    codeAsset: xPublishingPackage.assets.some(asset => (
+                        asset.kind === 'code'
+                        && asset.dataUrl.startsWith('data:image/png;base64,')
+                    )),
+                    assetCount: xPublishingPackage.assets.length,
+                    assetPanel: xPreview.querySelectorAll('.x-asset-card').length === xPublishingPackage.assets.length,
+                    articleClipboard: xClipboardHtml.includes('<table')
+                        && !xClipboardDocument.querySelector('svg, img, pre')
+                        && xClipboardDocument.querySelectorAll('[data-x-asset-placeholder]').length === 5
+                        && xClipboardDocument.body.textContent.includes('`npm run build`'),
+                    imageClipboard: !!xAssetClipboardBlob
+                        && xAssetClipboardBlob.type === 'image/png'
+                        && xAssetClipboardBlob.size > 100,
+                    zipArchive: xZipBlob.type === 'application/zip'
+                        && xZipBlob.size > xAssetClipboardBlob.size
+                        && xZipView.getUint32(0, true) === 0x04034b50
+                        && xZipView.getUint32(xZipBytes.length - 22, true) === 0x06054b50,
+                    reminder: appDocument.getElementById('channelReminder').textContent.includes('按编号上传图片素材')
+                };
+
+                const longMarkdown = Array.from(
+                    { length: 80 },
+                    (_, index) => `## Section ${index + 1}\n\nThis is enough text to make the preview scroll.`
+                ).join('\n\n');
+                const scrollingPreview = await renderChannel(appWindow, appDocument, 'substack', longMarkdown);
+                const panel = scrollingPreview.closest('.panel');
+                const bottomGap = Math.round(
+                    panel.getBoundingClientRect().bottom - scrollingPreview.getBoundingClientRect().bottom
+                );
+                const scroll = {
+                    hasScrollbar: scrollingPreview.scrollHeight > scrollingPreview.clientHeight,
+                    bottomGap
+                };
+
+                const passed = wechat.mermaid
+                    && wechat.math
+                    && substack.table
+                    && substack.mermaid
+                    && substack.math
+                    && substack.richClipboard
+                    && substack.channelName === 'Substack / LinkedIn'
+                    && x.table
+                    && x.mermaid
+                    && x.math
+                    && x.codePreview
+                    && x.codeAsset
+                    && x.assetCount === 5
+                    && x.assetPanel
+                    && x.articleClipboard
+                    && x.imageClipboard
+                    && x.zipArchive
+                    && x.reminder
+                    && scroll.hasScrollbar
+                    && scroll.bottomGap <= 2;
+
+                result.dataset.status = passed ? 'passed' : 'failed';
+                result.textContent = JSON.stringify({
+                    status: passed ? 'PASS' : 'FAIL',
+                    rasterDiagnostics,
+                    wechat,
+                    substack,
+                    x,
+                    scroll
+                });
+            } catch (error) {
+                result.dataset.status = 'failed';
+                result.textContent = JSON.stringify({
+                    status: 'FAIL',
+                    message: error && error.message ? error.message : String(error)
+                });
+            }
+        });
+    </script>
+</body>
+</html>

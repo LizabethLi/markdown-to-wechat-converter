@@ -41,9 +41,25 @@
                 assert(themePanel.style.display === 'block', 'Style panel did not open');
 
                 const channelSelect = appDocument.getElementById('channelSelect');
-                channelSelect.value = 'linkedin';
+                const channelOptions = Array.from(channelSelect.options).map(option => ({
+                    value: option.value,
+                    label: option.textContent.trim()
+                }));
+                assert(
+                    JSON.stringify(channelOptions) === JSON.stringify([
+                        { value: 'wechat', label: 'WeChat' },
+                        { value: 'substack', label: 'Substack / LinkedIn' },
+                        { value: 'x', label: 'X Article + Thread' }
+                    ]),
+                    'Channel menu does not include the expected publishing channels'
+                );
+                assert(!appDocument.querySelector('.tabs'), 'Legacy preview tabs are still visible');
+                assert(!appDocument.getElementById('htmlTab'), 'Legacy raw-output tab still exists');
+                assert(appDocument.getElementById('htmlOutput').hidden, 'Internal channel output is visible');
+
+                channelSelect.value = 'substack';
                 channelSelect.dispatchEvent(new appWindow.Event('change', { bubbles: true }));
-                assert(styleControls.hidden, 'WeChat-only style controls remain visible for LinkedIn');
+                assert(styleControls.hidden, 'WeChat-only style controls remain visible for Substack / LinkedIn');
 
                 const settingsButton = appDocument.getElementById('translatorButton');
                 const settingsPanel = appDocument.getElementById('translatorPanel');
@@ -67,6 +83,8 @@
                 result.textContent = JSON.stringify({
                     status: 'PASS',
                     compactHeader: true,
+                    simplifiedChannels: true,
+                    singlePreviewSurface: true,
                     styleControlsGrouped: true,
                     channelSpecificControls: true,
                     settingsMovedToHeader: true,

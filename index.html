@@ -54,7 +54,7 @@
     </script>
     
     <!-- 外部CSS -->
-    <link rel="stylesheet" href="styles/main.css?v=20260821-workbench-layout">
+    <link rel="stylesheet" href="styles/main.css?v=20260823-single-preview">
     
     <!-- Highlight.js for syntax highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
@@ -133,8 +133,7 @@
                         <span class="control-label">发布到</span>
                         <select id="channelSelect" class="control-select" title="选择输出渠道">
                             <option value="wechat">WeChat</option>
-                            <option value="substack">Substack / GitHub</option>
-                            <option value="linkedin">LinkedIn</option>
+                            <option value="substack">Substack / LinkedIn</option>
                             <option value="x">X Article + Thread</option>
                         </select>
                     </label>
@@ -271,13 +270,8 @@ console.log('Hello, world!');
             </div>
         </div>
         
-        <div class="panel">
-            <div class="tabs">
-                <button class="tab active" onclick="showTab('preview')">🔍 Preview</button>
-                <button id="codeTabButton" class="tab" onclick="showTab('html')">📄 HTML</button>
-            </div>
-            
-            <div id="previewTab" class="tab-content active">
+        <div class="panel preview-panel">
+            <div id="previewTab" class="preview-workspace">
                 <div class="panel-header">
                     <span class="panel-title">👀 效果预览 (可滚动查看)</span>
                     <button class="btn" id="copyPreviewBtn" onclick="copyPreview()">复制样式代码</button>
@@ -285,14 +279,7 @@ console.log('Hello, world!');
                 <div id="copyNotice" class="copy-notice" role="status" aria-live="polite"></div>
                 <div id="preview" class="wechat-preview"></div>
             </div>
-            
-            <div id="htmlTab" class="tab-content">
-                <div class="panel-header">
-                    <span id="codeTabTitle" class="panel-title">📋 HTML 代码 (可滚动查看)</span>
-                    <button class="btn" id="copyHtmlBtn" onclick="copyHtml()">复制代码</button>
-                </div>
-                <textarea id="htmlOutput" readonly></textarea>
-            </div>
+            <textarea id="htmlOutput" hidden readonly aria-hidden="true"></textarea>
         </div>
     </div>
     
@@ -304,12 +291,12 @@ console.log('Hello, world!');
     <script src="js/templates/wechat-minimal.js"></script>
     <script src="js/templates/wechat-magazine.js"></script>
     <script src="js/translator.js"></script>
-    <script src="js/channel-converter.js?v=20260821-compact-images"></script>
+    <script src="js/channel-converter.js?v=20260823-single-preview"></script>
     <script src="js/math-renderer.js"></script>
-    <script src="js/markdown-converter.js"></script>
+    <script src="js/markdown-converter.js?v=20260821-portable-svg-copy"></script>
     <script src="js/image-handler.js?v=20260821-image-caption"></script>
-    <script src="js/ui-controller.js?v=20260821-workbench-layout"></script>
+    <script src="js/ui-controller.js?v=20260823-single-preview"></script>
     <script src="assets/examples.js"></script>
-    <script src="js/app.js?v=20260821-workbench-layout"></script>
+    <script src="js/app.js?v=20260823-single-preview"></script>
 </body>
 </html>
