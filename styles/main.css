@@ -546,6 +546,30 @@ body {
     font-size: 11px;
 }
 
+.preview-guide-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 12px;
+    margin-top: 18px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.preview-guide-links span {
+    font-weight: 700;
+}
+
+.preview-guide-links a {
+    color: #5b21b6;
+    text-decoration: none;
+}
+
+.preview-guide-links a:hover {
+    text-decoration: underline;
+}
+
 #markdownInput {
     flex: 1;
     min-height: 0;

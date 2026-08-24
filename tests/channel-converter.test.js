@@ -68,6 +68,14 @@ test('all channels receive the selected single-language Markdown', async () => {
     assert.equal(translationCalls, 1);
 });
 
+test('landing page channel parameters resolve to editor channel ids', () => {
+    assert.equal(ChannelConverter.resolveChannelId('wechat'), 'wechat');
+    assert.equal(ChannelConverter.resolveChannelId('substack'), 'substack');
+    assert.equal(ChannelConverter.resolveChannelId('linkedin'), 'substack');
+    assert.equal(ChannelConverter.resolveChannelId('x-article-thread'), 'x');
+    assert.equal(ChannelConverter.resolveChannelId('unknown'), null);
+});
+
 test('WeChat forwards an explicit template without changing global template state', async () => {
     let renderArguments = null;
     global.MarkdownConverter.convertMarkdownToWechat = async (...args) => {

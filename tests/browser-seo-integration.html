@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>SEO browser integration test</title></head>
+<body>
+    <pre id="result" data-status="running">RUNNING</pre>
+    <iframe id="app" src="../?channel=linkedin" style="position:absolute;left:-10000px;top:0;width:1280px;height:800px;border:0"></iframe>
+    <script>
+        const result = document.getElementById('result');
+        const appFrame = document.getElementById('app');
+        const waitFor = async (predicate, timeoutMs = 15000) => {
+            const startedAt = Date.now();
+            while (!predicate()) {
+                if (Date.now() - startedAt > timeoutMs) throw new Error('Timed out waiting for app');
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        };
+
+        appFrame.addEventListener('load', async () => {
+            try {
+                const appWindow = appFrame.contentWindow;
+                const appDocument = appFrame.contentDocument;
+                await waitFor(() => appWindow.App && appWindow.App.isInitialized);
+
+                const channelSelected = appDocument.getElementById('channelSelect').value === 'substack'
+                    && appWindow.UIController.currentChannel === 'substack';
+                const analyticsEvent = (appWindow.dataLayer || []).some(entry => (
+                    entry && entry[0] === 'event' && entry[1] === 'channel_selected'
+                    && entry[2] && entry[2].channel === 'linkedin'
+                ));
+                const pages = [
+                    ['wechat/', 'wechat'],
+                    ['substack/', 'substack'],
+                    ['linkedin/', 'linkedin'],
+                    ['x-article-thread/', 'x-article-thread']
+                ];
+                const parsedPages = await Promise.all(pages.map(async ([path, channel]) => {
+                    const response = await fetch(`../${path}`);
+                    const documentText = await response.text();
+                    const parsed = new DOMParser().parseFromString(documentText, 'text/html');
+                    const canonical = parsed.querySelector('link[rel="canonical"]');
+                    const cta = parsed.querySelector(`a[href*="channel=${channel}"]`);
+                    const structuredData = parsed.querySelector('script[type="application/ld+json"]');
+                    JSON.parse(structuredData.textContent);
+                    return {
+                        path,
+                        title: parsed.title,
+                        valid: response.ok
+                            && !!parsed.querySelector('h1')
+                            && !!parsed.querySelector('meta[name="description"]')
+                            && !!parsed.querySelector('meta[property="og:image"]')
+                            && canonical && canonical.href.endsWith(`/${path}`)
+                            && !!cta
+                    };
+                }));
+                const sitemapText = await (await fetch('../sitemap.xml')).text();
+                const sitemap = new DOMParser().parseFromString(sitemapText, 'application/xml');
+                const sitemapLocations = Array.from(sitemap.querySelectorAll('loc')).map(node => node.textContent);
+                const uniqueTitles = new Set(parsedPages.map(page => page.title)).size === pages.length;
+                const sitemapComplete = pages.every(([path]) => sitemapLocations.some(location => location.endsWith(`/${path}`)));
+                const passed = channelSelected
+                    && analyticsEvent
+                    && parsedPages.every(page => page.valid)
+                    && uniqueTitles
+                    && sitemapComplete;
+
+                result.dataset.status = passed ? 'passed' : 'failed';
+                result.textContent = JSON.stringify({
+                    status: passed ? 'PASS' : 'FAIL',
+                    channelSelected,
+                    analyticsEvent,
+                    parsedPages,
+                    uniqueTitles,
+                    sitemapComplete
+                });
+            } catch (error) {
+                result.dataset.status = 'failed';
+                result.textContent = JSON.stringify({ status: 'FAIL', message: error.message || String(error) });
+            }
+        });
+    </script>
+</body>
+</html>

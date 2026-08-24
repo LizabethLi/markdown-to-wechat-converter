@@ -1,14 +1,27 @@
-# markdown-to-wechat-converter
+# Markdown Publishing Toolkit
 
 [🌐 在线体验](https://lizabethli.github.io/markdown-to-wechat-converter/)
 
 一个把单份 Markdown 文稿整理成**不同平台可直接复制粘贴格式**的小工具。
+
+中文名称：**Markdown 发布工具箱**；原项目名称为 `markdown-to-wechat-converter`，现有仓库地址和 GitHub Pages URL 暂时保持不变。
 
 当前定位不是 schedule / auto-post，而是 **format-first**：
 - 你输入一份 Markdown 原稿
 - 选择目标平台
 - 工具输出适合该平台的格式
 - 你自己复制粘贴去发布
+
+---
+
+## 渠道发布指南
+
+- [Markdown 转微信公众号排版](https://lizabethli.github.io/markdown-to-wechat-converter/wechat/)
+- [Markdown to Substack Converter](https://lizabethli.github.io/markdown-to-wechat-converter/substack/)
+- [Markdown to LinkedIn Article Formatter](https://lizabethli.github.io/markdown-to-wechat-converter/linkedin/)
+- [Markdown to X Article and Thread Generator](https://lizabethli.github.io/markdown-to-wechat-converter/x-article-thread/)
+
+渠道页中的按钮会通过 `?channel=` 参数打开主转换器并预选对应渠道；进入编辑器后切换渠道不会刷新页面。
 
 ---
 

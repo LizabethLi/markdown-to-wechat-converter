@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Markdown 转微信公众号排版｜公式、Mermaid、代码与图片</title>
+    <meta name="description" content="把 Markdown 转成可复制到微信公众号的富文本排版。支持本地图片、LaTeX 公式、Mermaid 流程图、代码高亮、模板和主题色。">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://lizabethli.github.io/markdown-to-wechat-converter/wechat/">
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="../styles/landing.css?v=20260824-seo-foundation">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="zh_CN">
+    <meta property="og:title" content="Markdown 转微信公众号排版">
+    <meta property="og:description" content="保留图片、公式、Mermaid 和代码样式，复制后直接粘贴到公众号编辑器。">
+    <meta property="og:url" content="https://lizabethli.github.io/markdown-to-wechat-converter/wechat/">
+    <meta property="og:image" content="https://lizabethli.github.io/markdown-to-wechat-converter/assets/og-image.png">
+    <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Markdown 转微信公众号排版"><meta name="twitter:description" content="保留图片、公式、Mermaid 和代码样式，复制后直接粘贴到公众号编辑器。"><meta name="twitter:image" content="https://lizabethli.github.io/markdown-to-wechat-converter/assets/og-image.png">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-353YL13KCR"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-353YL13KCR');</script>
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"WebPage","name":"Markdown 转微信公众号排版","url":"https://lizabethli.github.io/markdown-to-wechat-converter/wechat/","description":"把 Markdown 转成可复制到微信公众号的富文本排版，支持图片、公式、Mermaid 和代码高亮。","isPartOf":{"@type":"WebSite","name":"Markdown Publishing Toolkit","url":"https://lizabethli.github.io/markdown-to-wechat-converter/"}}
+    </script>
+</head>
+<body>
+    <header class="landing-shell landing-header">
+        <a class="landing-brand" href="../">Markdown Publishing Toolkit</a>
+        <nav class="landing-nav" aria-label="渠道指南"><a href="../wechat/" aria-current="page">微信</a><a href="../substack/">Substack</a><a href="../linkedin/">LinkedIn</a><a href="../x-article-thread/">X</a></nav>
+    </header>
+    <main>
+        <section class="landing-shell landing-hero">
+            <div><span class="landing-eyebrow">微信公众号排版</span><h1>把 Markdown 完整复制到微信公众号</h1><p class="landing-lead">保留标题、图片、LaTeX 公式、Mermaid 流程图和代码高亮，在预览中确认效果后一次复制。</p><div class="landing-actions"><a class="landing-button" href="../?channel=wechat">立即转换 Markdown</a><a class="landing-button secondary" href="#how-it-works">查看使用步骤</a></div></div>
+            <div class="format-card" aria-label="Markdown 示例"><div class="format-card-header"><i class="format-dot"></i><i class="format-dot"></i><i class="format-dot"></i><span>article.md</span></div><pre># 技术文章
+
+公式：$E=mc^2$
+
+Mermaid：A --&gt; B
+
+![示意图](image.png)</pre></div>
+        </section>
+        <section class="landing-shell landing-section"><h2>为技术内容保留真正重要的格式</h2><p class="section-intro">普通粘贴经常丢掉公式、流程图和代码样式。转换器会先渲染，再生成适合公众号编辑器的富文本。</p><div class="feature-grid"><article class="feature-card"><h3>图片一起复制</h3><p>支持粘贴、拖入或选择本地图片，编辑区保持短引用，复制时再写入图片本体。</p></article><article class="feature-card"><h3>公式与 Mermaid</h3><p>MathJax 公式和 Mermaid 图表会渲染为可复制的视觉内容，而不是源码字符。</p></article><article class="feature-card"><h3>模板与代码高亮</h3><p>选择排版模板和主题色，代码块使用适合公众号的内联高亮样式。</p></article></div></section>
+        <section id="how-it-works" class="landing-shell landing-section"><h2>三步完成发布排版</h2><div class="step-grid"><article class="step-card"><span class="step-number">1</span><h3>粘贴 Markdown</h3><p>从 Obsidian 或编辑器粘贴正文；缺失的本地图片按提示选择同名文件。</p></article><article class="step-card"><span class="step-number">2</span><h3>检查微信预览</h3><p>调整模板和主题色，确认图片、公式、图表和代码块均正常显示。</p></article><article class="step-card"><span class="step-number">3</span><h3>复制样式</h3><p>点击“复制样式”，再粘贴到微信公众号编辑器并做最后校对。</p></article></div></section>
+        <section class="landing-shell landing-section"><div class="limit-box"><h2>使用前需要知道</h2><ul><li>Obsidian 的本地附件引用不会携带图片文件，需要选择或拖入同名文件。</li><li>部分远程图片禁止跨域读取时，工具会保留地址并提示。</li><li>发布前仍应在公众号编辑器中检查最终样式和图片加载状态。</li></ul></div></section>
+        <section class="landing-shell landing-section"><h2>常见问题</h2><div class="faq-list"><details><summary>可以复制本地图片吗？</summary><p>可以。直接粘贴、拖入或添加图片。图片只保存在当前浏览器页面，不会上传到服务器。</p></details><details><summary>为什么 Obsidian 的 Pasted image 没显示？</summary><p>复制 Markdown 时只带来了附件名。选择对应本地图片后，预览和复制会使用图片本体。</p></details><details><summary>公式和 Mermaid 会变成源码吗？</summary><p>在微信渠道中它们会先渲染，再作为可复制视觉内容写入富文本。</p></details></div></section>
+        <section class="landing-shell landing-cta"><h2>开始整理下一篇公众号文章</h2><p>无需上传正文，也无需登录微信公众号。</p><a class="landing-button" href="../?channel=wechat">打开微信转换器</a></section>
+    </main>
+    <footer class="landing-shell landing-footer"><span>Markdown Publishing Toolkit</span><span><a href="../">返回转换器</a> · <a href="https://github.com/LizabethLi/markdown-to-wechat-converter">GitHub</a></span></footer>
+</body>
+</html>

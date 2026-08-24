@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b5bd6"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#24105f" flood-opacity=".25"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" rx="40" fill="url(#bg)"/>
+  <circle cx="1070" cy="70" r="220" fill="#fff" opacity=".08"/>
+  <circle cx="105" cy="590" r="190" fill="#0f172a" opacity=".08"/>
+  <g transform="translate(84 80)" filter="url(#shadow)">
+    <rect width="1032" height="470" rx="34" fill="#fff"/>
+    <rect x="56" y="54" width="92" height="92" rx="24" fill="#6d5ce8"/>
+    <path d="M76 77h18l10 29 10-29h18l-21 54H97L76 77Z" fill="#fff"/>
+    <text x="178" y="95" fill="#111827" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="32" font-weight="700">Markdown Publishing Toolkit</text>
+    <text x="178" y="133" fill="#64748b" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="20">Markdown 多渠道发布格式转换器</text>
+    <text x="56" y="230" fill="#111827" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="48" font-weight="750">一份 Markdown</text>
+    <text x="56" y="292" fill="#111827" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="48" font-weight="750">适配多个内容平台</text>
+    <g transform="translate(56 352)" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="21" font-weight="650">
+      <rect width="142" height="54" rx="27" fill="#f0fdf4"/><text x="71" y="34" text-anchor="middle" fill="#15803d">WeChat</text>
+      <rect x="158" width="162" height="54" rx="27" fill="#f5f3ff"/><text x="239" y="34" text-anchor="middle" fill="#6d28d9">Substack</text>
+      <rect x="336" width="162" height="54" rx="27" fill="#eff6ff"/><text x="417" y="34" text-anchor="middle" fill="#1d4ed8">LinkedIn</text>
+      <rect x="514" width="110" height="54" rx="27" fill="#f8fafc"/><text x="569" y="34" text-anchor="middle" fill="#0f172a">X</text>
+    </g>
+    <text x="976" y="416" text-anchor="end" fill="#64748b" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="20">图片 · 公式 · Mermaid · 代码</text>
+  </g>
+</svg>

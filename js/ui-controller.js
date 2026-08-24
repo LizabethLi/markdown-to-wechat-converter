@@ -15,6 +15,37 @@ const UIController = {
     xCopiedAssetIndexes: new Set(),
     copyNoticeTimer: null,
 
+    getAnalyticsContext: function(parameters = {}) {
+        const template = typeof TemplateManager !== 'undefined' && TemplateManager.activeId
+            ? TemplateManager.activeId
+            : null;
+        return {
+            channel: this.currentChannel || 'wechat',
+            language: this.outputLanguage || 'zh',
+            template,
+            ...parameters
+        };
+    },
+
+    trackEvent: function(eventName, parameters = {}, options = {}) {
+        if (typeof SiteAnalytics === 'undefined') return false;
+        const context = this.getAnalyticsContext(parameters);
+        if (options.once && typeof SiteAnalytics.trackOnce === 'function') {
+            return SiteAnalytics.trackOnce(eventName, options.key || eventName, context);
+        }
+        if (options.throttle && typeof SiteAnalytics.trackThrottled === 'function') {
+            return SiteAnalytics.trackThrottled(
+                eventName,
+                options.key || eventName,
+                context,
+                options.intervalMs || 30000
+            );
+        }
+        return typeof SiteAnalytics.track === 'function'
+            ? SiteAnalytics.track(eventName, context)
+            : false;
+    },
+
     // 初始化应用
     init: function() {
         this.bindEvents();
@@ -73,6 +104,11 @@ const UIController = {
         const preview = document.getElementById('preview');
         if (preview) {
             preview.addEventListener('click', (event) => this.handlePreviewAction(event));
+        }
+
+        const githubLink = document.getElementById('githubLink');
+        if (githubLink) {
+            githubLink.addEventListener('click', () => this.trackEvent('github_clicked'));
         }
 
         // 渠道选择事件
@@ -152,10 +188,30 @@ const UIController = {
         // 设置默认渠道
         const channelSelect = document.getElementById('channelSelect');
         if (channelSelect) {
-            if (!channelSelect.value) {
+            let requestedChannel = null;
+            let requestedChannelParam = null;
+            try {
+                requestedChannelParam = typeof window !== 'undefined'
+                    ? new URLSearchParams(window.location.search).get('channel')
+                    : null;
+                requestedChannel = typeof ChannelConverter !== 'undefined'
+                    && typeof ChannelConverter.resolveChannelId === 'function'
+                    ? ChannelConverter.resolveChannelId(requestedChannelParam)
+                    : null;
+            } catch (error) {
+                console.warn('Failed to read initial channel from URL:', error);
+            }
+            if (requestedChannel) {
+                channelSelect.value = requestedChannel;
+            } else if (!channelSelect.value) {
                 channelSelect.value = 'wechat';
             }
             this.currentChannel = channelSelect.value;
+            if (requestedChannel) {
+                this.trackEvent('channel_selected', {
+                    channel: String(requestedChannelParam || requestedChannel).toLowerCase()
+                });
+            }
         } else {
             this.currentChannel = 'wechat';
         }
@@ -183,6 +239,7 @@ const UIController = {
 
     handleChannelChange: function(channel) {
         this.currentChannel = channel || 'wechat';
+        this.trackEvent('channel_selected');
         this.updateChannelReminder(this.currentChannel);
         this.updateChannelControlsVisibility();
         this.updateXGeneratorVisibility();
@@ -810,6 +867,14 @@ const UIController = {
         htmlOutput.value = rendered.output || '';
         preview.innerHTML = rendered.previewHtml || '';
         this.currentRenderedResult = rendered;
+        const renderedChannel = rendered.channel && rendered.channel.id
+            ? rendered.channel.id
+            : this.currentChannel;
+        this.trackEvent('preview_generated', { channel: renderedChannel }, {
+            throttle: true,
+            key: `${renderedChannel}:${this.outputLanguage}`,
+            intervalMs: 30000
+        });
 
         preview.classList.remove('wechat-preview', 'markdown-preview', 'plain-text-preview-host', 'thread-preview-host', 'x-publishing-preview-host');
         if (rendered.channel && rendered.channel.previewHostClass) {
@@ -1349,6 +1414,7 @@ const UIController = {
             this.applyRenderedChannelResult(rendered, htmlOutput, preview);
             this.updateCopyButtonLabels();
             this.updateChannelReminder('x');
+            this.trackEvent('x_thread_generated', { channel: 'x' });
         } catch (error) {
             console.error('Failed to generate X publishing content:', error);
             htmlOutput.value = 'AI generation error: ' + error.message;
@@ -1454,7 +1520,16 @@ const UIController = {
             } else {
                 this.showCopySuccess(button, originalLabel);
             }
+            this.trackEvent('copy_success', {
+                channel: 'x',
+                copy_type: kind === 'article' ? 'x_article' : `x_${kind}`
+            });
         } else {
+            this.trackEvent('copy_failed', {
+                channel: 'x',
+                copy_type: kind === 'article' ? 'x_article' : `x_${kind}`,
+                error_type: 'clipboard_write'
+            });
             alert('复制失败，请手动复制');
         }
     },
@@ -1708,6 +1783,9 @@ const UIController = {
             }
         }
         this.updateLocalImageReferenceStatus(markdown);
+        if (markdown.trim()) {
+            this.trackEvent('markdown_entered', {}, { once: true, key: 'first_content' });
+        }
         const renderMarkdown = typeof ImageHandler !== 'undefined'
             ? ImageHandler.hydrateLocalImageReferences(markdown)
             : markdown;
@@ -2144,7 +2222,14 @@ const UIController = {
         if (success) {
             this.showCopySuccess(button, this.getCopyPreviewButtonLabel(), this.getRichCopySuccessText(imageReport));
             this.showImageCopyReport(imageReport);
+            this.trackEvent('copy_success', {
+                copy_type: useRichCopy ? 'rich_preview' : 'plain_text'
+            });
         } else {
+            this.trackEvent('copy_failed', {
+                copy_type: useRichCopy ? 'rich_preview' : 'plain_text',
+                error_type: 'clipboard_write'
+            });
             alert('复制失败，请手动复制');
         }
     },
@@ -2163,6 +2248,7 @@ const UIController = {
             : this.getDefaultExample();
 
         markdownInput.value = exampleContent;
+        this.trackEvent('example_loaded');
         this.updateOutput();
         
         // 滚动到输入区域顶部

@@ -13,28 +13,39 @@
       gtag('config', 'G-353YL13KCR');
     </script>
     
-    <title>Markdown 微信公众号排版转换器 | Markdown to WeChat Converter</title>
+    <title>Markdown 多渠道发布格式转换器｜微信、Substack、LinkedIn、X</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <meta name="description" content="Markdown 微信公众号排版转换器，支持 Markdown 转微信公众号富文本、复杂公式复制粘贴、Mermaid 流程图与代码高亮，所见即所得地发布技术内容。">
+    <meta name="description" content="一份 Markdown，转换为适合微信公众号、Substack、LinkedIn 和 X Article/Thread 的可复制发布格式。支持图片、公式、Mermaid、代码高亮与中英转换。">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://lizabethli.github.io/markdown-to-wechat-converter/">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Markdown 微信公众号排版转换器 | Markdown to WeChat Converter">
-    <meta property="og:description" content="支持 Markdown 转微信公众号富文本、复杂公式复制粘贴、Mermaid 流程图与代码高亮，所见即所得地发布技术内容。">
+    <meta property="og:locale" content="zh_CN">
+    <meta property="og:title" content="Markdown 多渠道发布格式转换器">
+    <meta property="og:description" content="一份 Markdown，生成适合微信、Substack、LinkedIn 和 X 的可复制发布格式。">
     <meta property="og:url" content="https://lizabethli.github.io/markdown-to-wechat-converter/">
-    <meta property="og:site_name" content="Markdown to WeChat Converter">
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Markdown 微信公众号排版转换器 | Markdown to WeChat Converter">
-    <meta name="twitter:description" content="支持 Markdown 转微信公众号富文本、复杂公式复制粘贴、Mermaid 流程图与代码高亮，所见即所得地发布技术内容。">
+    <meta property="og:site_name" content="Markdown Publishing Toolkit">
+    <meta property="og:image" content="https://lizabethli.github.io/markdown-to-wechat-converter/assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Markdown Publishing Toolkit 多渠道发布格式转换器">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Markdown 多渠道发布格式转换器">
+    <meta name="twitter:description" content="一份 Markdown，生成适合微信、Substack、LinkedIn 和 X 的可复制发布格式。">
+    <meta name="twitter:image" content="https://lizabethli.github.io/markdown-to-wechat-converter/assets/og-image.png">
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
-        "name": "Markdown to WeChat Converter",
+        "name": "Markdown Publishing Toolkit",
+        "alternateName": [
+          "Markdown 发布工具箱",
+          "Markdown 多渠道发布格式转换器",
+          "Markdown to WeChat Converter"
+        ],
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web",
         "url": "https://lizabethli.github.io/markdown-to-wechat-converter/",
-        "description": "Markdown 微信公众号排版转换器，支持 Markdown 转微信公众号富文本、复杂公式复制粘贴、Mermaid 流程图与代码高亮，所见即所得地发布技术内容。",
+        "description": "将一份 Markdown 转换为适合微信公众号、Substack、LinkedIn 和 X Article/Thread 的可复制发布格式。",
         "author": {
           "@type": "Person",
           "name": "Lizabeth Li"
@@ -46,11 +57,16 @@
         },
         "featureList": [
           "Markdown 转微信公众号富文本",
+          "Markdown 转 Substack 与 LinkedIn 富文本",
+          "Markdown 转 X Article 与 Thread 发布包",
+          "本地图片与图文复制",
           "复杂公式复制粘贴",
           "Mermaid 流程图支持",
           "代码高亮",
-          "多模板排版"
-        ]
+          "中英文单语言输出",
+          "WebMCP Agent 工具"
+        ],
+        "sameAs": "https://github.com/LizabethLi/markdown-to-wechat-converter"
       }
     </script>
     
@@ -64,11 +80,11 @@
     <div class="header">
         <div class="header-inner">
             <div class="header-brand">
-                <h1>Markdown 多渠道发布工具</h1>
-                <p>一次编辑，适配 WeChat、Substack、LinkedIn 和 X</p>
+                <h1>Markdown 多渠道发布格式转换器</h1>
+                <p>一份 Markdown，生成适合 WeChat、Substack、LinkedIn 和 X 的可复制格式</p>
             </div>
             <div class="hero-actions">
-                <a class="header-action" href="https://github.com/LizabethLi/markdown-to-wechat-converter" target="_blank" rel="noopener noreferrer">GitHub</a>
+                <a id="githubLink" class="header-action" href="https://github.com/LizabethLi/markdown-to-wechat-converter" target="_blank" rel="noopener noreferrer">GitHub</a>
                 <div class="theme-selector header-settings">
                     <button id="translatorButton" class="header-action header-action-button" onclick="toggleTranslatorPanel()" title="翻译与 AI 设置">
                         ⚙ 设置
@@ -233,7 +249,29 @@
                     <button class="btn" id="copyPreviewBtn" onclick="copyPreview()">复制样式代码</button>
                 </div>
                 <div id="copyNotice" class="copy-notice" role="status" aria-live="polite"></div>
-                <div id="preview" class="wechat-preview"></div>
+                <div id="preview" class="wechat-preview">
+                    <div class="preview-empty-state">
+                        <div class="preview-empty-content">
+                            <p class="preview-empty-title">从一篇 Markdown 开始</p>
+                            <p class="preview-empty-text">在左侧粘贴或输入内容，右侧会立即生成当前渠道的发布预览。</p>
+                            <div class="preview-empty-actions">
+                                <button type="button" class="preview-empty-example" onclick="loadExample()">加载示例</button>
+                            </div>
+                            <div class="preview-capabilities" aria-label="支持能力">
+                                <span class="preview-capability">复杂公式</span>
+                                <span class="preview-capability">Mermaid 图表</span>
+                                <span class="preview-capability">图文复制</span>
+                            </div>
+                            <nav class="preview-guide-links" aria-label="渠道发布指南">
+                                <span>发布指南</span>
+                                <a href="wechat/">微信</a>
+                                <a href="substack/">Substack</a>
+                                <a href="linkedin/">LinkedIn</a>
+                                <a href="x-article-thread/">X</a>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
             </div>
             <textarea id="htmlOutput" hidden readonly aria-hidden="true"></textarea>
         </div>
@@ -241,6 +279,7 @@
     
     <!-- 外部JavaScript模块 -->
     <script defer src="js/config.js"></script>
+    <script defer src="js/site-analytics.js?v=20260824-seo-foundation"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/3.0.8/marked.min.js"></script>
     <script defer src="js/template-manager.js?v=20260824-webmcp-v2"></script>
     <script defer src="js/wechat-styles.js"></script>
@@ -249,11 +288,11 @@
     <script defer src="js/templates/wechat-magazine.js"></script>
     <script defer src="js/translator.js"></script>
     <script defer src="js/dependency-loader.js?v=20260824-lazy-renderers"></script>
-    <script defer src="js/channel-converter.js?v=20260824-lazy-renderers"></script>
+    <script defer src="js/channel-converter.js?v=20260824-seo-foundation"></script>
     <script defer src="js/math-renderer.js?v=20260824-lazy-renderers"></script>
     <script defer src="js/markdown-converter.js?v=20260824-webmcp-v2"></script>
     <script defer src="js/image-handler.js?v=20260821-image-caption"></script>
-    <script defer src="js/ui-controller.js?v=20260824-lazy-renderers"></script>
+    <script defer src="js/ui-controller.js?v=20260824-seo-foundation"></script>
     <script defer src="assets/examples.js"></script>
     <script defer src="js/webmcp-tools.js?v=20260824-webmcp-v2"></script>
     <script defer src="js/app.js?v=20260824-lazy-renderers"></script>

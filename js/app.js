@@ -35,7 +35,8 @@ const App = {
             { name: 'MarkdownConverter', obj: window.MarkdownConverter },
             { name: 'UIController', obj: window.UIController },
             { name: 'AppConfig', obj: window.AppConfig },
-            { name: 'DependencyLoader', obj: window.DependencyLoader }
+            { name: 'DependencyLoader', obj: window.DependencyLoader },
+            { name: 'SiteAnalytics', obj: window.SiteAnalytics }
         ];
 
         const missing = required.filter(dep => !dep.obj);
@@ -122,6 +123,13 @@ const App = {
                             <span class="preview-capability">Mermaid 图表</span>
                             <span class="preview-capability">图文复制</span>
                         </div>
+                        <nav class="preview-guide-links" aria-label="渠道发布指南">
+                            <span>发布指南</span>
+                            <a href="wechat/">微信</a>
+                            <a href="substack/">Substack</a>
+                            <a href="linkedin/">LinkedIn</a>
+                            <a href="x-article-thread/">X</a>
+                        </nav>
                     </div>
                 </div>
             `;

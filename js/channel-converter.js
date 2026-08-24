@@ -4,7 +4,8 @@ const stripLeadMarkers = (text) =>
 
 const ChannelConverter = {
     channelAliases: {
-        linkedin: 'substack'
+        linkedin: 'substack',
+        'x-article-thread': 'x'
     },
 
     localizationCache: {
@@ -89,8 +90,14 @@ const ChannelConverter = {
     },
 
     getChannel(channelId) {
-        const resolvedId = this.channelAliases[channelId] || channelId;
+        const resolvedId = this.resolveChannelId(channelId);
         return this.channels[resolvedId] || this.channels.wechat;
+    },
+
+    resolveChannelId(channelId) {
+        const normalized = String(channelId || '').trim().toLowerCase();
+        const resolvedId = this.channelAliases[normalized] || normalized;
+        return this.channels[resolvedId] ? resolvedId : null;
     },
 
     listChannels() {
@@ -101,6 +108,16 @@ const ChannelConverter = {
         const channel = this.getChannel(channelId);
         const outputLanguage = context.outputLanguage === 'en' ? 'en' : 'zh';
         const localizedMarkdown = await this.buildLocalizedMarkdown(markdown || '', outputLanguage);
+        const originalMarkdown = this.prepareSourceMarkdown(markdown || '').trim();
+        if (outputLanguage === 'en'
+            && localizedMarkdown.trim() !== originalMarkdown
+            && typeof SiteAnalytics !== 'undefined'
+            && typeof SiteAnalytics.trackThrottled === 'function') {
+            SiteAnalytics.trackThrottled('translation_completed', channel.id, {
+                channel: channel.id,
+                language: outputLanguage
+            });
+        }
         if (typeof DependencyLoader !== 'undefined'
             && typeof DependencyLoader.ensureForMarkdown === 'function') {
             await DependencyLoader.ensureForMarkdown(localizedMarkdown);
