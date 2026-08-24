@@ -24,7 +24,12 @@ const ChannelConverter = {
             render: async function(markdown, context = {}) {
                 const themeColor = context.themeColor;
                 const mode = context.mode || 'compact';
-                const html = await MarkdownConverter.convertMarkdownToWechat(markdown, mode, themeColor);
+                const html = await MarkdownConverter.convertMarkdownToWechat(
+                    markdown,
+                    mode,
+                    themeColor,
+                    context.templateId || null
+                );
                 return {
                     output: html,
                     previewHtml: html,

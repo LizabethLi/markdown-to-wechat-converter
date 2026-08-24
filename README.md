@@ -58,6 +58,22 @@ X 推荐语和要点只会在点击 `✨ 生成 X Article + Thread` 后生成；
 
 ---
 
+## WebMCP（实验性）
+
+页面会在支持 WebMCP 的浏览器中注册三个工具，让浏览器里的 AI Agent 直接调用现有转换器：
+
+- `convert_markdown`：转换 WeChat、Substack / LinkedIn 或 X 内容
+- `list_supported_channels`：查询渠道、别名和输出格式
+- `list_wechat_templates`：查询微信模板
+
+`convert_markdown` 支持 `zh / en` 语言、微信模板和主题、X AI 生成，并同时返回渠道原始输出、`preview_html` 和结构化数据。`linkedin` 会使用与 Substack 相同的富文本转换器。
+
+本地图片短引用只能访问当前页面中已加载的图片；如果引用尚未解析，工具会返回明确错误，不会输出失效图片。
+
+WebMCP 目前仍是实验性浏览器能力，需要安全上下文和支持 `document.modelContext` 的浏览器。不支持时页面会自动跳过注册，普通转换和复制功能不受影响。
+
+---
+
 ## 使用方式
 
 ### 本地打开

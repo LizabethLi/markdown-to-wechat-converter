@@ -68,6 +68,29 @@ test('all channels receive the selected single-language Markdown', async () => {
     assert.equal(translationCalls, 1);
 });
 
+test('WeChat forwards an explicit template without changing global template state', async () => {
+    let renderArguments = null;
+    global.MarkdownConverter.convertMarkdownToWechat = async (...args) => {
+        renderArguments = args;
+        return '<section>Rendered</section>';
+    };
+
+    const rendered = await ChannelConverter.renderForChannel('wechat', '# Title', {
+        outputLanguage: 'zh',
+        mode: 'standard',
+        themeColor: '#2563EB',
+        templateId: 'wechat-magazine'
+    });
+
+    assert.equal(rendered.output, '<section>Rendered</section>');
+    assert.deepEqual(renderArguments, [
+        '# Title',
+        'standard',
+        '#2563EB',
+        'wechat-magazine'
+    ]);
+});
+
 test('a stale translation cannot overwrite the cache for newer source text', async () => {
     const resolvers = {};
     global.Translator.translateMarkdownToEnglish = (markdown) => new Promise((resolve) => {

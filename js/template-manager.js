@@ -42,10 +42,22 @@ const TemplateManager = {
         return this.registry[this.activeId] || null;
     },
 
+    get(id) {
+        return this.registry[id] || null;
+    },
+
+    getStylesFor(id, mode, themeColor) {
+        const template = this.get(id);
+        if (template && typeof template.getStyles === 'function') {
+            return template.getStyles(mode, themeColor);
+        }
+        return null;
+    },
+
     getStyles(mode, themeColor) {
-        const tpl = this.getActive();
-        if (tpl && typeof tpl.getStyles === 'function') {
-            return tpl.getStyles(mode, themeColor);
+        const styles = this.getStylesFor(this.activeId, mode, themeColor);
+        if (styles) {
+            return styles;
         }
         // Fallbacks for backward compatibility
         if (typeof WechatStyles !== 'undefined' && typeof WechatStyles.getStyles === 'function') {
@@ -60,4 +72,3 @@ const TemplateManager = {
 if (typeof window !== 'undefined') {
     window.TemplateManager = TemplateManager;
 }
-

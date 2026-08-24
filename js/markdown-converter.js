@@ -4,15 +4,19 @@ const MarkdownConverter = {
     currentMermaidThemeColor: null,
     mermaidSupportWarningLogged: false,
 
-    getWechatStyles: function(mode, themeColor) {
-        return (typeof TemplateManager !== 'undefined'
-            ? TemplateManager.getStyles(mode, themeColor)
-            : WechatStyles.getStyles(mode, themeColor));
+    getWechatStyles: function(mode, themeColor, templateId = null) {
+        if (typeof TemplateManager !== 'undefined') {
+            const explicitStyles = templateId && typeof TemplateManager.getStylesFor === 'function'
+                ? TemplateManager.getStylesFor(templateId, mode, themeColor)
+                : null;
+            return explicitStyles || TemplateManager.getStyles(mode, themeColor);
+        }
+        return WechatStyles.getStyles(mode, themeColor);
     },
 
     // 创建微信渲染器
-    createWechatRenderer: function(mode, themeColor) {
-        const wechatStyles = this.getWechatStyles(mode, themeColor);
+    createWechatRenderer: function(mode, themeColor, templateId = null) {
+        const wechatStyles = this.getWechatStyles(mode, themeColor, templateId);
         const renderer = new marked.Renderer();
 
         // 标题渲染
@@ -101,7 +105,7 @@ const MarkdownConverter = {
         // 代码块
         renderer.code = (code, lang, escaped) => {
             // 使用语法高亮增强版本
-            return this.renderCodeBlock(code, lang, mode, themeColor);
+            return this.renderCodeBlock(code, lang, mode, themeColor, templateId);
         };
         renderer.codespan = (code) => wechatStyles.inlineCode(null, code);
 
@@ -362,7 +366,7 @@ const MarkdownConverter = {
         </section>`;
     },
 
-    replaceMermaidBlocks: async function(markdown, mode, themeColor) {
+    replaceMermaidBlocks: async function(markdown, mode, themeColor, templateId = null) {
         if (typeof markdown !== 'string' || !markdown.includes('```mermaid')) {
             return markdown;
         }
@@ -377,7 +381,7 @@ const MarkdownConverter = {
         let cursor = 0;
         let output = '';
         let index = 0;
-        const wechatStyles = this.getWechatStyles(mode, themeColor);
+        const wechatStyles = this.getWechatStyles(mode, themeColor, templateId);
 
         while ((match = regex.exec(markdown)) !== null) {
             const preceding = markdown.slice(cursor, match.index);
@@ -414,7 +418,7 @@ const MarkdownConverter = {
     },
 
     // 渲染带语法高亮的代码块
-    renderCodeBlock: function(code, lang, mode = 'compact', themeColor = null) {
+    renderCodeBlock: function(code, lang, mode = 'compact', themeColor = null, templateId = null) {
         const trimmedCode = code.trim();
         console.log('=== CODE BLOCK DEBUG ===');
         console.log('原始代码:', JSON.stringify(code));
@@ -427,9 +431,7 @@ const MarkdownConverter = {
         if (!syntaxConfig.enabled || typeof hljs === 'undefined') {
             // 回退到普通样式
             console.log('使用回退样式');
-            const styles = (typeof TemplateManager !== 'undefined'
-                ? TemplateManager.getStyles(mode, themeColor)
-                : WechatStyles.getStyles(mode, themeColor));
+            const styles = this.getWechatStyles(mode, themeColor, templateId);
             return styles.codeBlock(null, lang, trimmedCode);
         }
 
@@ -665,15 +667,20 @@ const MarkdownConverter = {
     },
 
     // 主转换函数
-    convertMarkdownToWechat: async function(markdown, mode = 'compact', themeColor = null) {
+    convertMarkdownToWechat: async function(markdown, mode = 'compact', themeColor = null, templateId = null) {
         // 1. 保护数学公式
         const { markdown: protectedMarkdown, mathPlaceholders } = MathRenderer.protectMathExpressions(markdown);
 
         // 2. 渲染 Mermaid 流程图（如果可用）
-        const mermaidEnhancedMarkdown = await this.replaceMermaidBlocks(protectedMarkdown, mode, themeColor);
+        const mermaidEnhancedMarkdown = await this.replaceMermaidBlocks(
+            protectedMarkdown,
+            mode,
+            themeColor,
+            templateId
+        );
 
         // 3. 使用 marked.js 进行转换
-        const renderer = this.createWechatRenderer(mode, themeColor);
+        const renderer = this.createWechatRenderer(mode, themeColor, templateId);
         // 使用局部 renderer，避免污染其他渠道的通用富文本预览
         let html = marked(mermaidEnhancedMarkdown, { renderer });
 

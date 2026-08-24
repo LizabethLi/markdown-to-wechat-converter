@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>WebMCP browser integration test</title>
+</head>
+<body>
+    <pre id="result" data-status="running">RUNNING</pre>
+    <iframe
+        id="app"
+        src="../index.html"
+        style="position:absolute;left:-10000px;top:0;width:1280px;height:800px;border:0"
+    ></iframe>
+    <script>
+        const result = document.getElementById('result');
+        const appFrame = document.getElementById('app');
+
+        const waitFor = async (predicate, timeoutMs = 15000) => {
+            const startedAt = Date.now();
+            while (!predicate()) {
+                if (Date.now() - startedAt > timeoutMs) throw new Error('Timed out waiting for app');
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        };
+
+        appFrame.addEventListener('load', async () => {
+            try {
+                const appWindow = appFrame.contentWindow;
+                const appDocument = appFrame.contentDocument;
+                await waitFor(() => appWindow.App && appWindow.App.isInitialized && appWindow.WebMCPTools);
+
+                appWindow.WebMCPTools.destroy();
+                const registrations = [];
+                Object.defineProperty(appDocument, 'modelContext', {
+                    configurable: true,
+                    value: {
+                        registerTool: async (tool, options) => {
+                            registrations.push({ tool, options });
+                        }
+                    }
+                });
+
+                const registered = await appWindow.WebMCPTools.init();
+                const convertTool = registrations.find(({ tool }) => tool.name === 'convert_markdown').tool;
+                const channelsTool = registrations.find(({ tool }) => tool.name === 'list_supported_channels').tool;
+                const converted = await convertTool.execute({
+                    markdown: '# WebMCP\n\nA **rich** article.',
+                    channel: 'linkedin',
+                    output_language: 'zh'
+                });
+                const activeTemplateBefore = appWindow.TemplateManager.activeId;
+                const wechatConverted = await convertTool.execute({
+                    markdown: '# WeChat WebMCP',
+                    channel: 'wechat',
+                    theme: 'blue',
+                    template: 'wechat-magazine',
+                    mode: 'standard'
+                });
+                const xConverted = await convertTool.execute({
+                    markdown: '# X WebMCP\n\nA short article.',
+                    channel: 'x'
+                });
+                const channels = await channelsTool.execute({});
+                const registrationSignal = registrations[0].options.signal;
+                appWindow.WebMCPTools.destroy();
+
+                const passed = registered
+                    && registrations.length === 3
+                    && converted.ok
+                    && converted.result.requested_channel === 'linkedin'
+                    && converted.result.channel === 'substack'
+                    && converted.result.output_format === 'markdown_and_html'
+                    && converted.result.preview_html.includes('<h1')
+                    && wechatConverted.ok
+                    && wechatConverted.result.template_used === 'wechat-magazine'
+                    && wechatConverted.result.theme_color_used === '#2563EB'
+                    && wechatConverted.result.output.includes('#2563EB')
+                    && appWindow.TemplateManager.activeId === activeTemplateBefore
+                    && xConverted.ok
+                    && xConverted.result.output_format === 'publishing_bundle'
+                    && Array.isArray(xConverted.result.data.threadPosts)
+                    && channels.result.channels.some(channel => (
+                        channel.id === 'substack' && channel.aliases.includes('linkedin')
+                    ))
+                    && registrationSignal.aborted;
+
+                result.dataset.status = passed ? 'passed' : 'failed';
+                result.textContent = JSON.stringify({
+                    status: passed ? 'PASS' : 'FAIL',
+                    registeredTools: registrations.map(({ tool }) => tool.name),
+                    converted: converted.result,
+                    wechat: {
+                        template: wechatConverted.result.template_used,
+                        theme: wechatConverted.result.theme_used,
+                        activeTemplateUnchanged: appWindow.TemplateManager.activeId === activeTemplateBefore
+                    },
+                    x: {
+                        outputFormat: xConverted.result.output_format,
+                        threadPosts: xConverted.result.data && xConverted.result.data.threadPosts.length
+                    },
+                    signalAborted: registrationSignal.aborted
+                });
+            } catch (error) {
+                result.dataset.status = 'failed';
+                result.textContent = JSON.stringify({
+                    status: 'FAIL',
+                    message: error && error.message ? error.message : String(error)
+                });
+            }
+        });
+    </script>
+</body>
+</html>
