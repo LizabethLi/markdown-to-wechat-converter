@@ -77,6 +77,11 @@ const App = {
         try {
             // 初始化UI控制器
             UIController.init();
+
+            // 在页面基础能力准备好后注册 WebMCP tools（如果浏览器支持）
+            if (typeof window !== 'undefined' && window.WebMCPTools && typeof window.WebMCPTools.init === 'function') {
+                window.WebMCPTools.init();
+            }
             
             // 标记应用已初始化
             this.isInitialized = true;
@@ -197,6 +202,11 @@ const App = {
             delete window.copyPreview;
             delete window.loadExample;
             delete window.updateOutput;
+        }
+
+        // 清理 WebMCP tools
+        if (typeof window !== 'undefined' && window.WebMCPTools && typeof window.WebMCPTools.destroy === 'function') {
+            window.WebMCPTools.destroy();
         }
 
         // 重置状态
