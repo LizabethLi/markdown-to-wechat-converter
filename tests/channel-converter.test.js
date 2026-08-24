@@ -114,6 +114,14 @@ test('empty source produces empty channel output', async () => {
     assert.deepEqual(ChannelConverter.splitIntoXThread(''), []);
 });
 
+test('rich preview requests math typesetting only when the article contains math', async () => {
+    const plain = await ChannelConverter.renderRichMarkdownPreview('# Plain article');
+    const formula = await ChannelConverter.renderRichMarkdownPreview('Formula: $E=mc^2$');
+
+    assert.equal(plain.needsMathTypeset, false);
+    assert.equal(formula.needsMathTypeset, true);
+});
+
 test('image Markdown is preserved for every publishing workflow', async () => {
     const source = '# Article\n\n![Architecture](https://example.com/architecture.png)';
 

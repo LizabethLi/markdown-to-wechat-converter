@@ -1,9 +1,28 @@
 // 数学公式渲染模块
 const MathRenderer = {
+    renderCache: new Map(),
+    renderCacheLimit: 200,
+
+    getCachedRender: function(kind, mathContent) {
+        return this.renderCache.get(`${kind}:${mathContent}`) || null;
+    },
+
+    cacheRender: function(kind, mathContent, html) {
+        const key = `${kind}:${mathContent}`;
+        if (this.renderCache.size >= this.renderCacheLimit && !this.renderCache.has(key)) {
+            const oldestKey = this.renderCache.keys().next().value;
+            this.renderCache.delete(oldestKey);
+        }
+        this.renderCache.set(key, html);
+        return html;
+    },
+
     // 创建行内数学公式渲染器
     createInlineRenderer: function() {
         return (mathContent) => {
             try {
+                const cached = this.getCachedRender('inline', mathContent);
+                if (cached) return cached;
                 if (typeof MathJax === 'undefined' || !MathJax.tex2svg) {
                     return `<span style="color: red;">MathJax not ready</span>`;
                 }
@@ -19,7 +38,7 @@ const MathRenderer = {
                 // 优化 SVG 样式以适配微信公众号
                 this.optimizeSvgForWechat(svg);
                 
-                return svg.outerHTML;
+                return this.cacheRender('inline', mathContent, svg.outerHTML);
             } catch (error) {
                 console.error('Error rendering inline math:', error);
                 return `<span style="color: red;">Math Error</span>`;
@@ -31,6 +50,8 @@ const MathRenderer = {
     createDisplayRenderer: function() {
         return (mathContent) => {
             try {
+                const cached = this.getCachedRender('display', mathContent);
+                if (cached) return cached;
                 if (typeof MathJax === 'undefined' || !MathJax.tex2svg) {
                     return `<section style="text-align: center; color: red;">MathJax not ready</section>`;
                 }
@@ -46,7 +67,8 @@ const MathRenderer = {
                 // 优化 SVG 样式以适配微信公众号
                 this.optimizeSvgForWechat(svg);
                 
-                return `<section style="text-align: center; margin: 15px 0; overflow-x: auto; overflow-y: hidden;">${svg.outerHTML}</section>`;
+                const html = `<section style="text-align: center; margin: 15px 0; overflow-x: auto; overflow-y: hidden;">${svg.outerHTML}</section>`;
+                return this.cacheRender('display', mathContent, html);
             } catch (error) {
                 console.error('Error rendering display math:', error);
                 return `<section style="text-align: center; color: red;">Math Error: ${mathContent}</section>`;
@@ -159,4 +181,4 @@ if (typeof module !== 'undefined' && module.exports) {
 // 浏览器环境下赋值给全局变量
 if (typeof window !== 'undefined') {
     window.MathRenderer = MathRenderer;
-} 
+}

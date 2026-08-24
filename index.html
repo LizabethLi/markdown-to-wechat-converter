@@ -14,6 +14,7 @@
     </script>
     
     <title>Markdown 微信公众号排版转换器 | Markdown to WeChat Converter</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <meta name="description" content="Markdown 微信公众号排版转换器，支持 Markdown 转微信公众号富文本、复杂公式复制粘贴、Mermaid 流程图与代码高亮，所见即所得地发布技术内容。">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://lizabethli.github.io/markdown-to-wechat-converter/">
@@ -54,18 +55,8 @@
     </script>
     
     <!-- 外部CSS -->
-    <link rel="stylesheet" href="styles/main.css?v=20260823-single-preview">
+    <link rel="stylesheet" href="styles/main.css?v=20260824-lazy-renderers">
     
-    <!-- Highlight.js for syntax highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-
-    <!-- Mermaid for flowchart rendering -->
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-    
-    <!-- MathJax配置和加载 -->
-    <script src="js/config.js"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body>
     <div id="scratch" style="display:none;"></div>
@@ -124,7 +115,7 @@
         </div>
     </div>
     
-    <div class="container">
+    <main class="container">
         <div class="panel">
             <div class="panel-header">
                 <!-- <span class="panel-title"> Markdown Input</span> -->
@@ -228,44 +219,9 @@
                         <input id="imageFileInput" type="file" accept="image/*" multiple hidden>
                     </div>
                 </div>
-                <textarea id="markdownInput" placeholder="在这里输入你的 Markdown 内容...
+                <textarea id="markdownInput" placeholder="在这里粘贴或输入 Markdown...
 
-💡 使用提示：
-• 支持嵌套列表：使用4个空格缩进表示下一级
-
-示例：
-# 这是主标题
-## 这是副标题  
-### 这是小标题
-
-这是一段正文，支持 **粗体** 和 *斜体*。
-
-- **一级列表项目1**
-    - 二级列表项目1
-    - 二级列表项目2
-        - 三级列表项目1
-        - 三级列表项目2
-- **一级列表项目2**
-    - 二级列表项目3
-
-> 这是引用内容
-
-```javascript
-console.log('Hello, world!');
-```
-
-| 表头1 | 表头2 |
-|---|---|
-| 单元格1 | 单元格2 |
-
-行内公式：$E = mc^2$
-
-块级公式：$$ \frac{-b \pm \sqrt{b^2-4ac}}{2a} $$
-
-![图片描述](https://via.placeholder.com/400x200)
-
-🔥 复制到微信公众号时请使用【粘贴并保留格式】或【Ctrl+Shift+V】
-"></textarea>
+支持图片、公式、Mermaid 图表和代码块；也可以点击上方“加载示例”。"></textarea>
                 <div class="markdown-input-hint">本地图片会直接内嵌到 Markdown，不会上传到服务器；单张不超过 10 MB。公网图片也可继续使用 <code>![描述](图片地址)</code>。</div>
             </div>
         </div>
@@ -281,23 +237,25 @@ console.log('Hello, world!');
             </div>
             <textarea id="htmlOutput" hidden readonly aria-hidden="true"></textarea>
         </div>
-    </div>
+    </main>
     
     <!-- 外部JavaScript模块 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/3.0.8/marked.min.js"></script>
-    <script src="js/template-manager.js?v=20260824-webmcp-v2"></script>
-    <script src="js/wechat-styles.js"></script>
-    <script src="js/templates/wechat-default.js"></script>
-    <script src="js/templates/wechat-minimal.js"></script>
-    <script src="js/templates/wechat-magazine.js"></script>
-    <script src="js/translator.js"></script>
-    <script src="js/channel-converter.js?v=20260824-webmcp-v2"></script>
-    <script src="js/math-renderer.js"></script>
-    <script src="js/markdown-converter.js?v=20260824-webmcp-v2"></script>
-    <script src="js/image-handler.js?v=20260821-image-caption"></script>
-    <script src="js/ui-controller.js?v=20260823-single-preview"></script>
-    <script src="assets/examples.js"></script>
-    <script src="js/webmcp-tools.js?v=20260824-webmcp-v2"></script>
-    <script src="js/app.js?v=20260824-webmcp-v2"></script>
+    <script defer src="js/config.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/3.0.8/marked.min.js"></script>
+    <script defer src="js/template-manager.js?v=20260824-webmcp-v2"></script>
+    <script defer src="js/wechat-styles.js"></script>
+    <script defer src="js/templates/wechat-default.js"></script>
+    <script defer src="js/templates/wechat-minimal.js"></script>
+    <script defer src="js/templates/wechat-magazine.js"></script>
+    <script defer src="js/translator.js"></script>
+    <script defer src="js/dependency-loader.js?v=20260824-lazy-renderers"></script>
+    <script defer src="js/channel-converter.js?v=20260824-lazy-renderers"></script>
+    <script defer src="js/math-renderer.js?v=20260824-lazy-renderers"></script>
+    <script defer src="js/markdown-converter.js?v=20260824-webmcp-v2"></script>
+    <script defer src="js/image-handler.js?v=20260821-image-caption"></script>
+    <script defer src="js/ui-controller.js?v=20260824-lazy-renderers"></script>
+    <script defer src="assets/examples.js"></script>
+    <script defer src="js/webmcp-tools.js?v=20260824-webmcp-v2"></script>
+    <script defer src="js/app.js?v=20260824-lazy-renderers"></script>
 </body>
 </html>

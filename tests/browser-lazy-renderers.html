@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>Lazy renderer browser integration test</title>
+</head>
+<body>
+    <pre id="result" data-status="running">RUNNING</pre>
+    <iframe
+        id="app"
+        src="../index.html"
+        style="position:absolute;left:-10000px;top:0;width:1280px;height:800px;border:0"
+    ></iframe>
+    <script>
+        const result = document.getElementById('result');
+        const appFrame = document.getElementById('app');
+
+        const waitFor = async (predicate, timeoutMs = 30000) => {
+            const startedAt = Date.now();
+            while (!predicate()) {
+                if (Date.now() - startedAt > timeoutMs) throw new Error('Timed out waiting for app');
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+        };
+
+        appFrame.addEventListener('load', async () => {
+            try {
+                const appWindow = appFrame.contentWindow;
+                const appDocument = appFrame.contentDocument;
+                await waitFor(() => appWindow.App && appWindow.App.isInitialized);
+
+                const initiallyLoaded = {
+                    mathjax: !!(appWindow.MathJax && appWindow.MathJax.tex2svg),
+                    mermaid: !!appWindow.mermaid,
+                    highlight: !!appWindow.hljs
+                };
+                const markdown = [
+                    '# Lazy render test',
+                    '',
+                    'Formula: $E=mc^2$',
+                    '',
+                    '```mermaid',
+                    'flowchart LR',
+                    'A --> B',
+                    '```',
+                    '',
+                    '```javascript',
+                    'console.log("hello");',
+                    '```'
+                ].join('\n');
+                const rendered = await appWindow.ChannelConverter.renderForChannel('wechat', markdown, {
+                    outputLanguage: 'zh',
+                    themeColor: '#7E3AF2',
+                    mode: 'compact'
+                });
+                const dependencyScripts = Array.from(
+                    appDocument.querySelectorAll('script[data-render-dependency]')
+                ).map(script => script.dataset.renderDependency).sort();
+                const readyAfterConversion = {
+                    mathjax: !!(appWindow.MathJax && appWindow.MathJax.tex2svg),
+                    mermaid: !!(appWindow.mermaid && appWindow.mermaid.render),
+                    highlight: !!(appWindow.hljs && appWindow.hljs.highlight)
+                };
+                const passed = Object.values(initiallyLoaded).every(value => !value)
+                    && Object.values(readyAfterConversion).every(Boolean)
+                    && dependencyScripts.join(',') === 'highlight,mathjax,mermaid'
+                    && rendered.output.includes('<svg')
+                    && rendered.output.includes('class="hljs"');
+
+                result.dataset.status = passed ? 'passed' : 'failed';
+                result.textContent = JSON.stringify({
+                    status: passed ? 'PASS' : 'FAIL',
+                    initiallyLoaded,
+                    dependencyScripts,
+                    readyAfterConversion,
+                    renderedMathAndDiagram: rendered.output.includes('<svg'),
+                    renderedHighlightedCode: rendered.output.includes('class="hljs"')
+                });
+            } catch (error) {
+                result.dataset.status = 'failed';
+                result.textContent = JSON.stringify({
+                    status: 'FAIL',
+                    message: error && error.message ? error.message : String(error)
+                });
+            }
+        });
+    </script>
+</body>
+</html>

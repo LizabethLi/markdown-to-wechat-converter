@@ -101,6 +101,10 @@ const ChannelConverter = {
         const channel = this.getChannel(channelId);
         const outputLanguage = context.outputLanguage === 'en' ? 'en' : 'zh';
         const localizedMarkdown = await this.buildLocalizedMarkdown(markdown || '', outputLanguage);
+        if (typeof DependencyLoader !== 'undefined'
+            && typeof DependencyLoader.ensureForMarkdown === 'function') {
+            await DependencyLoader.ensureForMarkdown(localizedMarkdown);
+        }
         const result = await channel.render(localizedMarkdown, {
             ...context,
             outputLanguage,
@@ -118,7 +122,9 @@ const ChannelConverter = {
 
     async renderRichMarkdownPreview(markdown, context = {}) {
         const source = String(markdown || '');
-        const canRenderMath = typeof MathRenderer !== 'undefined'
+        const containsMath = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$/.test(source);
+        const canRenderMath = containsMath
+            && typeof MathRenderer !== 'undefined'
             && typeof MathRenderer.isMathJaxReady === 'function'
             && MathRenderer.isMathJaxReady()
             && typeof MathRenderer.protectMathExpressions === 'function'
@@ -144,7 +150,7 @@ const ChannelConverter = {
 
         return {
             html,
-            needsMathTypeset: !canRenderMath
+            needsMathTypeset: containsMath && !canRenderMath
         };
     },
 

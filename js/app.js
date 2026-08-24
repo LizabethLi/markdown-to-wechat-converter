@@ -22,8 +22,8 @@ const App = {
         // 初始化模块
         this.initializeModules();
         
-        // 等待MathJax加载完成后启动应用
-        this.waitForMathJaxAndStart();
+        // 渲染依赖会在文章需要时按需加载，应用外壳可以立即启动。
+        this.startApplication();
     },
 
     // 检查依赖
@@ -34,7 +34,8 @@ const App = {
             { name: 'MathRenderer', obj: window.MathRenderer },
             { name: 'MarkdownConverter', obj: window.MarkdownConverter },
             { name: 'UIController', obj: window.UIController },
-            { name: 'AppConfig', obj: window.AppConfig }
+            { name: 'AppConfig', obj: window.AppConfig },
+            { name: 'DependencyLoader', obj: window.DependencyLoader }
         ];
 
         const missing = required.filter(dep => !dep.obj);
@@ -61,15 +62,9 @@ const App = {
         }
     },
 
-    // 等待MathJax加载并启动应用
+    // 保留旧入口供外部调用；不再阻塞应用启动。
     waitForMathJaxAndStart: function() {
-        // 显示加载状态
-        this.showLoading();
-
-        // 等待MathJax准备就绪
-        MathRenderer.waitForMathJax(() => {
-            this.startApplication();
-        });
+        this.startApplication();
     },
 
     // 启动应用
@@ -223,15 +218,7 @@ const App = {
 
 // 文档加载完成后初始化应用
 function initializeApp() {
-    if (typeof MathJax !== 'undefined' && MathJax.tex2svg) {
-        console.log('MathJax is already ready, starting app immediately');
-        App.init();
-    } else {
-        // 如果 MathJax 还没加载，等待一下再试
-        setTimeout(() => {
-            App.init();
-        }, 100);
-    }
+    App.init();
 }
 
 // 启动应用

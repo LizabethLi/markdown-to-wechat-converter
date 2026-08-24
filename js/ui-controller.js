@@ -34,7 +34,7 @@ const UIController = {
             });
             console.log('Syntax highlighting initialized with highlight.js');
         } else {
-            console.warn('highlight.js not found, syntax highlighting disabled');
+            console.log('highlight.js will load when the article contains a code block');
         }
     },
 
@@ -47,11 +47,11 @@ const UIController = {
                 if (this.inputRenderTimer) {
                     clearTimeout(this.inputRenderTimer);
                 }
-                if (this.outputLanguage === 'en') {
-                    this.inputRenderTimer = setTimeout(() => this.updateOutput(), 500);
-                } else {
+                const renderDelay = this.outputLanguage === 'en' ? 500 : 160;
+                this.inputRenderTimer = setTimeout(() => {
+                    this.inputRenderTimer = null;
                     this.updateOutput();
-                }
+                }, renderDelay);
             });
             markdownInput.addEventListener('paste', (event) => this.handleMarkdownImagePaste(event));
             markdownInput.addEventListener('dragenter', (event) => this.handleMarkdownImageDrag(event));
@@ -1730,10 +1730,11 @@ const UIController = {
         }
 
         try {
-            const shouldShowWechatLoading = channel === 'wechat'
-                && renderMarkdown.includes('```mermaid')
-                && typeof MarkdownConverter.hasMermaidSupport === 'function'
-                && MarkdownConverter.hasMermaidSupport();
+            const requiredDependencies = typeof DependencyLoader !== 'undefined'
+                && typeof DependencyLoader.getRequiredDependencies === 'function'
+                ? DependencyLoader.getRequiredDependencies(renderMarkdown)
+                : [];
+            const shouldShowWechatLoading = channel === 'wechat' && requiredDependencies.length > 0;
 
             if (shouldShowWechatLoading || channel !== 'wechat') {
                 this.showLoading();
