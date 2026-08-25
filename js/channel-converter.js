@@ -4,7 +4,6 @@ const stripLeadMarkers = (text) =>
 
 const ChannelConverter = {
     channelAliases: {
-        linkedin: 'substack',
         'x-article-thread': 'x'
     },
 
@@ -41,11 +40,30 @@ const ChannelConverter = {
         },
         substack: {
             id: 'substack',
-            name: 'Substack / LinkedIn',
+            name: 'Substack',
             copyPreviewLabel: '复制图文',
             previewCopyMode: 'rich',
             portableRichCopy: true,
-            previewHostClass: 'markdown-preview',
+            previewHostClass: 'markdown-preview substack-preview',
+            reminder: null,
+            render: async function(markdown, context = {}) {
+                const output = ChannelConverter.buildSingleLanguageMarkdown(markdown);
+                const preview = await ChannelConverter.renderRichMarkdownPreview(output, context);
+                return {
+                    output,
+                    previewHtml: preview.html,
+                    previewMode: 'markdown',
+                    needsMathTypeset: preview.needsMathTypeset
+                };
+            }
+        },
+        linkedin: {
+            id: 'linkedin',
+            name: 'LinkedIn',
+            copyPreviewLabel: '复制图文',
+            previewCopyMode: 'rich',
+            portableRichCopy: true,
+            previewHostClass: 'markdown-preview linkedin-preview',
             reminder: null,
             render: async function(markdown, context = {}) {
                 const output = ChannelConverter.buildSingleLanguageMarkdown(markdown);
@@ -66,8 +84,8 @@ const ChannelConverter = {
             reminder: {
                 requiresAI: true,
                 title: 'X 的图片需要单独上传',
-                missingText: 'X Article 会忽略剪贴板中的内嵌图片，也不支持代码块。先配置 OpenRouter 生成 Thread；Article 文字可以直接复制，图片、Mermaid、公式和代码块请按编号上传。',
-                text: 'X Article 会忽略剪贴板中的内嵌图片，也不支持代码块。Article 文字可以直接复制，图片、Mermaid、公式和代码块会整理为下方素材，请按编号上传。',
+                missingText: 'X Article 会忽略剪贴板中的内嵌图片，也不支持表格和代码块。先配置 OpenRouter 生成 Thread；Article 文字可以直接复制，图片、表格、Mermaid、公式和代码块请按编号上传。',
+                text: 'X Article 会忽略剪贴板中的内嵌图片，也不支持表格和代码块。Article 文字可以直接复制，图片、表格、Mermaid、公式和代码块会整理为下方素材，请按编号上传。',
                 steps: ['复制 Article 文字', '按编号上传图片素材']
             },
             render: async function(markdown, context = {}) {
@@ -682,7 +700,7 @@ const ChannelConverter = {
       <div class="x-asset-section-header">
         <div>
           <div class="x-asset-title">X 图片素材</div>
-          <p data-x-asset-summary>正在整理正文中的图片、Mermaid、公式和代码块…</p>
+          <p data-x-asset-summary>正在整理正文中的图片、表格、Mermaid、公式和代码块…</p>
         </div>
       </div>
       <div class="x-asset-list" data-x-asset-list></div>

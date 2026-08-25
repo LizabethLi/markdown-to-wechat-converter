@@ -34,10 +34,11 @@ global.ImageHandler = {
 
 let renderCall = null;
 global.ChannelConverter = {
-    channelAliases: { linkedin: 'substack' },
+    channelAliases: {},
     listChannels: () => [
         { id: 'wechat', name: 'WeChat' },
-        { id: 'substack', name: 'Substack / LinkedIn' },
+        { id: 'substack', name: 'Substack' },
+        { id: 'linkedin', name: 'LinkedIn' },
         { id: 'x', name: 'X Article + Thread' }
     ],
     renderForChannel: async (channel, markdown, context) => {
@@ -47,7 +48,7 @@ global.ChannelConverter = {
             output: `OUTPUT:${markdown}`,
             previewHtml: `<p>${markdown}</p>`,
             previewMode: channel === 'x' ? 'x-publishing' : 'markdown',
-            needsMathTypeset: channel === 'substack',
+            needsMathTypeset: channel === 'substack' || channel === 'linkedin',
             data: channel === 'x' ? { threadPosts: ['1/1\nPost'] } : null
         };
     }
@@ -130,7 +131,7 @@ test('WebMCP registration reports asynchronous registration failures', async () 
     }
 });
 
-test('LinkedIn resolves to the shared Substack formatter and returns rich output', async () => {
+test('LinkedIn keeps its own channel identity and returns rich output', async () => {
     const response = await WebMCPTools.convertMarkdown({
         markdown: '![Local](local-image://asset-1)',
         channel: 'linkedin',
@@ -139,11 +140,11 @@ test('LinkedIn resolves to the shared Substack formatter and returns rich output
 
     assert.equal(response.ok, true);
     assert.equal(response.result.requested_channel, 'linkedin');
-    assert.equal(response.result.channel, 'substack');
+    assert.equal(response.result.channel, 'linkedin');
     assert.equal(response.result.output_format, 'markdown_and_html');
     assert.match(response.result.preview_html, /data:image\/png;base64,AAECAwQ=/);
     assert.equal(response.structuredContent, response.result);
-    assert.equal(renderCall.channel, 'substack');
+    assert.equal(renderCall.channel, 'linkedin');
     assert.equal(renderCall.context.outputLanguage, 'en');
     assert.match(renderCall.markdown, /data:image\/png;base64,AAECAwQ=/);
 });
@@ -200,12 +201,15 @@ test('WebMCP reports unresolved local image references before conversion', async
     assert.equal(renderCall, null);
 });
 
-test('WebMCP capability tools describe aliases, X AI, and templates', async () => {
+test('WebMCP capability tools describe separate publishing channels, X AI, and templates', async () => {
     const channels = await WebMCPTools.listSupportedChannels();
     const substack = channels.result.channels.find((channel) => channel.id === 'substack');
+    const linkedin = channels.result.channels.find((channel) => channel.id === 'linkedin');
     const x = channels.result.channels.find((channel) => channel.id === 'x');
-    assert.deepEqual(substack.aliases, ['linkedin']);
+    assert.deepEqual(substack.aliases, []);
     assert.equal(substack.output_format, 'markdown_and_html');
+    assert.deepEqual(linkedin.aliases, []);
+    assert.equal(linkedin.output_format, 'markdown_and_html');
     assert.equal(x.supports_ai, true);
 
     const templates = await WebMCPTools.listWechatTemplates();

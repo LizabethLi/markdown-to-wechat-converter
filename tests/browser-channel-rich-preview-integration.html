@@ -60,17 +60,23 @@
                 const readClipboardHtml = async () => clipboardItem
                     ? clipboardItem.data['text/html'].text()
                     : '';
-                const hasPortableSvgImages = (clipboardDocument) => {
+                const hasPortableRichImages = (clipboardDocument) => {
                     const mermaidImage = clipboardDocument.querySelector(
                         'img[data-rasterized-svg="mermaid"]'
+                    );
+                    const tableImage = clipboardDocument.querySelector(
+                        'img[data-rasterized-table="table"]'
                     );
                     const mathImages = Array.from(clipboardDocument.querySelectorAll(
                         'img[data-rasterized-svg="math"]'
                     ));
-                    return !clipboardDocument.querySelector('svg')
+                    return !clipboardDocument.querySelector('svg, table')
                         && !!mermaidImage
+                        && !!tableImage
                         && mermaidImage.getAttribute('src').startsWith('data:image/png;base64,')
                         && mermaidImage.getAttribute('src').length > 1000
+                        && tableImage.getAttribute('src').startsWith('data:image/png;base64,')
+                        && tableImage.getAttribute('src').length > 1000
                         && mathImages.length >= 2
                         && mathImages.every(image => (
                             image.getAttribute('src').startsWith('data:image/png;base64,')
@@ -136,11 +142,29 @@
                 const substack = {
                     channelName: appWindow.ChannelConverter.getChannel('substack').name,
                     table: !!substackPreview.querySelector('table'),
+                    previewClass: substackPreview.classList.contains('substack-preview'),
                     mermaid: !!substackPreview.querySelector('svg')
                         && !substackPreview.querySelector('code.language-mermaid'),
                     math: substackPreview.querySelectorAll('mjx-container, [data-mml-node="math"]').length >= 2,
-                    richClipboard: substackClipboardHtml.includes('<table')
-                        && hasPortableSvgImages(substackClipboardDocument)
+                    richClipboard: !substackClipboardHtml.includes('<table')
+                        && hasPortableRichImages(substackClipboardDocument)
+                };
+
+                const linkedinPreview = await renderChannel(appWindow, appDocument, 'linkedin', richMarkdown);
+                clipboardItem = null;
+                await appWindow.UIController.copyPreview();
+                const linkedinClipboardHtml = await readClipboardHtml();
+                const linkedinClipboardDocument = new appWindow.DOMParser().parseFromString(
+                    linkedinClipboardHtml,
+                    'text/html'
+                );
+                const linkedin = {
+                    channelName: appWindow.ChannelConverter.getChannel('linkedin').name,
+                    table: !!linkedinPreview.querySelector('table'),
+                    previewClass: linkedinPreview.classList.contains('linkedin-preview')
+                        && !linkedinPreview.classList.contains('substack-preview'),
+                    richClipboard: !linkedinClipboardHtml.includes('<table')
+                        && hasPortableRichImages(linkedinClipboardDocument)
                 };
 
                 const xPreview = await renderChannel(appWindow, appDocument, 'x', richMarkdown);
@@ -179,11 +203,14 @@
                         asset.kind === 'code'
                         && asset.dataUrl.startsWith('data:image/png;base64,')
                     )),
+                    tableAsset: xPublishingPackage.assets.some(asset => (
+                        asset.kind === 'table'
+                        && asset.dataUrl.startsWith('data:image/png;base64,')
+                    )),
                     assetCount: xPublishingPackage.assets.length,
                     assetPanel: xPreview.querySelectorAll('.x-asset-card').length === xPublishingPackage.assets.length,
-                    articleClipboard: xClipboardHtml.includes('<table')
-                        && !xClipboardDocument.querySelector('svg, img, pre')
-                        && xClipboardDocument.querySelectorAll('[data-x-asset-placeholder]').length === 5
+                    articleClipboard: !xClipboardDocument.querySelector('svg, img, pre, table')
+                        && xClipboardDocument.querySelectorAll('[data-x-asset-placeholder]').length === 6
                         && xClipboardDocument.body.textContent.includes('`npm run build`'),
                     imageClipboard: !!xAssetClipboardBlob
                         && xAssetClipboardBlob.type === 'image/png'
@@ -214,14 +241,20 @@
                     && substack.table
                     && substack.mermaid
                     && substack.math
+                    && substack.previewClass
                     && substack.richClipboard
-                    && substack.channelName === 'Substack / LinkedIn'
+                    && substack.channelName === 'Substack'
+                    && linkedin.table
+                    && linkedin.previewClass
+                    && linkedin.richClipboard
+                    && linkedin.channelName === 'LinkedIn'
                     && x.table
                     && x.mermaid
                     && x.math
                     && x.codePreview
                     && x.codeAsset
-                    && x.assetCount === 5
+                    && x.tableAsset
+                    && x.assetCount === 6
                     && x.assetPanel
                     && x.articleClipboard
                     && x.imageClipboard
@@ -236,6 +269,7 @@
                     rasterDiagnostics,
                     wechat,
                     substack,
+                    linkedin,
                     x,
                     scroll
                 });

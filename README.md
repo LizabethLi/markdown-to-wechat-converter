@@ -33,15 +33,20 @@
 - 支持直接把截图或本地图片粘贴进 Markdown 编辑框
 - “复制样式”会尽量把正文和图片本体一起写入剪贴板，再粘贴到公众号编辑器
 
-### 2. Substack / LinkedIn
-生成一份可同时粘贴到 Substack 和 LinkedIn 的富文本内容：
+### 2. Substack
+生成接近 Substack 默认文章主题的预览和富文本内容：
 - 选择 `中文` 时只输出中文原稿
 - 选择 `English` 时只输出英文译稿
 - 不再自动把中英文拼接在同一篇内容中
-- 图片、数学公式和 Mermaid 图表会在复制时一并处理
-- 点击一次“复制图文”，即可粘贴到 Substack 或 LinkedIn
+- 图片、数学公式、Mermaid 图表和表格会在复制时转换为可移植图片
 
-### 3. X Article + Thread
+### 3. LinkedIn
+使用独立的 LinkedIn Article 排版预览：
+- 保留标题、段落、列表、引用、链接和代码结构
+- 图片、数学公式、Mermaid 图表和表格会在复制时一并处理
+- 与 Substack 复用 Markdown 解析，但不再共用渠道或预览样式
+
+### 4. X Article + Thread
 输出一份完整的 X 发布包：
 - X Article：保留标题、小标题、粗体和列表，支持富文本复制
 - 主 Thread：AI 生成一段简短推荐，并列出文章要点
@@ -75,11 +80,11 @@ X 推荐语和要点只会在点击 `✨ 生成 X Article + Thread` 后生成；
 
 页面会在支持 WebMCP 的浏览器中注册三个工具，让浏览器里的 AI Agent 直接调用现有转换器：
 
-- `convert_markdown`：转换 WeChat、Substack / LinkedIn 或 X 内容
+- `convert_markdown`：转换 WeChat、Substack、LinkedIn 或 X 内容
 - `list_supported_channels`：查询渠道、别名和输出格式
 - `list_wechat_templates`：查询微信模板
 
-`convert_markdown` 支持 `zh / en` 语言、微信模板和主题、X AI 生成，并同时返回渠道原始输出、`preview_html` 和结构化数据。`linkedin` 会使用与 Substack 相同的富文本转换器。
+`convert_markdown` 支持 `zh / en` 语言、微信模板和主题、X AI 生成，并同时返回渠道原始输出、`preview_html` 和结构化数据。Substack 与 LinkedIn 是独立渠道，并返回各自的预览样式。
 
 本地图片短引用只能访问当前页面中已加载的图片；如果引用尚未解析，工具会返回明确错误，不会输出失效图片。
 
@@ -110,8 +115,8 @@ open index.html
 - 可点击“选择本地图片”，也可把图片直接粘贴或拖入左侧编辑框（单张不超过 10 MB）。剪贴板提供图片文件、Base64 文本或仅含图片的 HTML 时都能识别；左侧只保留短引用，预览和复制图文时再自动使用内嵌图片。
 - 从 Obsidian 复制的 `![[Pasted image.png]]` 只包含附件名；页面会提示缺图。选择或拖入同名本地文件后，短引用保持不变，图片会加载到当前页面中。
 - 也可继续使用 `![图片描述](https://example.com/image.png)` 或仓库内相对路径。
-- WeChat 与 Substack / LinkedIn 支持从预览区直接复制图文。
-- X Article 的图片、公式、Mermaid 和代码块会整理为编号素材，需要在 X 中按顺序上传。
+- WeChat、Substack 与 LinkedIn 支持从预览区直接复制图文；Substack 与 LinkedIn 的 Markdown 表格会复制为图片。
+- X Article 的图片、表格、公式、Mermaid 和代码块会整理为编号素材，需要在 X 中按顺序上传。
 - 远程图片服务器如果禁止跨域读取，工具无法把图片本体写入剪贴板，但仍会保留原地址并显示提示。
 
 ---
@@ -127,7 +132,7 @@ open index.html
 
 翻译自带内置 Prompt：中文翻译为英文、保留 Markdown 结构、不改动代码/公式/URL，并且只返回译文。System Prompt 只用于补充术语表和文风要求。
 
-同一篇原稿的英文译文会在渠道之间复用；切换 WeChat、Substack / LinkedIn 或 X 不会重复翻译。修改原稿或保存新的翻译设置后会重新翻译。
+同一篇原稿的英文译文会在渠道之间复用；切换 WeChat、Substack、LinkedIn 或 X 不会重复翻译。修改原稿或保存新的翻译设置后会重新翻译。
 
 如果没有配置翻译：
 - `中文` 模式仍可在所有渠道直接使用

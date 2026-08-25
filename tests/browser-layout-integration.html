@@ -48,7 +48,8 @@
                 assert(
                     JSON.stringify(channelOptions) === JSON.stringify([
                         { value: 'wechat', label: 'WeChat' },
-                        { value: 'substack', label: 'Substack / LinkedIn' },
+                        { value: 'substack', label: 'Substack' },
+                        { value: 'linkedin', label: 'LinkedIn' },
                         { value: 'x', label: 'X Article + Thread' }
                     ]),
                     'Channel menu does not include the expected publishing channels'
@@ -59,7 +60,11 @@
 
                 channelSelect.value = 'substack';
                 channelSelect.dispatchEvent(new appWindow.Event('change', { bubbles: true }));
-                assert(styleControls.hidden, 'WeChat-only style controls remain visible for Substack / LinkedIn');
+                assert(styleControls.hidden, 'WeChat-only style controls remain visible for Substack');
+
+                channelSelect.value = 'linkedin';
+                channelSelect.dispatchEvent(new appWindow.Event('change', { bubbles: true }));
+                assert(styleControls.hidden, 'WeChat-only style controls remain visible for LinkedIn');
 
                 const settingsButton = appDocument.getElementById('translatorButton');
                 const settingsPanel = appDocument.getElementById('translatorPanel');

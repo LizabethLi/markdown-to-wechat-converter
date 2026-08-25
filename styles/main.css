@@ -727,23 +727,107 @@ body {
     line-height: 1.5em;
 }
 
-/* 通用 Markdown 预览样式（用于 Substack / LinkedIn 渠道） */
+/* 通用 Markdown 结构，渠道级字体和间距在下方分别模拟目标平台。 */
 .markdown-preview {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
     color: #111827;
     line-height: 1.7;
 }
-.markdown-preview p { margin: 12px 0; }
-.markdown-preview h1 { font-size: 1.8rem; margin: 1.2em 0 0.6em; }
-.markdown-preview h2 { font-size: 1.5rem; margin: 1.1em 0 0.6em; }
-.markdown-preview h3 { font-size: 1.25rem; margin: 1em 0 0.5em; }
-.markdown-preview code { background: #f3f4f6; padding: 2px 4px; border-radius: 4px; }
-.markdown-preview pre { background: #f8fafc; padding: 14px; border-radius: 6px; overflow-x: auto; }
-.markdown-preview a { color: #2563eb; text-decoration: none; border-bottom: 1px solid #93c5fd; }
-.markdown-preview table { border-collapse: collapse; width: 100%; margin: 16px 0; }
-.markdown-preview th, .markdown-preview td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; }
-.markdown-preview th { background: #f9fafb; }
+.markdown-preview p { margin: 0 0 1em; }
+.markdown-preview h1 { margin: 1.25em 0 0.6em; }
+.markdown-preview h2 { margin: 1.2em 0 0.55em; }
+.markdown-preview h3 { margin: 1.1em 0 0.5em; }
+.markdown-preview code { padding: 2px 4px; border-radius: 3px; }
+.markdown-preview pre { padding: 14px; overflow-x: auto; }
+.markdown-preview pre code { padding: 0; background: transparent; }
+.markdown-preview table { border-collapse: collapse; width: 100%; margin: 1.2em 0; }
+.markdown-preview th,
+.markdown-preview td { padding: 10px 12px; text-align: left; }
 .markdown-preview img { display: block; max-width: 100%; height: auto; margin: 16px auto; }
+
+/* Substack 默认文章主题。出版物自定义字体时，实际站点会跟随出版物设置。 */
+.substack-preview {
+    color: #242424;
+    background: #ffffff;
+    font-family: Georgia, 'Times New Roman', 'Songti SC', 'Noto Serif CJK SC', serif;
+    font-size: 18px;
+    line-height: 1.64;
+}
+
+.substack-preview > * {
+    max-width: 640px;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.substack-preview p { margin-bottom: 1.1em; }
+.substack-preview h1,
+.substack-preview h2,
+.substack-preview h3 {
+    color: #1f1f1f;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+    font-weight: 700;
+    line-height: 1.22;
+}
+.substack-preview h1 { font-size: 2rem; letter-spacing: -0.02em; }
+.substack-preview h2 { font-size: 1.55rem; }
+.substack-preview h3 { font-size: 1.22rem; }
+.substack-preview a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.substack-preview blockquote {
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+    padding-left: 1.1em;
+    color: #555555;
+    border-left: 3px solid #242424;
+    font-style: italic;
+}
+.substack-preview code { background: #f2f2f2; font-size: 0.88em; }
+.substack-preview pre { color: #242424; background: #f5f5f5; border-radius: 0; }
+.substack-preview table { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; font-size: 15px; }
+.substack-preview th,
+.substack-preview td { border: 1px solid #d8d8d8; }
+.substack-preview th { background: #f5f5f5; font-weight: 650; }
+
+/* LinkedIn Article 的正文排版。 */
+.linkedin-preview {
+    color: rgba(0, 0, 0, 0.9);
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.linkedin-preview > * {
+    max-width: 744px;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.linkedin-preview p { margin-bottom: 1em; }
+.linkedin-preview h1,
+.linkedin-preview h2,
+.linkedin-preview h3 {
+    color: rgba(0, 0, 0, 0.9);
+    font-weight: 600;
+    line-height: 1.25;
+}
+.linkedin-preview h1 { font-size: 2rem; letter-spacing: -0.02em; }
+.linkedin-preview h2 { font-size: 1.5rem; }
+.linkedin-preview h3 { font-size: 1.25rem; }
+.linkedin-preview a { color: #0a66c2; text-decoration: underline; }
+.linkedin-preview blockquote {
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+    padding: 0.25em 0 0.25em 1em;
+    color: rgba(0, 0, 0, 0.6);
+    border-left: 4px solid #0a66c2;
+}
+.linkedin-preview code { background: #f3f2ef; font-size: 0.88em; }
+.linkedin-preview pre { color: rgba(0, 0, 0, 0.9); background: #f3f2ef; border-radius: 2px; }
+.linkedin-preview table { font-size: 14px; }
+.linkedin-preview th,
+.linkedin-preview td { border: 1px solid #c7c7c7; }
+.linkedin-preview th { background: #f3f2ef; font-weight: 600; }
 
 .plain-text-preview-host,
 .thread-preview-host,

@@ -21,8 +21,8 @@
                 const appDocument = appFrame.contentDocument;
                 await waitFor(() => appWindow.App && appWindow.App.isInitialized);
 
-                const channelSelected = appDocument.getElementById('channelSelect').value === 'substack'
-                    && appWindow.UIController.currentChannel === 'substack';
+                const channelSelected = appDocument.getElementById('channelSelect').value === 'linkedin'
+                    && appWindow.UIController.currentChannel === 'linkedin';
                 const analyticsEvent = (appWindow.dataLayer || []).some(entry => (
                     entry && entry[0] === 'event' && entry[1] === 'channel_selected'
                     && entry[2] && entry[2].channel === 'linkedin'

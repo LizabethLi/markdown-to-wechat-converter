@@ -58,12 +58,12 @@ test('all channels receive the selected single-language Markdown', async () => {
     };
 
     const wechat = await ChannelConverter.renderForChannel('wechat', source, { outputLanguage: 'en' });
-    const legacyLinkedin = await ChannelConverter.renderForChannel('linkedin', source, { outputLanguage: 'en' });
+    const linkedin = await ChannelConverter.renderForChannel('linkedin', source, { outputLanguage: 'en' });
     const chineseSubstack = await ChannelConverter.renderForChannel('substack', source, { outputLanguage: 'zh' });
 
     assert.equal(wechat.output, translated);
-    assert.equal(legacyLinkedin.output, translated);
-    assert.equal(legacyLinkedin.channel.id, 'substack');
+    assert.equal(linkedin.output, translated);
+    assert.equal(linkedin.channel.id, 'linkedin');
     assert.equal(chineseSubstack.output, source);
     assert.equal(translationCalls, 1);
 });
@@ -71,7 +71,7 @@ test('all channels receive the selected single-language Markdown', async () => {
 test('landing page channel parameters resolve to editor channel ids', () => {
     assert.equal(ChannelConverter.resolveChannelId('wechat'), 'wechat');
     assert.equal(ChannelConverter.resolveChannelId('substack'), 'substack');
-    assert.equal(ChannelConverter.resolveChannelId('linkedin'), 'substack');
+    assert.equal(ChannelConverter.resolveChannelId('linkedin'), 'linkedin');
     assert.equal(ChannelConverter.resolveChannelId('x-article-thread'), 'x');
     assert.equal(ChannelConverter.resolveChannelId('unknown'), null);
 });
@@ -135,12 +135,12 @@ test('image Markdown is preserved for every publishing workflow', async () => {
 
     const substack = await ChannelConverter.renderForChannel('substack', source, { outputLanguage: 'zh' });
     const wechat = await ChannelConverter.renderForChannel('wechat', source, { outputLanguage: 'zh' });
-    const legacyLinkedin = await ChannelConverter.renderForChannel('linkedin', source, { outputLanguage: 'zh' });
+    const linkedin = await ChannelConverter.renderForChannel('linkedin', source, { outputLanguage: 'zh' });
     const x = await ChannelConverter.renderForChannel('x', source, { outputLanguage: 'zh' });
 
     assert.match(substack.output, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
     assert.match(wechat.output, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
-    assert.match(legacyLinkedin.output, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
+    assert.match(linkedin.output, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
     assert.match(x.data.articleMarkdown, /!\[Architecture\]\(https:\/\/example\.com\/architecture\.png\)/);
 });
 
@@ -234,17 +234,24 @@ test('X AI planning receives an image placeholder while the article keeps the im
 test('publishing channels expose their platform-specific copy modes', () => {
     assert.equal(ChannelConverter.getChannel('wechat').previewCopyMode, 'rich');
     assert.equal(ChannelConverter.getChannel('substack').previewCopyMode, 'rich');
+    assert.equal(ChannelConverter.getChannel('linkedin').previewCopyMode, 'rich');
     assert.equal(ChannelConverter.getChannel('substack').portableRichCopy, true);
-    assert.equal(ChannelConverter.getChannel('linkedin'), ChannelConverter.getChannel('substack'));
-    assert.equal(ChannelConverter.getChannel('substack').name, 'Substack / LinkedIn');
+    assert.equal(ChannelConverter.getChannel('linkedin').portableRichCopy, true);
+    assert.notEqual(ChannelConverter.getChannel('linkedin'), ChannelConverter.getChannel('substack'));
+    assert.equal(ChannelConverter.getChannel('substack').name, 'Substack');
+    assert.equal(ChannelConverter.getChannel('linkedin').name, 'LinkedIn');
+    assert.match(ChannelConverter.getChannel('substack').previewHostClass, /substack-preview/);
+    assert.match(ChannelConverter.getChannel('linkedin').previewHostClass, /linkedin-preview/);
     assert.equal(ChannelConverter.getChannel('substack').reminder, null);
     assert.deepEqual(ChannelConverter.listChannels().map(channel => channel.id), [
         'wechat',
         'substack',
+        'linkedin',
         'x'
     ]);
     assert.match(ChannelConverter.getChannel('x').reminder.text, /按编号上传/);
     assert.match(ChannelConverter.getChannel('x').reminder.text, /代码块/);
+    assert.match(ChannelConverter.getChannel('x').reminder.text, /表格/);
     assert.deepEqual(ChannelConverter.getChannel('x').reminder.steps, [
         '复制 Article 文字',
         '按编号上传图片素材'

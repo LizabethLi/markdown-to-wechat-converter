@@ -15,7 +15,7 @@
                 {
                     name: 'convert_markdown',
                     title: '转换 Markdown 发布内容',
-                    description: 'Convert source Markdown into the publishing formats produced by this page for WeChat, Substack / LinkedIn, or X.',
+                    description: 'Convert source Markdown into the publishing formats produced by this page for WeChat, Substack, LinkedIn, or X.',
                     inputSchema: {
                         type: 'object',
                         additionalProperties: false,
@@ -27,7 +27,7 @@
                             channel: {
                                 type: 'string',
                                 enum: ['wechat', 'substack', 'linkedin', 'x'],
-                                description: 'Target channel. linkedin is an alias of the shared Substack / LinkedIn formatter.'
+                                description: 'Target publishing channel.'
                             },
                             output_language: {
                                 type: 'string',
@@ -136,6 +136,7 @@
             return {
                 wechat: 'html',
                 substack: 'markdown_and_html',
+                linkedin: 'markdown_and_html',
                 x: 'publishing_bundle'
             }[channel] || 'text';
         },

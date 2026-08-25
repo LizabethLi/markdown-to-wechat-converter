@@ -876,9 +876,20 @@ const UIController = {
             intervalMs: 30000
         });
 
-        preview.classList.remove('wechat-preview', 'markdown-preview', 'plain-text-preview-host', 'thread-preview-host', 'x-publishing-preview-host');
+        preview.classList.remove(
+            'wechat-preview',
+            'markdown-preview',
+            'substack-preview',
+            'linkedin-preview',
+            'plain-text-preview-host',
+            'thread-preview-host',
+            'x-publishing-preview-host'
+        );
         if (rendered.channel && rendered.channel.previewHostClass) {
-            preview.classList.add(rendered.channel.previewHostClass);
+            String(rendered.channel.previewHostClass)
+                .split(/\s+/)
+                .filter(Boolean)
+                .forEach(className => preview.classList.add(className));
         }
 
         if (rendered.needsMathTypeset) {
@@ -977,10 +988,14 @@ const UIController = {
 
     buildXArticlePackage: async function(articleContent) {
         const clone = articleContent.cloneNode(true);
-        const collectVisuals = (root) => Array.from(root.querySelectorAll('svg, img, pre'))
-            .filter(element => element.tagName.toLowerCase() !== 'svg'
-                || !element.parentElement
-                || !element.parentElement.closest('svg'));
+        const collectVisuals = (root) => Array.from(root.querySelectorAll('svg, img, pre, table'))
+            .filter((element) => {
+                const tagName = element.tagName.toLowerCase();
+                if (tagName !== 'table' && element.closest('table')) return false;
+                return tagName !== 'svg'
+                    || !element.parentElement
+                    || !element.parentElement.closest('svg');
+            });
         const sourceVisuals = collectVisuals(articleContent);
         const cloneVisuals = collectVisuals(clone);
 
@@ -992,7 +1007,10 @@ const UIController = {
             const tagName = visual.tagName.toLowerCase();
             const isSvg = tagName === 'svg';
             const isCode = tagName === 'pre';
-            const kind = isCode
+            const isTable = tagName === 'table';
+            const kind = isTable
+                ? 'table'
+                : isCode
                 ? 'code'
                 : isSvg
                 ? (visual.querySelector('[data-mml-node="math"]') ? 'math' : 'mermaid')
@@ -1008,6 +1026,8 @@ const UIController = {
                 ? '数学公式'
                 : kind === 'mermaid'
                     ? 'Mermaid 图表'
+                    : kind === 'table'
+                        ? '数据表格'
                     : kind === 'code'
                         ? (language ? `代码块 · ${language}` : '代码块')
                         : (alt ? `原文图片：${alt.slice(0, 36)}` : '原文图片');
@@ -1015,7 +1035,9 @@ const UIController = {
             const filename = `x-article-${String(imageNumber).padStart(2, '0')}-${kind}.png`;
 
             try {
-                const raster = kind === 'code'
+                const raster = kind === 'table'
+                    ? await this.rasterizeTableToPng(visual, 'x')
+                    : kind === 'code'
                     ? await this.rasterizeCodeBlockToPng(visual, language)
                     : isSvg
                     ? await this.rasterizeSvgToPng(visual)
@@ -1052,6 +1074,7 @@ const UIController = {
             const asset = assets[index];
             const containedSection = visual.closest('section');
             const isBlockVisual = asset.kind === 'mermaid'
+                || asset.kind === 'table'
                 || asset.kind === 'code'
                 || (asset.kind === 'math' && containedSection && clone.contains(containedSection));
             let replacementTarget = visual;
@@ -1994,40 +2017,217 @@ const UIController = {
         }
 
         const clone = sourceElement.cloneNode(true);
-        const sourceSvgs = Array.from(sourceElement.querySelectorAll('svg'))
-            .filter(svg => !svg.parentElement || !svg.parentElement.closest('svg'));
-        const cloneSvgs = Array.from(clone.querySelectorAll('svg'))
-            .filter(svg => !svg.parentElement || !svg.parentElement.closest('svg'));
+        const collectPortableVisuals = (root) => Array.from(root.querySelectorAll('svg, table'))
+            .filter((element) => {
+                const tagName = element.tagName.toLowerCase();
+                if (tagName !== 'table' && element.closest('table')) return false;
+                return tagName !== 'svg'
+                    || !element.parentElement
+                    || !element.parentElement.closest('svg');
+            });
+        const sourceVisuals = collectPortableVisuals(sourceElement);
+        const cloneVisuals = collectPortableVisuals(clone);
 
-        if (sourceSvgs.length !== cloneSvgs.length) {
-            throw new Error('SVG clone count mismatch');
+        if (sourceVisuals.length !== cloneVisuals.length) {
+            throw new Error('Portable visual clone count mismatch');
         }
 
-        for (let index = 0; index < sourceSvgs.length; index += 1) {
-            const sourceSvg = sourceSvgs[index];
-            const cloneSvg = cloneSvgs[index];
-            const raster = await this.rasterizeSvgToPng(sourceSvg);
+        for (let index = 0; index < sourceVisuals.length; index += 1) {
+            const sourceVisual = sourceVisuals[index];
+            const cloneVisual = cloneVisuals[index];
+            const isTable = sourceVisual.tagName.toLowerCase() === 'table';
+            const raster = isTable
+                ? await this.rasterizeTableToPng(sourceVisual, this.getCurrentChannel())
+                : await this.rasterizeSvgToPng(sourceVisual);
             const image = document.createElement('img');
-            const isMath = !!sourceSvg.querySelector('[data-mml-node="math"]');
-            const isBlock = !isMath || !!sourceSvg.closest('section');
+            const isMath = !isTable && !!sourceVisual.querySelector('[data-mml-node="math"]');
+            const isBlock = isTable || !isMath || !!sourceVisual.closest('section');
 
             image.src = raster.dataUrl;
-            image.alt = isMath ? '数学公式' : 'Mermaid 图表';
+            image.alt = isTable ? '数据表格' : (isMath ? '数学公式' : 'Mermaid 图表');
             image.width = Math.max(1, Math.round(raster.displayWidth));
             image.height = Math.max(1, Math.round(raster.displayHeight));
-            image.setAttribute('data-rasterized-svg', isMath ? 'math' : 'mermaid');
+            if (isTable) {
+                image.setAttribute('data-rasterized-table', 'table');
+            } else {
+                image.setAttribute('data-rasterized-svg', isMath ? 'math' : 'mermaid');
+            }
             image.style.maxWidth = '100%';
             image.style.height = 'auto';
             image.style.verticalAlign = 'middle';
             image.style.display = isBlock ? 'block' : 'inline-block';
             image.style.margin = isBlock ? '12px auto' : '0 0.15em';
-            cloneSvg.replaceWith(image);
+            cloneVisual.replaceWith(image);
         }
 
         return {
             html: clone.innerHTML,
             text: sourceElement.innerText || '',
-            converted: sourceSvgs.length
+            converted: sourceVisuals.length
+        };
+    },
+
+    rasterizeTableToPng: async function(tableElement, channel = 'substack') {
+        if (!tableElement) throw new Error('Missing table source');
+        const rowElements = Array.from(tableElement.querySelectorAll('tr'));
+        if (!rowElements.length) throw new Error('表格没有可转换的行');
+
+        const rows = rowElements.map(row => Array.from(row.querySelectorAll('th, td')));
+        const columnCount = rows.reduce((maximum, cells) => Math.max(maximum, cells.length), 0);
+        if (!columnCount) throw new Error('表格没有可转换的单元格');
+
+        const isLinkedIn = channel === 'linkedin';
+        const palette = isLinkedIn
+            ? {
+                text: 'rgba(0, 0, 0, 0.9)',
+                border: '#c7c7c7',
+                header: '#f3f2ef',
+                alternate: '#ffffff',
+                background: '#ffffff'
+            }
+            : {
+                text: '#242424',
+                border: '#d8d8d8',
+                header: '#f5f5f5',
+                alternate: '#ffffff',
+                background: '#ffffff'
+            };
+        const fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", Arial, sans-serif';
+        const fontSize = isLinkedIn ? 14 : 15;
+        const lineHeight = Math.round(fontSize * 1.5);
+        const horizontalPadding = 14;
+        const verticalPadding = 11;
+        const minColumnWidth = 104;
+        const maxColumnWidth = 300;
+        const maxTableWidth = 1120;
+        const measurementCanvas = document.createElement('canvas');
+        const measurementContext = measurementCanvas.getContext('2d');
+        if (!measurementContext) throw new Error('Canvas 2D context is unavailable');
+        measurementContext.font = `${fontSize}px ${fontFamily}`;
+
+        const normalizeText = (cell) => String(cell.innerText || cell.textContent || '')
+            .replace(/\u00a0/g, ' ')
+            .replace(/[ \t]+/g, ' ')
+            .trim();
+        const columnWidths = Array.from({ length: columnCount }, () => minColumnWidth);
+        rows.forEach((cells) => {
+            cells.forEach((cell, columnIndex) => {
+                const text = normalizeText(cell);
+                const longestLine = text.split(/\n/).reduce(
+                    (maximum, line) => Math.max(maximum, measurementContext.measureText(line || ' ').width),
+                    0
+                );
+                columnWidths[columnIndex] = Math.min(
+                    maxColumnWidth,
+                    Math.max(columnWidths[columnIndex], Math.ceil(longestLine + horizontalPadding * 2))
+                );
+            });
+        });
+
+        const measuredWidth = columnWidths.reduce((sum, width) => sum + width, 0);
+        if (measuredWidth > maxTableWidth) {
+            const scale = maxTableWidth / measuredWidth;
+            columnWidths.forEach((width, index) => {
+                columnWidths[index] = Math.max(84, Math.floor(width * scale));
+            });
+        }
+
+        const wrapText = (text, maximumWidth) => {
+            const paragraphs = String(text || '').split(/\n/);
+            const lines = [];
+            paragraphs.forEach((paragraph) => {
+                if (!paragraph) {
+                    lines.push('');
+                    return;
+                }
+                let line = '';
+                Array.from(paragraph).forEach((character) => {
+                    const candidate = `${line}${character}`;
+                    if (line && measurementContext.measureText(candidate).width > maximumWidth) {
+                        lines.push(line.trimEnd());
+                        line = character.trimStart();
+                    } else {
+                        line = candidate;
+                    }
+                });
+                lines.push(line || ' ');
+            });
+            return lines.length ? lines : [' '];
+        };
+
+        const preparedRows = rows.map((cells) => {
+            const preparedCells = Array.from({ length: columnCount }, (_, columnIndex) => {
+                const cell = cells[columnIndex] || null;
+                const text = cell ? normalizeText(cell) : '';
+                return {
+                    element: cell,
+                    lines: wrapText(text, columnWidths[columnIndex] - horizontalPadding * 2)
+                };
+            });
+            const height = Math.max(
+                44,
+                ...preparedCells.map(cell => cell.lines.length * lineHeight + verticalPadding * 2)
+            );
+            return { cells: preparedCells, height };
+        });
+
+        const displayWidth = columnWidths.reduce((sum, width) => sum + width, 0) + 1;
+        const displayHeight = preparedRows.reduce((sum, row) => sum + row.height, 0) + 1;
+        const maxDimension = 4096;
+        const maxPixels = 12000000;
+        const qualityScale = 2;
+        const scale = Math.max(0.5, Math.min(
+            qualityScale,
+            maxDimension / displayWidth,
+            maxDimension / displayHeight,
+            Math.sqrt(maxPixels / (displayWidth * displayHeight))
+        ));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(displayWidth * scale));
+        canvas.height = Math.max(1, Math.round(displayHeight * scale));
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Canvas 2D context is unavailable');
+        context.scale(scale, scale);
+        context.fillStyle = palette.background;
+        context.fillRect(0, 0, displayWidth, displayHeight);
+        context.textBaseline = 'top';
+
+        let y = 0.5;
+        preparedRows.forEach((row, rowIndex) => {
+            let x = 0.5;
+            row.cells.forEach((cell, columnIndex) => {
+                const width = columnWidths[columnIndex];
+                const isHeader = !!(cell.element && cell.element.tagName.toLowerCase() === 'th');
+                context.fillStyle = isHeader ? palette.header : palette.alternate;
+                context.fillRect(x, y, width, row.height);
+                context.strokeStyle = palette.border;
+                context.lineWidth = 1;
+                context.strokeRect(x, y, width, row.height);
+                context.fillStyle = palette.text;
+                context.font = `${isHeader ? '600' : '400'} ${fontSize}px ${fontFamily}`;
+
+                const alignment = cell.element
+                    ? (cell.element.getAttribute('align') || '').toLowerCase()
+                    : '';
+                const textAlign = ['right', 'center'].includes(alignment) ? alignment : 'left';
+                context.textAlign = textAlign;
+                const textX = textAlign === 'right'
+                    ? x + width - horizontalPadding
+                    : textAlign === 'center'
+                        ? x + width / 2
+                        : x + horizontalPadding;
+                cell.lines.forEach((line, lineIndex) => {
+                    context.fillText(line || ' ', textX, y + verticalPadding + lineIndex * lineHeight);
+                });
+                x += width;
+            });
+            y += row.height;
+        });
+
+        return {
+            dataUrl: canvas.toDataURL('image/png'),
+            displayWidth,
+            displayHeight
         };
     },
 
@@ -2192,7 +2392,7 @@ const UIController = {
             const previewText = preview ? preview.innerText : '';
             const needsPortableImages = !!(activeChannel && activeChannel.portableRichCopy)
                 && preview
-                && preview.querySelector('svg');
+                && preview.querySelector('svg, table');
             if (needsPortableImages) {
                 button.textContent = '正在转换图表...';
                 try {
@@ -2202,7 +2402,7 @@ const UIController = {
                 } catch (error) {
                     console.error(`Failed to prepare portable ${channel} clipboard content:`, error);
                     button.textContent = originalLabel;
-                    this.showCopyNotice('Mermaid 或公式转图片失败，请重试。', true);
+                    this.showCopyNotice('表格、Mermaid 或公式转图片失败，请重试。', true);
                     return;
                 }
             }
