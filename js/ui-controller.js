@@ -14,6 +14,7 @@ const UIController = {
     xAssetQueueIndex: 0,
     xCopiedAssetIndexes: new Set(),
     copyNoticeTimer: null,
+    missingImageReferenceCursor: 0,
 
     getAnalyticsContext: function(parameters = {}) {
         const template = typeof TemplateManager !== 'undefined' && TemplateManager.activeId
@@ -98,6 +99,13 @@ const UIController = {
             imageFileInput.addEventListener('change', async () => {
                 await this.handleMarkdownImageFiles(imageFileInput.files, markdownInput);
                 imageFileInput.value = '';
+            });
+        }
+
+        const locateMissingImageButton = document.getElementById('locateMissingImageButton');
+        if (locateMissingImageButton) {
+            locateMissingImageButton.addEventListener('click', () => {
+                this.locateMissingImageReference();
             });
         }
 
@@ -326,8 +334,10 @@ const UIController = {
                 }
 
                 const remainingCount = resolution.unresolvedReferences.length;
+                const remainingLabels = resolution.unresolvedReferences
+                    .map(reference => this.getLocalImageReferenceLabel(reference));
                 const remainingText = remainingCount
-                    ? `，还有 ${remainingCount} 张同名文件未选择`
+                    ? `，还缺：${Array.from(new Set(remainingLabels)).join('、')}`
                     : '';
                 this.showCopyNotice(
                     `已加载 ${resolution.resolvedCount} 张 Obsidian 本地图片${remainingText}，编辑区继续保留短引用。`,
@@ -361,23 +371,186 @@ const UIController = {
         const referenceStatus = ImageHandler.getLocalImageReferenceStatus(markdown);
         const status = document.getElementById('localImageStatus');
         const button = document.getElementById('imageFileButton');
+        const locateButton = document.getElementById('locateMissingImageButton');
         const missingCount = referenceStatus.unresolvedReferences.length;
+        const missingLabels = referenceStatus.unresolvedReferences
+            .map(reference => this.getLocalImageReferenceLabel(reference));
+        const uniqueMissingLabels = Array.from(new Set(missingLabels));
 
         if (status) {
             if (missingCount > 0) {
-                status.textContent = `本地图片已加载 ${referenceStatus.loaded}/${referenceStatus.total}，请补充 ${missingCount} 张同名文件`;
+                const firstMissingLabel = uniqueMissingLabels[0] || '未命名图片';
+                const moreMissingText = uniqueMissingLabels.length > 1
+                    ? ` 等 ${uniqueMissingLabels.length} 张`
+                    : '';
+                status.textContent = `本地图片 ${referenceStatus.loaded}/${referenceStatus.total} · 缺少：${firstMissingLabel}${moreMissingText}`;
+                status.title = uniqueMissingLabels.join('\n');
             } else if (referenceStatus.total > 0) {
                 status.textContent = `本地图片已加载 ${referenceStatus.loaded}/${referenceStatus.total}，编辑区保留短引用`;
+                status.title = '';
             } else {
                 status.textContent = '';
+                status.title = '';
             }
             status.classList.toggle('warning', missingCount > 0);
+        }
+        if (locateButton) {
+            if (missingCount > 0) {
+                const nextIndex = this.missingImageReferenceCursor % missingCount;
+                locateButton.hidden = false;
+                locateButton.textContent = missingCount > 1
+                    ? `定位缺图 ${nextIndex + 1}/${missingCount}`
+                    : '定位缺图';
+                locateButton.title = `定位到：${missingLabels[nextIndex] || '缺失图片'}`;
+            } else {
+                locateButton.hidden = true;
+                locateButton.textContent = '定位缺图';
+                locateButton.title = '';
+                this.missingImageReferenceCursor = 0;
+            }
         }
         if (button) {
             button.textContent = missingCount > 0 ? `＋ 补充图片（缺 ${missingCount} 张）` : '＋ 添加图片';
             button.classList.toggle('needs-attention', missingCount > 0);
+            button.title = missingCount > 0
+                ? `请选择同名文件：${uniqueMissingLabels.join('、')}`
+                : '';
         }
         return referenceStatus;
+    },
+
+    getLocalImageReferenceLabel: function(reference) {
+        if (!reference) return '未命名图片';
+        const label = reference.fileName
+            || reference.alt
+            || reference.target
+            || reference.id;
+        return String(label || '未命名图片').trim() || '未命名图片';
+    },
+
+    scrollTextareaSelectionIntoView: function(textarea, selectionStart, selectionEnd) {
+        if (!textarea) return 0;
+
+        const source = String(textarea.value || '');
+        const start = Math.max(0, Math.min(Number(selectionStart) || 0, source.length));
+        const end = Math.max(start, Math.min(Number(selectionEnd) || start, source.length));
+        const viewportHeight = textarea.clientHeight || 220;
+
+        const applyScrollTop = (requestedTop) => {
+            const maximumScrollTop = Math.max(0, (textarea.scrollHeight || 0) - viewportHeight);
+            const targetTop = Math.max(0, Math.min(Number(requestedTop) || 0, maximumScrollTop));
+            const previousScrollBehavior = textarea.style ? textarea.style.scrollBehavior : '';
+            if (textarea.style) textarea.style.scrollBehavior = 'auto';
+            textarea.scrollTop = targetTop;
+            if (textarea.style) textarea.style.scrollBehavior = previousScrollBehavior;
+            return targetTop;
+        };
+
+        const applyProportionalFallback = () => {
+            const positionRatio = source.length > 0 ? start / source.length : 0;
+            const estimatedTop = (textarea.scrollHeight || 0) * positionRatio - viewportHeight / 2;
+            return applyScrollTop(estimatedTop);
+        };
+
+        const canMeasureRenderedText = typeof document !== 'undefined'
+            && document.body
+            && typeof document.createElement === 'function'
+            && typeof document.createTextNode === 'function'
+            && typeof window !== 'undefined'
+            && typeof window.getComputedStyle === 'function';
+        if (!canMeasureRenderedText) return applyProportionalFallback();
+
+        let mirror = null;
+        try {
+            const computedStyle = window.getComputedStyle(textarea);
+            const width = textarea.clientWidth || parseFloat(computedStyle.width);
+            if (!Number.isFinite(width) || width <= 0) return applyProportionalFallback();
+
+            mirror = document.createElement('div');
+            const marker = document.createElement('span');
+            const copiedProperties = [
+                'fontFamily',
+                'fontSize',
+                'fontStyle',
+                'fontWeight',
+                'letterSpacing',
+                'lineHeight',
+                'paddingTop',
+                'paddingRight',
+                'paddingBottom',
+                'paddingLeft',
+                'textIndent',
+                'textTransform',
+                'tabSize',
+                'wordBreak'
+            ];
+            copiedProperties.forEach((property) => {
+                mirror.style[property] = computedStyle[property];
+            });
+            Object.assign(mirror.style, {
+                position: 'fixed',
+                top: '0',
+                left: '-100000px',
+                width: `${width}px`,
+                height: 'auto',
+                boxSizing: 'border-box',
+                border: '0',
+                whiteSpace: 'pre-wrap',
+                overflowWrap: 'break-word',
+                wordWrap: 'break-word',
+                visibility: 'hidden',
+                pointerEvents: 'none'
+            });
+
+            mirror.appendChild(document.createTextNode(source.slice(0, start)));
+            marker.textContent = source.slice(start, Math.max(start + 1, end)) || '\u200b';
+            mirror.appendChild(marker);
+            document.body.appendChild(mirror);
+
+            const markerTop = marker.offsetTop;
+            const markerHeight = marker.offsetHeight || parseFloat(computedStyle.lineHeight) || 22;
+            if (!Number.isFinite(markerTop)) return applyProportionalFallback();
+            return applyScrollTop(markerTop - viewportHeight / 2 + markerHeight / 2);
+        } catch (error) {
+            return applyProportionalFallback();
+        } finally {
+            if (mirror && mirror.parentNode) mirror.parentNode.removeChild(mirror);
+        }
+    },
+
+    locateMissingImageReference: function(unresolvedReferences = null) {
+        if (typeof ImageHandler === 'undefined') return null;
+
+        const markdownInput = document.getElementById('markdownInput');
+        if (!markdownInput) return null;
+
+        const references = Array.isArray(unresolvedReferences)
+            ? unresolvedReferences
+            : ImageHandler.getLocalImageReferenceStatus(markdownInput.value).unresolvedReferences;
+        if (!references.length) return null;
+
+        const currentIndex = this.missingImageReferenceCursor % references.length;
+        const reference = references[currentIndex];
+        const start = Number.isInteger(reference.start) ? reference.start : 0;
+        const end = Number.isInteger(reference.end) ? reference.end : start;
+
+        if (typeof markdownInput.scrollIntoView === 'function') {
+            markdownInput.scrollIntoView({ block: 'nearest' });
+        }
+        markdownInput.focus();
+        if (typeof markdownInput.setSelectionRange === 'function') {
+            markdownInput.setSelectionRange(start, end);
+        }
+        this.scrollTextareaSelectionIntoView(markdownInput, start, end);
+
+        this.missingImageReferenceCursor = (currentIndex + 1) % references.length;
+        const locateButton = document.getElementById('locateMissingImageButton');
+        if (locateButton && references.length > 1) {
+            const nextIndex = this.missingImageReferenceCursor;
+            locateButton.textContent = `定位缺图 ${nextIndex + 1}/${references.length}`;
+            locateButton.title = `定位到：${this.getLocalImageReferenceLabel(references[nextIndex])}`;
+        }
+        return reference;
     },
 
     updateChannelControlsVisibility: function() {
@@ -410,11 +583,10 @@ const UIController = {
         if (!unresolvedReferences.length) return true;
 
         this.showCopyNotice(
-            `还有 ${unresolvedReferences.length} 张本地图片未加载。请选择或拖入同名图片后再复制图文。`,
+            `还有 ${unresolvedReferences.length} 张本地图片未加载：${unresolvedReferences.map(reference => this.getLocalImageReferenceLabel(reference)).join('、')}。已定位到原文引用，请选择或拖入同名图片。`,
             true
         );
-        const button = document.getElementById('imageFileButton');
-        if (button) button.focus();
+        this.locateMissingImageReference(unresolvedReferences);
         return false;
     },
 

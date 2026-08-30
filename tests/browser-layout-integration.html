@@ -79,8 +79,15 @@
 
                 channelSelect.value = 'wechat';
                 channelSelect.dispatchEvent(new appWindow.Event('change', { bubbles: true }));
-                const exampleButton = appDocument.querySelector('.preview-empty-example');
-                assert(exampleButton, 'Load example action is missing from the empty state');
+                const exampleButton = appDocument.getElementById('loadExampleButton');
+                assert(
+                    exampleButton && exampleButton.closest('.image-import-toolbar'),
+                    'Load example action is not attached to the Markdown editor header'
+                );
+                assert(
+                    !appDocument.querySelector('.preview-empty-example'),
+                    'Load example action still appears in the preview panel'
+                );
                 exampleButton.click();
                 assert(appDocument.getElementById('markdownInput').value.trim(), 'Load example action did not populate Markdown');
 
@@ -94,7 +101,7 @@
                     channelSpecificControls: true,
                     settingsMovedToHeader: true,
                     imageActionAttachedToEditor: true,
-                    exampleMovedToEmptyState: true
+                    exampleAttachedToEditor: true
                 });
             } catch (error) {
                 result.dataset.status = 'failed';

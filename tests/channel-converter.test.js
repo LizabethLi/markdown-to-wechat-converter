@@ -68,6 +68,34 @@ test('all channels receive the selected single-language Markdown', async () => {
     assert.equal(translationCalls, 1);
 });
 
+test('all channels remove strikethrough formatting without changing code examples', async () => {
+    const source = [
+        '# 标题',
+        '',
+        '这是~~已经失效~~的说明，<del>旧标签</del>也应变成普通文字。',
+        '',
+        '`const marker = "~~";`',
+        '',
+        '```text',
+        '~~代码里的波浪号~~',
+        '```'
+    ].join('\n');
+    const expectedText = '这是已经失效的说明，旧标签也应变成普通文字。';
+
+    const wechat = await ChannelConverter.renderForChannel('wechat', source, { outputLanguage: 'zh' });
+    const substack = await ChannelConverter.renderForChannel('substack', source, { outputLanguage: 'zh' });
+    const linkedin = await ChannelConverter.renderForChannel('linkedin', source, { outputLanguage: 'zh' });
+    const x = await ChannelConverter.renderForChannel('x', source, { outputLanguage: 'zh' });
+    const outputs = [wechat.output, substack.output, linkedin.output, x.data.articleMarkdown];
+
+    outputs.forEach((output) => {
+        assert.match(output, new RegExp(expectedText));
+        assert.doesNotMatch(output, /~~已经失效~~|<\/?del\b/i);
+        assert.match(output, /`const marker = "~~";`/);
+        assert.match(output, /```text\n~~代码里的波浪号~~\n```/);
+    });
+});
+
 test('landing page channel parameters resolve to editor channel ids', () => {
     assert.equal(ChannelConverter.resolveChannelId('wechat'), 'wechat');
     assert.equal(ChannelConverter.resolveChannelId('substack'), 'substack');
@@ -97,6 +125,31 @@ test('WeChat forwards an explicit template without changing global template stat
         '#2563EB',
         'wechat-magazine'
     ]);
+});
+
+test('WeChat keeps the lead marker until its renderer handles the paragraph', async () => {
+    let renderSource = '';
+    global.MarkdownConverter.convertMarkdownToWechat = async (markdown) => {
+        renderSource = markdown;
+        return '<section>Rendered lead</section>';
+    };
+
+    await ChannelConverter.renderForChannel('wechat', '[lead] 这是引导段。', {
+        outputLanguage: 'zh'
+    });
+
+    assert.equal(renderSource, '[lead] 这是引导段。');
+});
+
+test('non-WeChat channels remove the private lead marker from portable Markdown', async () => {
+    const rendered = await ChannelConverter.renderForChannel(
+        'substack',
+        '# 标题\n\n[lead] 这是引导段。',
+        { outputLanguage: 'zh' }
+    );
+
+    assert.equal(rendered.output, '# 标题\n\n这是引导段。');
+    assert.doesNotMatch(rendered.previewHtml, /\[lead\]/i);
 });
 
 test('a stale translation cannot overwrite the cache for newer source text', async () => {

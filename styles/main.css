@@ -85,6 +85,13 @@ body {
     display: none;
 }
 
+#localImageStatus {
+    max-width: min(320px, 42vw);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
 .image-import-button {
     flex: 0 0 auto;
     padding: 6px 9px;
@@ -112,6 +119,26 @@ body {
 #localImageStatus.warning {
     color: #b45309;
     font-weight: 600;
+}
+
+.locate-missing-image-button {
+    flex: 0 0 auto;
+    padding: 4px 7px;
+    color: #92400e;
+    background: transparent;
+    border: 1px solid #f59e0b;
+    border-radius: 5px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.locate-missing-image-button:hover,
+.locate-missing-image-button:focus-visible {
+    color: #78350f;
+    background: #fef3c7;
+    outline: none;
 }
 
 #markdownInput.is-image-dragover {
@@ -509,24 +536,23 @@ body {
     line-height: 1.6;
 }
 
-.preview-empty-actions {
-    margin-top: 18px;
-}
-
-.preview-empty-example {
-    padding: 7px 12px;
+.load-example-button {
+    flex: 0 0 auto;
+    padding: 6px 9px;
     color: #5b21b6;
     background: #faf7ff;
     border: 1px solid #ddd6fe;
-    border-radius: 7px;
+    border-radius: 6px;
     font: inherit;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
 }
 
-.preview-empty-example:hover {
+.load-example-button:hover,
+.load-example-button:focus-visible {
     background: #f3e8ff;
+    outline: none;
 }
 
 .preview-capabilities {
@@ -737,6 +763,9 @@ body {
 .markdown-preview h1 { margin: 1.25em 0 0.6em; }
 .markdown-preview h2 { margin: 1.2em 0 0.55em; }
 .markdown-preview h3 { margin: 1.1em 0 0.5em; }
+.markdown-preview em { font-style: italic; }
+.markdown-preview hr { border: 0; border-top: 1px solid #d1d5db; margin: 1.6em 0; }
+.markdown-preview input[type="checkbox"] { margin: 0 0.5em 0 0; accent-color: #2563eb; }
 .markdown-preview code { padding: 2px 4px; border-radius: 3px; }
 .markdown-preview pre { padding: 14px; overflow-x: auto; }
 .markdown-preview pre code { padding: 0; background: transparent; }

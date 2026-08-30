@@ -42,7 +42,15 @@
                 }
 
                 const markdownInput = appDocument.getElementById('markdownInput');
-                markdownInput.value = '# Local image test\n\n![[Pasted image 20260818133657.png]]';
+                markdownInput.value = [
+                    '# Local image test',
+                    '',
+                    '![[Pasted image 20260818133657.png]]',
+                    '',
+                    '这是一段没有手动换行、但会在编辑器中自动折成很多视觉行的正文。'.repeat(220),
+                    '',
+                    '![[Missing diagram.png]]'
+                ].join('\n');
                 markdownInput.selectionStart = markdownInput.value.length;
                 markdownInput.selectionEnd = markdownInput.value.length;
 
@@ -76,6 +84,27 @@
                     !markdownInput.value.includes('data:image/png;base64,'),
                     'Editor still exposes embedded Base64 image data'
                 );
+
+                const localImageStatus = appDocument.getElementById('localImageStatus');
+                const locateMissingImageButton = appDocument.getElementById('locateMissingImageButton');
+                assert(
+                    localImageStatus.textContent.includes('Missing diagram.png'),
+                    'Missing image status does not identify the exact file name'
+                );
+                assert(!locateMissingImageButton.hidden, 'Missing image locate action is hidden');
+                markdownInput.scrollTop = 0;
+                locateMissingImageButton.click();
+                assert(
+                    markdownInput.value.slice(markdownInput.selectionStart, markdownInput.selectionEnd)
+                        === '![[Missing diagram.png]]',
+                    'Missing image locate action did not select the exact Markdown reference'
+                );
+                assert(
+                    markdownInput.scrollTop > 0,
+                    'Missing image locate action did not scroll wrapped content into view'
+                );
+
+                markdownInput.value = markdownInput.value.replace('\n\n![[Missing diagram.png]]', '');
 
                 await appWindow.UIController.updateOutput();
                 const preview = appDocument.getElementById('preview');
@@ -168,6 +197,8 @@
                     editorKeptShortImageReference: true,
                     editorHidesBase64Data: true,
                     previewHasEmbeddedImage: true,
+                    missingImageNameShown: true,
+                    missingImageReferenceLocated: true,
                     generatedImageCaptionHidden: true,
                     clipboardHtmlHasEmbeddedImage: true,
                     clipboardBase64PasteCompacted: true,

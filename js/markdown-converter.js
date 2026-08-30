@@ -53,9 +53,24 @@ const MarkdownConverter = {
         // 文本格式
         renderer.strong = (text) => wechatStyles.bold(null, text);
         renderer.em = (text) => wechatStyles.italic(null, text);
+        // 各发布平台对删除线的支持不一致，统一保留文字但移除删除线样式。
+        renderer.del = (text) => text;
+
+        // 分隔线使用内联样式，确保复制到公众号后仍然可见
+        renderer.hr = () => {
+            const dividerColor = /^#[0-9a-f]{3,8}$/i.test(themeColor || '')
+                ? themeColor
+                : '#d1d5db';
+            return `<hr style="border:0;border-top:1px solid ${dividerColor};opacity:.35;margin:24px 0;">`;
+        };
 
         // 列表渲染
         renderer.list = (body, ordered, start) => {
+            if (/data-wechat-task-item="true"/.test(body || '')) {
+                const margin = mode === 'compact' ? '8px 0' : '15px 0';
+                return `<section data-wechat-task-list="true" style="margin:${margin};">${body}</section>`;
+            }
+
             const tag = ordered ? 'ol' : 'ul';
             const styles = mode === 'compact' 
                 ? `list-style-position: outside; padding-left: 30px; margin: 8px 0;`
@@ -64,20 +79,33 @@ const MarkdownConverter = {
             return `<${tag} style="${styles}" class="list-paddingleft-1">${body}</${tag}>`;
         };
 
-        renderer.listitem = (text) => {
+        renderer.listitem = (text, task = false, checked = false) => {
             const style = mode === 'compact'
                 ? `margin: 5px 0; line-height: 1.6; font-size: 14px; color: #333;`
                 : `margin: 8px 0; line-height: 1.6; font-size: 14px; color: #333;`;
 
-            const content = (text || '').trim();
+            const content = (text || '')
+                .replace(/^<input\b[^>]*type="checkbox"[^>]*>\s*/i, '')
+                .trim();
             // Avoid invalid nested <p> by detecting block-level content produced by marked
             const hasBlockLevel = /<(?:p|div|section|ul|ol|pre|blockquote|h[1-6]|table)\b/i.test(content);
+            const taskMarker = task
+                ? `<span style="color:${checked ? '#16a34a' : '#9ca3af'};font-weight:700;">${checked ? '☑' : '☐'}&nbsp;</span>`
+                : '';
+
+            if (task) {
+                const tag = hasBlockLevel ? 'section' : 'p';
+                const taskContent = hasBlockLevel
+                    ? content
+                    : `<span style="color:#333;">${content}</span>`;
+                return `<${tag} data-wechat-task-item="true" style="${style} list-style:none;">${taskMarker}${taskContent}</${tag}>`;
+            }
 
             if (hasBlockLevel) {
                 return `<li style="${style}">${content}</li>`;
             }
 
-            return `<li style="${style}"><p style="display: inline;">${content}</p></li>`;
+            return `<li style="${style}"><p style="display:inline;">${content}</p></li>`;
         };
 
         // 引用
@@ -107,7 +135,17 @@ const MarkdownConverter = {
             // 使用语法高亮增强版本
             return this.renderCodeBlock(code, lang, mode, themeColor, templateId);
         };
-        renderer.codespan = (code) => wechatStyles.inlineCode(null, code);
+        renderer.codespan = (code) => {
+            const styled = typeof wechatStyles.inlineCode === 'function'
+                ? String(wechatStyles.inlineCode(null, code) || '')
+                : '';
+            if (/<code\b/i.test(styled)) {
+                return styled
+                    .replace(/<code\b/i, '<span data-wechat-inline-code="true"')
+                    .replace(/<\/code>/i, '</span>');
+            }
+            return `<span data-wechat-inline-code="true" style="background:#f1f3f4;padding:2px 6px;border-radius:3px;font-family:'Monaco','Menlo','Ubuntu Mono',monospace;font-size:13px;color:#d73a49;">${code}</span>`;
+        };
 
         // 图片和链接
         renderer.image = (href, title, text) => wechatStyles.image(null, text, href);
@@ -429,10 +467,10 @@ const MarkdownConverter = {
         const syntaxConfig = AppConfig.syntaxHighlighting;
         
         if (!syntaxConfig.enabled || typeof hljs === 'undefined') {
-            // 回退到普通样式
+            // 回退路径也使用公众号可携带结构，避免 <pre>/<code> 被粘贴清理后丢失格式。
             console.log('使用回退样式');
-            const styles = this.getWechatStyles(mode, themeColor, templateId);
-            return styles.codeBlock(null, lang, trimmedCode);
+            const portableCode = this.formatPlainCodeForWechat(trimmedCode);
+            return this.generateStyledCodeBlock(portableCode, '', currentTheme, mode);
         }
 
         // 规范化语言名称
@@ -470,6 +508,28 @@ const MarkdownConverter = {
         console.log('最终HTML:', result);
         console.log('=== END DEBUG ===');
         return result;
+    },
+
+    escapeCodeHtml: function(code) {
+        return String(code || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
+    preserveCodeSpaces: function(text) {
+        return String(text || '')
+            .replace(/\t/g, '    ')
+            .replace(/(^ +| {2,})/g, spaces => '&nbsp;'.repeat(spaces.length));
+    },
+
+    formatPlainCodeForWechat: function(code) {
+        return this.escapeCodeHtml(code)
+            .split('\n')
+            .map(line => this.preserveCodeSpaces(line))
+            .join('<br>');
     },
 
     // 规范化语言名称
@@ -511,7 +571,7 @@ const MarkdownConverter = {
             padding: ${isCompact ? '14px' : '16px'};
             margin: ${isCompact ? '12px 0' : '16px 0'};
             overflow-x: auto;
-            white-space: pre;
+            white-space: normal;
             font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Courier New', monospace;
             font-size: 14px;
             line-height: 1.5;
@@ -522,7 +582,7 @@ const MarkdownConverter = {
         // 生成内联CSS样式
         const inlineStyledCode = this.applyInlineSyntaxStyles(code, themeStyles);
 
-        return `<pre style="${codeBlockStyle}"><code class="hljs">${inlineStyledCode}</code></pre>`;
+        return `<section data-wechat-code-block="true" style="${codeBlockStyle}"><span style="display:block;font-family:inherit;font-size:inherit;line-height:inherit;white-space:normal;word-break:normal;overflow-wrap:normal;">${inlineStyledCode || '&nbsp;'}</span></section>`;
     },
 
     // 将语法高亮样式直接写入元素的 style 属性，避免被微信清理
@@ -613,7 +673,7 @@ const MarkdownConverter = {
         const collectTextNodes = (node) => {
             node.childNodes.forEach(child => {
                 if (child.nodeType === TEXT_NODE) {
-                    if (child.nodeValue && child.nodeValue.includes('\n')) {
+                    if (child.nodeValue && /\n|\t|^ | {2,}/.test(child.nodeValue)) {
                         textNodes.push(child);
                     }
                 } else if (child.nodeType === ELEMENT_NODE) {
@@ -631,8 +691,10 @@ const MarkdownConverter = {
                 if (index > 0) {
                     fragment.appendChild(document.createElement('br'));
                 }
-                if (segment) {
-                    fragment.appendChild(document.createTextNode(segment));
+                const portableSegment = this.preserveCodeSpaces(segment)
+                    .replace(/&nbsp;/g, '\u00a0');
+                if (portableSegment) {
+                    fragment.appendChild(document.createTextNode(portableSegment));
                 }
             });
             node.parentNode.replaceChild(fragment, node);

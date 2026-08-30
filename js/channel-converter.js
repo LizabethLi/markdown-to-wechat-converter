@@ -2,6 +2,49 @@
 const stripLeadMarkers = (text) =>
     text.replace(/(^|\n)[ \t]*\[\s*lead\s*\][ \t]*/gi, '$1');
 
+const stripStrikethroughFormatting = (text) => {
+    let fence = null;
+
+    return String(text || '')
+        .split('\n')
+        .map((line) => {
+            if (fence) {
+                const closingFence = new RegExp(
+                    `^[ \\t]{0,3}${fence.character}{${fence.length},}[ \\t]*$`
+                );
+                if (closingFence.test(line)) {
+                    fence = null;
+                }
+                return line;
+            }
+
+            const openingFence = line.match(/^[ \t]{0,3}(`{3,}|~{3,})/);
+            if (openingFence) {
+                fence = {
+                    character: openingFence[1][0],
+                    length: openingFence[1].length
+                };
+                return line;
+            }
+
+            const codeSpans = [];
+            const protectedLine = line.replace(/(`+)(.*?)\1/g, (codeSpan) => {
+                const placeholder = `\u0000INLINE_CODE_${codeSpans.length}\u0000`;
+                codeSpans.push({ placeholder, codeSpan });
+                return placeholder;
+            });
+            const plainLine = protectedLine
+                .replace(/(^|[^\\])~~(?=\S)(.*?\S)~~/g, '$1$2')
+                .replace(/<\/?(?:del|s|strike)\b[^>]*>/gi, '');
+
+            return codeSpans.reduce(
+                (restored, item) => restored.split(item.placeholder).join(item.codeSpan),
+                plainLine
+            );
+        })
+        .join('\n');
+};
+
 const ChannelConverter = {
     channelAliases: {
         'x-article-thread': 'x'
@@ -125,7 +168,9 @@ const ChannelConverter = {
     async renderForChannel(channelId, markdown, context = {}) {
         const channel = this.getChannel(channelId);
         const outputLanguage = context.outputLanguage === 'en' ? 'en' : 'zh';
-        const localizedMarkdown = await this.buildLocalizedMarkdown(markdown || '', outputLanguage);
+        const localizedMarkdown = stripStrikethroughFormatting(
+            await this.buildLocalizedMarkdown(markdown || '', outputLanguage)
+        );
         const originalMarkdown = this.prepareSourceMarkdown(markdown || '').trim();
         if (outputLanguage === 'en'
             && localizedMarkdown.trim() !== originalMarkdown
@@ -190,16 +235,16 @@ const ChannelConverter = {
     },
 
     async buildLocalizedMarkdown(markdown, outputLanguage = 'zh') {
-        const sanitized = this.prepareSourceMarkdown(markdown);
-        if (!sanitized.trim()) {
+        const sourceMarkdown = String(markdown || '');
+        if (!sourceMarkdown.trim()) {
             return '';
         }
 
-        if (outputLanguage !== 'en' || !/[\u3400-\u9fff]/.test(sanitized)) {
-            return sanitized.trim();
+        if (outputLanguage !== 'en' || !/[\u3400-\u9fff]/.test(sourceMarkdown)) {
+            return sourceMarkdown.trim();
         }
 
-        const source = sanitized.trim();
+        const source = sourceMarkdown.trim();
         if (this.localizationCache.source === source) {
             if (this.localizationCache.value) {
                 return this.localizationCache.value;
@@ -209,11 +254,11 @@ const ChannelConverter = {
             }
         }
 
-        const protectedImages = this.protectInlineImageData(sanitized);
+        const protectedImages = this.protectInlineImageData(sourceMarkdown);
         const translationPromise = Translator.translateMarkdownToEnglish(protectedImages.markdown)
             .then((translated) => {
                 const restored = this.restoreInlineImageData(translated || protectedImages.markdown, protectedImages.images);
-                return stripLeadMarkers(restored || sanitized).trim() || source;
+                return String(restored || sourceMarkdown).trim() || source;
             });
         this.localizationCache = {
             source,
@@ -474,7 +519,7 @@ const ChannelConverter = {
     },
 
     prepareSourceMarkdown(markdown) {
-        return stripLeadMarkers(markdown || '');
+        return stripLeadMarkers(stripStrikethroughFormatting(markdown || ''));
     },
 
     isSameContent(first, second) {
