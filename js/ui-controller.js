@@ -1632,6 +1632,14 @@ const UIController = {
             return;
         }
 
+        const expandButton = target && typeof target.closest === 'function'
+            ? target.closest('[data-x-thread-expand]')
+            : null;
+        if (expandButton) {
+            this.toggleXThreadPreview(expandButton);
+            return;
+        }
+
         const assetButton = target && typeof target.closest === 'function'
             ? target.closest('[data-x-asset-action]')
             : null;
@@ -1647,6 +1655,21 @@ const UIController = {
         } else if (action === 'download-all') {
             this.downloadAllXArticleAssets(assetButton);
         }
+    },
+
+    toggleXThreadPreview: function(button) {
+        const card = button && typeof button.closest === 'function'
+            ? button.closest('.thread-card')
+            : null;
+        const body = card && typeof card.querySelector === 'function'
+            ? card.querySelector('[data-x-thread-body]')
+            : null;
+        if (!body || !body.classList) return;
+
+        const willExpand = button.getAttribute('aria-expanded') !== 'true';
+        body.classList.toggle('is-collapsed', !willExpand);
+        button.setAttribute('aria-expanded', String(willExpand));
+        button.textContent = willExpand ? '收起' : '... 展开全部';
     },
 
     copyXPublishingPart: async function(button) {

@@ -13,9 +13,10 @@ const App = {
         console.log('Starting Markdown to WeChat Converter...');
         
         // 检查依赖
-        if (!this.checkDependencies()) {
-            console.error('Missing required dependencies');
-            this.showError('缺少必要的依赖库');
+        const missingDependencies = this.getMissingDependencies();
+        if (missingDependencies.length > 0) {
+            console.error('Missing dependencies:', missingDependencies);
+            this.showError(`缺少必要的依赖库：${missingDependencies.join('、')}`);
             return;
         }
 
@@ -26,8 +27,8 @@ const App = {
         this.startApplication();
     },
 
-    // 检查依赖
-    checkDependencies: function() {
+    // 获取缺失依赖，启动失败时直接告诉用户具体是哪一项。
+    getMissingDependencies: function() {
         const required = [
             { name: 'marked', obj: window.marked },
             { name: 'WechatStyles', obj: window.WechatStyles },
@@ -39,13 +40,12 @@ const App = {
             { name: 'SiteAnalytics', obj: window.SiteAnalytics }
         ];
 
-        const missing = required.filter(dep => !dep.obj);
-        if (missing.length > 0) {
-            console.error('Missing dependencies:', missing.map(dep => dep.name));
-            return false;
-        }
+        return required.filter(dep => !dep.obj).map(dep => dep.name);
+    },
 
-        return true;
+    // 检查依赖
+    checkDependencies: function() {
+        return this.getMissingDependencies().length === 0;
     },
 
     // 初始化模块

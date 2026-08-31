@@ -208,3 +208,66 @@ test('textarea scrolling uses the rendered marker position when DOM measurement 
         Object.assign(markdownInput, originalState);
     }
 });
+
+test('X thread preview expands and collapses without changing its source content', () => {
+    const bodyClassList = classList();
+    bodyClassList.values.add('is-collapsed');
+    const body = { classList: bodyClassList };
+    const card = {
+        querySelector: (selector) => selector === '[data-x-thread-body]' ? body : null
+    };
+    const attributes = new Map([['aria-expanded', 'false']]);
+    const button = {
+        textContent: '... 展开全部',
+        closest(selector) {
+            if (selector === '[data-x-thread-expand]') return this;
+            if (selector === '.thread-card') return card;
+            return null;
+        },
+        getAttribute: (name) => attributes.get(name) || null,
+        setAttribute: (name, value) => attributes.set(name, String(value))
+    };
+
+    UIController.handlePreviewAction({ target: button });
+    assert.equal(attributes.get('aria-expanded'), 'true');
+    assert.equal(bodyClassList.values.has('is-collapsed'), false);
+    assert.equal(button.textContent, '收起');
+
+    UIController.handlePreviewAction({ target: button });
+    assert.equal(attributes.get('aria-expanded'), 'false');
+    assert.equal(bodyClassList.values.has('is-collapsed'), true);
+    assert.equal(button.textContent, '... 展开全部');
+});
+
+test('copying an X thread post uses the complete source instead of its collapsed preview', async () => {
+    const fullPost = '1/1\nSupport for Multiple Platforms and Languages';
+    const originalResult = UIController.currentRenderedResult;
+    const originalCopyToClipboard = UIController.copyToClipboard;
+    const originalShowCopySuccess = UIController.showCopySuccess;
+    let copied = '';
+
+    UIController.currentRenderedResult = { data: { threadPosts: [fullPost] } };
+    UIController.copyToClipboard = async (text) => {
+        copied = text;
+        return true;
+    };
+    UIController.showCopySuccess = () => {};
+
+    try {
+        await UIController.copyXPublishingPart({
+            textContent: '复制这条',
+            getAttribute(name) {
+                if (name === 'data-x-copy') return 'thread';
+                if (name === 'data-thread-index') return '0';
+                return null;
+            }
+        });
+
+        assert.equal(copied, fullPost);
+        assert.doesNotMatch(copied, /\.\.\.$/);
+    } finally {
+        UIController.currentRenderedResult = originalResult;
+        UIController.copyToClipboard = originalCopyToClipboard;
+        UIController.showCopySuccess = originalShowCopySuccess;
+    }
+});

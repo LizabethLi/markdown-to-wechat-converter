@@ -378,10 +378,10 @@ const ChannelConverter = {
             .filter(point => point && point.title)
             .slice(0, 6)
             .map(point => ({
-                title: this.clipText(point.title, 70),
-                detail: this.clipText(point.detail || '', 190)
+                title: String(point.title || '').trim(),
+                detail: String(point.detail || '').trim()
             }));
-        const recommendation = this.clipText(plan.recommendation || '', 180);
+        const recommendation = String(plan.recommendation || '').trim();
         const threadPosts = this.buildXThreadFromPlan(recommendation, bulletPoints);
 
         return {
@@ -457,8 +457,8 @@ const ChannelConverter = {
                 .filter(Boolean)
                 .slice(0, maxPoints)
                 .forEach((part) => points.push({
-                    title: this.clipText(part, 70),
-                    detail: this.clipText(part, 190)
+                    title: part,
+                    detail: part
                 }));
         }
 
@@ -466,45 +466,49 @@ const ChannelConverter = {
     },
 
     buildXThreadFromPlan(recommendation, bulletPoints) {
-        if (!recommendation && bulletPoints.length === 0) {
+        const summary = String(recommendation || '').trim();
+        const points = Array.isArray(bulletPoints)
+            ? bulletPoints.filter(point => point && String(point.title || '').trim())
+            : [];
+        if (!summary && points.length === 0) {
             return [];
         }
 
-        const overview = bulletPoints
-            .map(point => `• ${point.title}`)
-            .join('\n');
-        const mainPost = this.clipText(
-            [recommendation, overview].filter(Boolean).join('\n\n'),
-            250
-        );
-        const rawPosts = [mainPost];
+        // 预留编号空间，正文超长时拆成下一条，绝不把省略号写入复制数据。
+        const maxBodyLength = 270;
+        const rawPosts = [];
+        const recommendationChunks = this.splitIntoXThread(summary, maxBodyLength);
+        let overviewPost = recommendationChunks.pop() || '';
+        rawPosts.push(...recommendationChunks);
+        let hasOverviewBullet = false;
 
-        bulletPoints.forEach((point, index) => {
-            rawPosts.push(this.clipText(
-                [`${index + 1}. ${point.title}`, point.detail].filter(Boolean).join('\n\n'),
-                250
-            ));
+        points.forEach((point) => {
+            const bulletLine = `• ${String(point.title || '').trim()}`;
+            const separator = overviewPost ? (hasOverviewBullet ? '\n' : '\n\n') : '';
+            const candidate = `${overviewPost}${separator}${bulletLine}`;
+
+            if (candidate.length <= maxBodyLength) {
+                overviewPost = candidate;
+            } else {
+                if (overviewPost) rawPosts.push(overviewPost);
+                const chunks = this.splitIntoXThread(bulletLine, maxBodyLength);
+                overviewPost = chunks.pop() || '';
+                rawPosts.push(...chunks);
+            }
+            hasOverviewBullet = true;
+        });
+
+        if (overviewPost) rawPosts.push(overviewPost);
+
+        points.forEach((point, index) => {
+            const pointText = [
+                `${index + 1}. ${String(point.title || '').trim()}`,
+                String(point.detail || '').trim()
+            ].filter(Boolean).join('\n\n');
+            rawPosts.push(...this.splitIntoXThread(pointText, maxBodyLength));
         });
 
         return rawPosts.map((post, index) => `${index + 1}/${rawPosts.length}\n${post}`);
-    },
-
-    clipText(text, maxLength) {
-        const source = String(text || '').trim();
-        if (!maxLength || source.length <= maxLength) {
-            return source;
-        }
-
-        let clipped = '';
-        for (const character of source) {
-            if (`${clipped}${character}…`.length > maxLength) break;
-            clipped += character;
-        }
-        const lastBreak = Math.max(clipped.lastIndexOf(' '), clipped.lastIndexOf('\n'));
-        if (lastBreak > Math.floor(maxLength * 0.6)) {
-            clipped = clipped.slice(0, lastBreak);
-        }
-        return `${clipped.trim()}…`;
     },
 
     formatXPublishingBundle(bundle) {
@@ -712,14 +716,17 @@ const ChannelConverter = {
         const articleHtml = articlePreviewHtml || marked(bundle.articleMarkdown);
         const threadCards = bundle.threadPosts.map((post, index) => {
             const [header, ...bodyLines] = post.split('\n');
-            const body = this.escapeHtml(bodyLines.join('\n')).replace(/\n/g, '<br>');
+            const bodyText = bodyLines.join('\n');
+            const body = this.escapeHtml(bodyText).replace(/\n/g, '<br>');
+            const shouldCollapse = bodyText.length > 220 || bodyLines.length > 5;
             return `
 <div class="thread-card">
   <div class="thread-card-toolbar">
     <div class="thread-card-header">${this.escapeHtml(header)}</div>
     <button type="button" class="x-copy-part-btn" data-x-copy="thread" data-thread-index="${index}">复制这条</button>
   </div>
-  <div class="thread-card-body">${body}</div>
+  <div class="thread-card-body${shouldCollapse ? ' is-collapsed' : ''}" data-x-thread-body>${body}</div>
+  ${shouldCollapse ? '<button type="button" class="x-thread-expand-btn" data-x-thread-expand aria-expanded="false">... 展开全部</button>' : ''}
 </div>`;
         }).join('');
 

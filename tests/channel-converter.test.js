@@ -333,6 +333,31 @@ test('numbered X posts remain within the 280-character limit', () => {
     assert.ok(numberedPosts.every((post) => post.length <= 280));
 });
 
+test('X thread keeps complete copy text while the preview can collapse it visually', () => {
+    const recommendation = 'Discover how the Markdown Publishing Toolbox simplifies multi-platform content sharing with just one Markdown draft.';
+    const bulletPoints = [
+        { title: 'Streamline Your Publishing Process', detail: '' },
+        { title: 'Maintain Creative Control', detail: '' },
+        { title: 'Adapt to Different Platform Needs', detail: '' },
+        { title: 'Support for Multiple Platforms and Languages', detail: '' }
+    ];
+
+    const threadPosts = ChannelConverter.buildXThreadFromPlan(recommendation, bulletPoints);
+    const preview = ChannelConverter.renderXPublishingPreview({
+        articleMarkdown: '# Markdown Publishing Toolbox',
+        threadPosts,
+        usedAI: true,
+        aiError: ''
+    });
+
+    assert.match(threadPosts[0], /Support for Multiple Platforms and Languages/);
+    assert.doesNotMatch(threadPosts[0], /Support for Multiple\.\.\./);
+    assert.ok(threadPosts.every(post => post.length <= 280));
+    assert.match(preview, /data-x-thread-expand/);
+    assert.match(preview, /thread-card-body is-collapsed/);
+    assert.match(preview, /Support for Multiple Platforms and Languages/);
+});
+
 test('X local preview does not call AI while the user is typing', async () => {
     let translationCalls = 0;
     let generationCalls = 0;

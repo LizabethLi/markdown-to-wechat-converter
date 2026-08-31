@@ -1274,6 +1274,30 @@ body {
     white-space: normal;
 }
 
+.thread-card-body.is-collapsed {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+}
+
+.x-thread-expand-btn {
+    display: inline-block;
+    margin-top: 0.55rem;
+    padding: 0;
+    color: #2563eb;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.x-thread-expand-btn:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
 /* Markdown list styles (restore indentation and nesting) */
 .markdown-preview ul,
 .markdown-preview ol {
