@@ -2,7 +2,4 @@
 .DS_Store
 .gstack/
 management/
-video/node_modules/
-video/out/
-video/.remotion/
-video/build/
+video/
