@@ -23,6 +23,12 @@ const elements = {
     localImageStatus: { textContent: '', title: '', classList: classList() },
     locateMissingImageButton: { hidden: true, textContent: '', title: '' },
     imageFileButton: { textContent: '', title: '', classList: classList() },
+    channelSelect: { value: 'wechat' },
+    translatorPanel: { style: { display: 'none' } },
+    translatorApiKey: {
+        focusCount: 0,
+        focus() { this.focusCount += 1; }
+    },
     markdownInput: {
         value: markdownSource,
         clientHeight: 100,
@@ -57,9 +63,61 @@ test.beforeEach(() => {
     elements.localImageStatus.textContent = '';
     elements.localImageStatus.title = '';
     elements.locateMissingImageButton.hidden = true;
+    elements.channelSelect.value = 'wechat';
+    elements.translatorPanel.style.display = 'none';
+    elements.translatorApiKey.focusCount = 0;
     elements.markdownInput.focused = false;
     elements.markdownInput.selectionStart = 0;
     elements.markdownInput.selectionEnd = 0;
+});
+
+test('English output opens translator settings without focusing the API key field', () => {
+    const originalLanguage = UIController.outputLanguage;
+    const originalHasTranslatorConfiguration = UIController.hasTranslatorConfiguration;
+    const originalUpdateOutputLanguageUI = UIController.updateOutputLanguageUI;
+    const originalUpdateChannelReminder = UIController.updateChannelReminder;
+    const originalUpdateOutput = UIController.updateOutput;
+    const originalLocalStorage = global.localStorage;
+
+    UIController.outputLanguage = 'zh';
+    UIController.hasTranslatorConfiguration = () => false;
+    UIController.updateOutputLanguageUI = () => {};
+    UIController.updateChannelReminder = () => {};
+    UIController.updateOutput = () => {};
+    global.localStorage = { setItem() {} };
+
+    try {
+        UIController.handleOutputLanguageChange('en');
+
+        assert.equal(elements.translatorPanel.style.display, 'block');
+        assert.equal(elements.translatorApiKey.focusCount, 0);
+    } finally {
+        UIController.outputLanguage = originalLanguage;
+        UIController.hasTranslatorConfiguration = originalHasTranslatorConfiguration;
+        UIController.updateOutputLanguageUI = originalUpdateOutputLanguageUI;
+        UIController.updateChannelReminder = originalUpdateChannelReminder;
+        UIController.updateOutput = originalUpdateOutput;
+        global.localStorage = originalLocalStorage;
+    }
+});
+
+test('X generation opens translator settings without focusing the API key field', async () => {
+    const originalTranslator = global.Translator;
+    const originalUpdateChannelReminder = UIController.updateChannelReminder;
+
+    elements.channelSelect.value = 'x';
+    global.Translator = { hasAIConfiguration: () => false };
+    UIController.updateChannelReminder = () => {};
+
+    try {
+        await UIController.generateXPublishingContent();
+
+        assert.equal(elements.translatorPanel.style.display, 'block');
+        assert.equal(elements.translatorApiKey.focusCount, 0);
+    } finally {
+        global.Translator = originalTranslator;
+        UIController.updateChannelReminder = originalUpdateChannelReminder;
+    }
 });
 
 test('missing image status names the file and exposes a locate action', () => {

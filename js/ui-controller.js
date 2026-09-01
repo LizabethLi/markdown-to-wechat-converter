@@ -605,9 +605,7 @@ const UIController = {
 
         if (nextLanguage === 'en' && !this.hasTranslatorConfiguration()) {
             const panel = document.getElementById('translatorPanel');
-            const keyInput = document.getElementById('translatorApiKey');
             if (panel) panel.style.display = 'block';
-            if (keyInput) keyInput.focus();
         }
         this.updateOutput();
     },
@@ -1571,8 +1569,6 @@ const UIController = {
         if (!hasAI) {
             const panel = document.getElementById('translatorPanel');
             if (panel) panel.style.display = 'block';
-            const keyInput = document.getElementById('translatorApiKey');
-            if (keyInput) keyInput.focus();
             this.updateChannelReminder('x');
             return;
         }
