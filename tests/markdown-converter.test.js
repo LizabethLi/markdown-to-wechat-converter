@@ -58,6 +58,15 @@ test('the WeChat horizontal rule carries the selected theme color inline', () =>
     assert.match(renderer.hr(), /margin:24px 0/);
 });
 
+test('WeChat table cells use the same 15px font size as body text', () => {
+    const renderer = MarkdownConverter.createWechatRenderer('compact', '#2563EB', 'test-template');
+    const header = renderer.tablecell('字段', { header: true, align: null });
+    const cell = renderer.tablecell('内容', { header: false, align: null });
+
+    assert.match(header, /font-size:\s*15px/);
+    assert.match(cell, /font-size:\s*15px/);
+});
+
 test('WeChat task items use portable text markers instead of checkbox inputs', () => {
     const renderer = MarkdownConverter.createWechatRenderer('compact', '#2563EB', 'test-template');
     const checked = renderer.listitem('<input disabled="" type="checkbox" checked=""> 已完成', true, true);

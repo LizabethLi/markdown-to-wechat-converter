@@ -164,8 +164,8 @@ const MarkdownConverter = {
             const tag = flags.header ? 'th' : 'td';
             const textAlign = flags.align ? `text-align: ${flags.align};` : '';
             const style = flags.header
-                ? `background-color: #f8fafc; font-weight: 600; color: #334155; border: 1px solid #e2e8f0; padding: 10px 12px; ${textAlign}`
-                : `border: 1px solid #e2e8f0; padding: 10px 12px; ${textAlign}`;
+                ? `background-color: #f8fafc; font-weight: 600; font-size: 15px; color: #334155; border: 1px solid #e2e8f0; padding: 10px 12px; ${textAlign}`
+                : `font-size: 15px; border: 1px solid #e2e8f0; padding: 10px 12px; ${textAlign}`;
             return `<${tag} style="${style}">${content}</${tag}>`;
         };
 
