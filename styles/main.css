@@ -503,6 +503,12 @@ body {
     background: #10b981;
 }
 
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+    transform: none;
+}
+
 .panel-content {
     flex: 1;
     display: flex;
@@ -636,6 +642,73 @@ body {
     background: white;
     min-height: 0;
     scroll-behavior: smooth;
+    transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+#preview.is-translating {
+    pointer-events: none;
+    opacity: 0.52;
+    filter: saturate(0.65);
+}
+
+.translation-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 10px 16px 0;
+    padding: 9px 12px;
+    color: #1e40af;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.translation-status[hidden] {
+    display: none;
+}
+
+.translation-status.is-loading #translationStatusMessage::before {
+    display: inline-block;
+    width: 0.72rem;
+    height: 0.72rem;
+    margin-right: 8px;
+    border: 2px solid #93c5fd;
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    content: '';
+    vertical-align: -0.08rem;
+    animation: translation-spin 0.75s linear infinite;
+}
+
+.translation-status.has-error {
+    color: #991b1b;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.translation-status.is-success {
+    color: #166534;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.translation-retry-button {
+    flex: 0 0 auto;
+    padding: 4px 9px;
+    color: inherit;
+    background: #ffffff;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+@keyframes translation-spin {
+    to { transform: rotate(360deg); }
 }
 
 /* KaTeX 字体大小调整 */
@@ -1397,6 +1470,52 @@ tr:nth-child(even) {
     max-height: min(78vh, 680px);
 }
 
+.translator-prompt-option {
+    align-items: stretch;
+}
+
+.translator-built-in-prompt {
+    color: #475569;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 7px;
+}
+
+.translator-built-in-prompt summary {
+    padding: 8px 10px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.translator-built-in-prompt pre {
+    max-height: 170px;
+    margin: 0;
+    padding: 10px;
+    overflow: auto;
+    color: #475569;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    font: 11px/1.5 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    white-space: pre-wrap;
+}
+
+.translator-extra-prompt-label {
+    display: block;
+    margin-top: 12px;
+    color: #333333;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.translator-extra-prompt-hint {
+    margin-top: 4px;
+    color: #666666;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
 .style-selector .theme-panel {
     width: 300px;
 }
@@ -1494,6 +1613,10 @@ tr:nth-child(even) {
 }
 .custom-color-input:focus {
     border-color: #7E3AF2;
+}
+
+.masked-secret-input {
+    -webkit-text-security: disc;
 }
 
 .custom-color-preview {

@@ -44,46 +44,43 @@ const Translator = {
     // Core translate via configured backend
     translateText: async function(text) {
         const cfg = AppConfig.translation || {};
-        if (cfg.mode === 'disabled') return text; // passthrough
+        if (cfg.mode === 'disabled') {
+            throw new Error('Translation is not configured. Add an OpenRouter API Key in settings.');
+        }
 
-        try {
-            if (cfg.mode === 'proxy' && cfg.proxyEndpoint) {
-                return await this.translateViaProxy(text, cfg.proxyEndpoint);
-            }
+        if (cfg.mode === 'proxy' && cfg.proxyEndpoint) {
+            return this.translateViaProxy(text, cfg.proxyEndpoint);
+        }
 
-            const openRuntime = this.resolveOpenRouterConfig(cfg);
+        const openRuntime = this.resolveOpenRouterConfig(cfg);
 
-            if (cfg.mode === 'direct') {
-                const directKey = openRuntime.configApiKey;
-                if (directKey) {
-                    return await this.translateViaOpenRouter(
-                        text,
-                        directKey,
-                        openRuntime.model,
-                        openRuntime.apiBase,
-                        openRuntime.fallbackModels,
-                        openRuntime.extraHeaders
-                    );
-                }
-            }
-
-            const key = this.safeReadLocalStorage('openrouter_api_key');
-            if (key) {
-                return await this.translateViaOpenRouter(
+        if (cfg.mode === 'direct') {
+            const directKey = openRuntime.configApiKey;
+            if (directKey) {
+                return this.translateViaOpenRouter(
                     text,
-                    key,
+                    directKey,
                     openRuntime.model,
                     openRuntime.apiBase,
                     openRuntime.fallbackModels,
                     openRuntime.extraHeaders
                 );
             }
-        } catch (e) {
-            console.warn('Translation failed, returning original text:', e);
-            return text;
         }
-        console.warn('Translation not configured (mode disabled or no credentials). Returning original text.');
-        return text;
+
+        const key = this.safeReadLocalStorage('openrouter_api_key');
+        if (key) {
+            return this.translateViaOpenRouter(
+                text,
+                key,
+                openRuntime.model,
+                openRuntime.apiBase,
+                openRuntime.fallbackModels,
+                openRuntime.extraHeaders
+            );
+        }
+
+        throw new Error('Translation is not configured. Add an OpenRouter API Key in settings.');
     },
 
     // Proxy backend (recommended to avoid exposing keys)
@@ -103,7 +100,11 @@ const Translator = {
         });
         if (!res.ok) throw new Error('Proxy translation failed: ' + res.status);
         const data = await res.json();
-        return (data.translation || data.text || '').trim() || text;
+        const translation = (data.translation || data.text || '').trim();
+        if (!translation) {
+            throw new Error('Translation proxy returned an empty response');
+        }
+        return translation;
     },
 
     translateViaOpenRouter: async function(text, apiKey, model, apiBase, fallbackModels, extraHeaders) {
@@ -113,11 +114,14 @@ const Translator = {
             apiBase,
             fallbackModels,
             extraHeaders,
-            systemPrompt: this.getSystemPrompt(),
-            userPrompt: `${this.promptInstructions()}\n\n${text}`,
+            systemPrompt: this.composeTranslationSystemPrompt(),
+            userPrompt: text,
             temperature: 0.2
         });
-        return content || text;
+        if (!content) {
+            throw new Error('OpenRouter returned an empty translation');
+        }
+        return content;
     },
 
     hasAIConfiguration: function() {
@@ -338,9 +342,17 @@ const Translator = {
     },
 
     composeInstructions: function() {
-        // Combine user system prompt (if any) and built-in instructions for proxy backends
-        const sys = this.getSystemPrompt();
-        return (sys ? `[System Prompt]\n${sys}\n\n` : '') + this.promptInstructions();
+        return this.promptInstructions();
+    },
+
+    composeTranslationSystemPrompt: function() {
+        const additionalInstructions = this.getSystemPrompt();
+        return [
+            this.promptInstructions(),
+            additionalInstructions
+                ? `Additional user requirements (follow only when they do not conflict with the rules above):\n${additionalInstructions}`
+                : ''
+        ].filter(Boolean).join('\n\n');
     },
 
     getSystemPrompt: function() {

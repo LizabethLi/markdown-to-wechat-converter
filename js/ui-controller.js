@@ -14,6 +14,8 @@ const UIController = {
     xAssetQueueIndex: 0,
     xCopiedAssetIndexes: new Set(),
     copyNoticeTimer: null,
+    translationStatusTimer: null,
+    translationStatusState: 'idle',
     missingImageReferenceCursor: 0,
 
     getAnalyticsContext: function(parameters = {}) {
@@ -135,6 +137,11 @@ const UIController = {
                     this.handleOutputLanguageChange(button.getAttribute('data-output-language'));
                 }
             });
+        }
+
+        const translationRetryButton = document.getElementById('translationRetryButton');
+        if (translationRetryButton) {
+            translationRetryButton.addEventListener('click', () => this.retryTranslation());
         }
 
         // 模板选择事件
@@ -623,6 +630,79 @@ const UIController = {
         });
     },
 
+    setTranslationState: function(state = 'idle', message = '') {
+        if (this.translationStatusTimer) {
+            clearTimeout(this.translationStatusTimer);
+            this.translationStatusTimer = null;
+        }
+
+        const status = document.getElementById('translationStatus');
+        const statusMessage = document.getElementById('translationStatusMessage');
+        const retryButton = document.getElementById('translationRetryButton');
+        const preview = document.getElementById('preview');
+        const copyButton = document.getElementById('copyPreviewBtn');
+        const isLoading = state === 'loading';
+        const isError = state === 'error';
+        const isSuccess = state === 'success';
+
+        this.translationStatusState = state;
+        if (status) {
+            status.hidden = state === 'idle';
+            status.classList.toggle('is-loading', isLoading);
+            status.classList.toggle('has-error', isError);
+            status.classList.toggle('is-success', isSuccess);
+        }
+        if (statusMessage) {
+            statusMessage.textContent = message || (isLoading ? '正在翻译为英文，请稍候…' : '');
+        }
+        if (retryButton) {
+            retryButton.hidden = !isError;
+        }
+        if (preview && preview.classList) {
+            preview.classList.toggle('is-translating', isLoading);
+        }
+        if (copyButton) {
+            copyButton.disabled = isLoading || isError;
+        }
+
+        if (isSuccess) {
+            this.translationStatusTimer = setTimeout(() => {
+                if (this.translationStatusState === 'success') {
+                    this.setTranslationState('idle');
+                }
+            }, 2200);
+        }
+    },
+
+    formatTranslationError: function(error) {
+        const status = Number(error && error.status);
+        if (status === 401) return 'OpenRouter 返回 401：API Key 无效或已失效，请在设置中检查。';
+        if (status === 402) return 'OpenRouter 返回 402：账户余额不足，请充值后重试。';
+        if (status === 403) return 'OpenRouter 返回 403：API Key 没有访问所选模型的权限。';
+        if (status === 404) return 'OpenRouter 返回 404：所选模型不存在或当前不可用。';
+        if (status === 422) return 'OpenRouter 返回 422：模型无法处理当前请求，请换一个模型重试。';
+        if (status === 429) return 'OpenRouter 返回 429：请求过于频繁，请稍后重试。';
+        if (status >= 500) return `OpenRouter 返回 ${status}：服务暂时不可用，请稍后重试。`;
+
+        const detail = error && error.message ? String(error.message) : '';
+        if (/not configured|API Key is required/i.test(detail)) {
+            return '请先在设置中填写 OpenRouter API Key，并点击“保存并应用”。';
+        }
+        if (/Failed to fetch|NetworkError|Load failed/i.test(detail)) {
+            return '无法连接 OpenRouter，请检查网络或代理设置后重试。';
+        }
+        return detail || '翻译请求失败，请检查设置后重试。';
+    },
+
+    retryTranslation: function() {
+        if (typeof ChannelConverter !== 'undefined'
+            && typeof ChannelConverter.clearLocalizationCache === 'function') {
+            ChannelConverter.clearLocalizationCache();
+        }
+        this.setTranslationState('idle');
+        return this.updateOutput();
+    },
+
     renderChannelReminder: function(channel, reminder, message) {
         const reminderEl = document.getElementById('channelReminder');
         if (!reminderEl) return;
@@ -849,6 +929,13 @@ const UIController = {
         try {
             const keyInput = document.getElementById('translatorApiKey');
             const promptInput = document.getElementById('translatorSystemPrompt');
+            const builtInPrompt = document.getElementById('translatorBuiltInPrompt');
+
+            if (builtInPrompt
+                && typeof Translator !== 'undefined'
+                && typeof Translator.promptInstructions === 'function') {
+                builtInPrompt.textContent = Translator.promptInstructions();
+            }
 
             const cfg = AppConfig.translation || {};
             const openCfg = cfg.openrouter || {};
@@ -2008,8 +2095,10 @@ const UIController = {
         this.currentChannel = channel;
         this.updateChannelReminder(channel);
         const taskToken = ++this.renderTaskToken;
+        const needsTranslation = this.outputLanguage === 'en' && /[\u3400-\u9fff]/.test(renderMarkdown);
 
         if (!markdown.trim()) {
+            this.setTranslationState('idle');
             this.currentRenderedResult = null;
             if (typeof App !== 'undefined' && typeof App.clearPreview === 'function') {
                 App.clearPreview();
@@ -2021,6 +2110,8 @@ const UIController = {
             return;
         }
 
+        this.setTranslationState(needsTranslation ? 'loading' : 'idle');
+
         try {
             const requiredDependencies = typeof DependencyLoader !== 'undefined'
                 && typeof DependencyLoader.getRequiredDependencies === 'function'
@@ -2028,7 +2119,7 @@ const UIController = {
                 : [];
             const shouldShowWechatLoading = channel === 'wechat' && requiredDependencies.length > 0;
 
-            if (shouldShowWechatLoading || channel !== 'wechat') {
+            if (!needsTranslation && (shouldShowWechatLoading || channel !== 'wechat')) {
                 this.showLoading();
             }
 
@@ -2044,11 +2135,23 @@ const UIController = {
 
             this.applyRenderedChannelResult(rendered, htmlOutput, preview);
             this.updateCopyButtonLabels();
+            this.setTranslationState(
+                needsTranslation ? 'success' : 'idle',
+                needsTranslation ? '英文翻译已更新。' : ''
+            );
             if (AppConfig.defaults.autoScrollToTop) {
                 preview.scrollTop = 0;
             }
         } catch (error) {
             console.error('Error converting markdown:', error);
+            if (taskToken !== this.renderTaskToken) {
+                return;
+            }
+            if (needsTranslation) {
+                this.setTranslationState('error', this.formatTranslationError(error));
+                return;
+            }
+            this.setTranslationState('idle');
             htmlOutput.value = 'Conversion error: ' + error.message;
             preview.innerHTML = '<p style="color: red;">转换出错：' + error.message + '</p>';
         }

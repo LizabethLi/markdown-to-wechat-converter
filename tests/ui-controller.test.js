@@ -29,6 +29,11 @@ const elements = {
         focusCount: 0,
         focus() { this.focusCount += 1; }
     },
+    translationStatus: { hidden: true, classList: classList() },
+    translationStatusMessage: { textContent: '' },
+    translationRetryButton: { hidden: true },
+    copyPreviewBtn: { disabled: false },
+    preview: { classList: classList() },
     markdownInput: {
         value: markdownSource,
         clientHeight: 100,
@@ -66,6 +71,12 @@ test.beforeEach(() => {
     elements.channelSelect.value = 'wechat';
     elements.translatorPanel.style.display = 'none';
     elements.translatorApiKey.focusCount = 0;
+    elements.translationStatus.hidden = true;
+    elements.translationStatus.classList.values.clear();
+    elements.translationStatusMessage.textContent = '';
+    elements.translationRetryButton.hidden = true;
+    elements.copyPreviewBtn.disabled = false;
+    elements.preview.classList.values.clear();
     elements.markdownInput.focused = false;
     elements.markdownInput.selectionStart = 0;
     elements.markdownInput.selectionEnd = 0;
@@ -99,6 +110,39 @@ test('English output opens translator settings without focusing the API key fiel
         UIController.updateOutput = originalUpdateOutput;
         global.localStorage = originalLocalStorage;
     }
+});
+
+test('translation state announces progress, dims the stale preview, and blocks copying', () => {
+    UIController.setTranslationState('loading');
+
+    assert.equal(elements.translationStatus.hidden, false);
+    assert.equal(elements.translationStatusMessage.textContent, '正在翻译为英文，请稍候…');
+    assert.equal(elements.translationStatus.classList.values.has('is-loading'), true);
+    assert.equal(elements.preview.classList.values.has('is-translating'), true);
+    assert.equal(elements.copyPreviewBtn.disabled, true);
+    assert.equal(elements.translationRetryButton.hidden, true);
+
+    UIController.setTranslationState('error', 'OpenRouter 返回 401：API Key 无效。');
+
+    assert.equal(elements.translationStatusMessage.textContent, 'OpenRouter 返回 401：API Key 无效。');
+    assert.equal(elements.translationStatus.classList.values.has('has-error'), true);
+    assert.equal(elements.preview.classList.values.has('is-translating'), false);
+    assert.equal(elements.copyPreviewBtn.disabled, true);
+    assert.equal(elements.translationRetryButton.hidden, false);
+
+    UIController.setTranslationState('idle');
+    assert.equal(elements.translationStatus.hidden, true);
+    assert.equal(elements.copyPreviewBtn.disabled, false);
+});
+
+test('translation errors are converted into actionable messages', () => {
+    assert.match(UIController.formatTranslationError({ status: 401 }), /API Key 无效/);
+    assert.match(UIController.formatTranslationError({ status: 402 }), /余额不足/);
+    assert.match(UIController.formatTranslationError({ status: 429 }), /请求过于频繁/);
+    assert.match(
+        UIController.formatTranslationError(new TypeError('Failed to fetch')),
+        /无法连接 OpenRouter/
+    );
 });
 
 test('X generation opens translator settings without focusing the API key field', async () => {

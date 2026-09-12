@@ -168,6 +168,35 @@ test('a stale translation cannot overwrite the cache for newer source text', asy
     assert.equal(await ChannelConverter.buildLocalizedMarkdown('新正文', 'en'), 'New body');
 });
 
+test('a failed translation is not cached and the same source can be retried', async () => {
+    let translationCalls = 0;
+    global.Translator.translateMarkdownToEnglish = async () => {
+        translationCalls += 1;
+        if (translationCalls === 1) {
+            const error = new Error('OpenRouter API error: 401 invalid key');
+            error.status = 401;
+            throw error;
+        }
+        return '# English title';
+    };
+
+    await assert.rejects(
+        () => ChannelConverter.buildLocalizedMarkdown('# 中文标题', 'en'),
+        /401 invalid key/
+    );
+    assert.deepEqual(ChannelConverter.localizationCache, {
+        source: '',
+        value: '',
+        promise: null
+    });
+
+    assert.equal(
+        await ChannelConverter.buildLocalizedMarkdown('# 中文标题', 'en'),
+        '# English title'
+    );
+    assert.equal(translationCalls, 2);
+});
+
 test('empty source produces empty channel output', async () => {
     assert.equal(await ChannelConverter.buildLocalizedMarkdown('', 'en'), '');
     assert.equal(ChannelConverter.buildSingleLanguageMarkdown('  \n'), '');

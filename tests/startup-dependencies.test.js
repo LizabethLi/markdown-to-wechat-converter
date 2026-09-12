@@ -26,12 +26,30 @@ test('the core Markdown parser is shipped locally for offline startup', () => {
     assert.equal(typeof marked.Renderer, 'function');
 });
 
-test('the OpenRouter API key field opts out of browser credential autofill', () => {
+test('editable fields opt out of iCloud Passwords credential detection', () => {
     const indexHtml = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
-    const apiKeyInput = indexHtml.match(/<input\b[^>]+id=["']translatorApiKey["'][^>]*>/i);
+    const apiKeyField = indexHtml.match(/<textarea\b[^>]+id=["']translatorApiKey["'][^>]*>/i);
+    const markdownField = indexHtml.match(/<textarea\b[^>]+id=["']markdownInput["'][^>]*>/i);
 
-    assert.ok(apiKeyInput, 'index.html should include the OpenRouter API key input');
-    assert.match(apiKeyInput[0], /\bautocomplete=["']off["']/i);
+    assert.ok(apiKeyField, 'the API key should use a textarea so CSS masking is not treated as a secure input');
+    assert.ok(markdownField, 'index.html should include the Markdown textarea');
+    assert.doesNotMatch(indexHtml, /<input\b[^>]+id=["']translatorApiKey["'][^>]*>/i);
+    assert.match(apiKeyField[0], /\bclass=["'][^"']*masked-secret-input[^"']*["']/i);
+    assert.match(apiKeyField[0], /\bautocomplete=["']off["']/i);
+    assert.match(markdownField[0], /\bautocomplete=["']off["']/i);
+
+    const mainCss = fs.readFileSync(path.join(projectRoot, 'styles/main.css'), 'utf8');
+    assert.match(mainCss, /\.masked-secret-input\s*\{[^}]*-webkit-text-security:\s*disc/si);
+});
+
+test('translation UI exposes the built-in rules and an accessible request status', () => {
+    const indexHtml = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+
+    assert.match(indexHtml, /<details\b[^>]*class=["'][^"']*translator-built-in-prompt[^"']*["'][^>]*\bopen\b/i);
+    assert.match(indexHtml, /id=["']translatorBuiltInPrompt["']/i);
+    assert.match(indexHtml, /额外翻译要求（可选）/);
+    assert.match(indexHtml, /id=["']translationStatus["'][^>]*role=["']status["'][^>]*aria-live=["']polite["']/i);
+    assert.match(indexHtml, /id=["']translationRetryButton["']/i);
 });
 
 test('startup errors identify the dependency that is missing', () => {

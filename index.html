@@ -71,7 +71,7 @@
     </script>
     
     <!-- 外部CSS -->
-    <link rel="stylesheet" href="styles/main.css?v=20260824-lazy-renderers">
+    <link rel="stylesheet" href="styles/main.css?v=20260912-translation-feedback">
     
 </head>
 <body>
@@ -95,7 +95,7 @@
                             <div class="theme-option" style="cursor: default;">
                                 <div class="theme-info" style="width: 100%;">
                                     <div class="theme-name">OpenRouter API Key</div>
-                                    <input id="translatorApiKey" type="password" autocomplete="off" placeholder="粘贴你的 OpenRouter API Key" class="custom-color-input" style="width: 100%; margin-top: 6px;" />
+                                    <textarea id="translatorApiKey" rows="1" wrap="off" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="粘贴你的 OpenRouter API Key" class="custom-color-input masked-secret-input" style="width: 100%; height: 30px; margin-top: 6px; resize: none; overflow: hidden;"></textarea>
                                     <div style="font-size: 12px; color: #666; margin-top: 4px;">本地保存到浏览器，仅用于当前设备</div>
                                 </div>
                             </div>
@@ -114,11 +114,15 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="theme-option" style="cursor: default;">
+                            <div class="theme-option translator-prompt-option" style="cursor: default;">
                                 <div class="theme-info" style="width: 100%;">
-                                    <div class="theme-name">System Prompt（可选）</div>
-                                    <textarea id="translatorSystemPrompt" placeholder="例如：保持 Markdown 结构；术语表：LLM→LLM，大模型→foundation model；风格：清晰、简洁" class="custom-color-input" style="width: 100%; height: 120px; margin-top: 6px;"></textarea>
-                                    <div style="font-size: 12px; color: #666; margin-top: 4px;">系统已内置“中文翻译为英文并保留 Markdown/代码/公式”的规则；这里用于补充术语和文风。</div>
+                                    <details class="translator-built-in-prompt" open>
+                                        <summary>内置翻译规则</summary>
+                                        <pre id="translatorBuiltInPrompt">正在加载内置规则…</pre>
+                                    </details>
+                                    <label class="translator-extra-prompt-label" for="translatorSystemPrompt">额外翻译要求（可选）</label>
+                                    <textarea id="translatorSystemPrompt" placeholder="例如：术语表：LLM→LLM，大模型→foundation model；文风：清晰、简洁" class="custom-color-input" style="width: 100%; height: 100px; margin-top: 6px;"></textarea>
+                                    <div class="translator-extra-prompt-hint">这里的术语和文风要求会与上面的内置规则一起发送。</div>
                                 </div>
                             </div>
                             <div style="display: flex; justify-content: flex-end; gap: 8px; padding: 8px;">
@@ -238,7 +242,7 @@
                         <input id="imageFileInput" type="file" accept="image/*" multiple hidden>
                     </div>
                 </div>
-                <textarea id="markdownInput" placeholder="在这里粘贴或输入 Markdown...
+                <textarea id="markdownInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="在这里粘贴或输入 Markdown...
 
 支持图片、公式、Mermaid 图表和代码块；也可以点击上方“加载示例”。"></textarea>
                 <div class="markdown-input-hint">本地图片会直接内嵌到 Markdown，不会上传到服务器；单张不超过 10 MB。公网图片也可继续使用 <code>![描述](图片地址)</code>。</div>
@@ -250,6 +254,10 @@
                 <div class="panel-header">
                     <span class="panel-title">👀 效果预览 (可滚动查看)</span>
                     <button class="btn" id="copyPreviewBtn" onclick="copyPreview()">复制样式代码</button>
+                </div>
+                <div id="translationStatus" class="translation-status" role="status" aria-live="polite" hidden>
+                    <span id="translationStatusMessage"></span>
+                    <button id="translationRetryButton" type="button" class="translation-retry-button" hidden>重新翻译</button>
                 </div>
                 <div id="copyNotice" class="copy-notice" role="status" aria-live="polite"></div>
                 <div id="preview" class="wechat-preview">
@@ -286,13 +294,13 @@
     <script defer src="js/templates/wechat-default.js"></script>
     <script defer src="js/templates/wechat-minimal.js"></script>
     <script defer src="js/templates/wechat-magazine.js"></script>
-    <script defer src="js/translator.js"></script>
+    <script defer src="js/translator.js?v=20260912-translation-feedback"></script>
     <script defer src="js/dependency-loader.js?v=20260824-lazy-renderers"></script>
     <script defer src="js/channel-converter.js?v=20260824-seo-foundation"></script>
     <script defer src="js/math-renderer.js?v=20260824-lazy-renderers"></script>
     <script defer src="js/markdown-converter.js?v=20260824-webmcp-v2"></script>
     <script defer src="js/image-handler.js?v=20260821-image-caption"></script>
-    <script defer src="js/ui-controller.js?v=20260824-seo-foundation"></script>
+    <script defer src="js/ui-controller.js?v=20260912-translation-feedback"></script>
     <script defer src="assets/examples.js"></script>
     <script defer src="js/webmcp-tools.js?v=20260824-webmcp-v2"></script>
     <script defer src="js/app.js?v=20260824-lazy-renderers"></script>
