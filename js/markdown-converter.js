@@ -18,6 +18,8 @@ const MarkdownConverter = {
     createWechatRenderer: function(mode, themeColor, templateId = null) {
         const wechatStyles = this.getWechatStyles(mode, themeColor, templateId);
         const renderer = new marked.Renderer();
+        const isMagazineTemplate = typeof TemplateManager !== 'undefined'
+            && (templateId || TemplateManager.activeId) === 'wechat-magazine';
 
         // 标题渲染
         let h1Counter = 0;
@@ -31,7 +33,8 @@ const MarkdownConverter = {
                 }
                 return wechatStyles.h3(raw, text);
             }
-            return `<h${level} style="font-size: ${18 - level}px; font-weight: bold; margin: 15px 0;">${text}</h${level}>`;
+            const fontSize = 18 - level - (isMagazineTemplate ? 1 : 0);
+            return `<h${level} style="font-size: ${fontSize}px; font-weight: bold; margin: 15px 0;">${text}</h${level}>`;
         };
 
         // 段落渲染
@@ -80,9 +83,10 @@ const MarkdownConverter = {
         };
 
         renderer.listitem = (text, task = false, checked = false) => {
+            const listFontSize = isMagazineTemplate ? 13 : 14;
             const style = mode === 'compact'
-                ? `margin: 5px 0; line-height: 1.6; font-size: 14px; color: #333;`
-                : `margin: 8px 0; line-height: 1.6; font-size: 14px; color: #333;`;
+                ? `margin: 5px 0; line-height: 1.6; font-size: ${listFontSize}px; color: #333;`
+                : `margin: 8px 0; line-height: 1.6; font-size: ${listFontSize}px; color: #333;`;
 
             const content = (text || '')
                 .replace(/^<input\b[^>]*type="checkbox"[^>]*>\s*/i, '')
@@ -164,8 +168,8 @@ const MarkdownConverter = {
             const tag = flags.header ? 'th' : 'td';
             const textAlign = flags.align ? `text-align: ${flags.align};` : '';
             const style = flags.header
-                ? `background-color: #f8fafc; font-weight: 600; font-size: 15px; color: #334155; border: 1px solid #e2e8f0; padding: 10px 12px; ${textAlign}`
-                : `font-size: 15px; border: 1px solid #e2e8f0; padding: 10px 12px; ${textAlign}`;
+                ? `background-color: #f8fafc; font-weight: 600; font-size: ${isMagazineTemplate ? '14px' : '15px'}; color: #334155; border: 1px solid #e2e8f0; padding: 10px 12px; ${textAlign}`
+                : `font-size: ${isMagazineTemplate ? '14px' : '15px'}; border: 1px solid #e2e8f0; padding: 10px 12px; ${textAlign}`;
             return `<${tag} style="${style}">${content}</${tag}>`;
         };
 
@@ -470,7 +474,7 @@ const MarkdownConverter = {
             // 回退路径也使用公众号可携带结构，避免 <pre>/<code> 被粘贴清理后丢失格式。
             console.log('使用回退样式');
             const portableCode = this.formatPlainCodeForWechat(trimmedCode);
-            return this.generateStyledCodeBlock(portableCode, '', currentTheme, mode);
+            return this.generateStyledCodeBlock(portableCode, '', currentTheme, mode, templateId);
         }
 
         // 规范化语言名称
@@ -504,7 +508,7 @@ const MarkdownConverter = {
         console.log('高亮后代码:', JSON.stringify(highlightedCode));
         
         // 生成样式化的代码块
-        const result = this.generateStyledCodeBlock(highlightedCode, detectedLang, currentTheme, mode);
+        const result = this.generateStyledCodeBlock(highlightedCode, detectedLang, currentTheme, mode, templateId);
         console.log('最终HTML:', result);
         console.log('=== END DEBUG ===');
         return result;
@@ -555,13 +559,15 @@ const MarkdownConverter = {
     },
 
     // 生成样式化代码块
-    generateStyledCodeBlock: function(code, language, theme, mode) {
+    generateStyledCodeBlock: function(code, language, theme, mode, templateId = null) {
         // 防御：若主题样式缺失，回退到默认主题（避免 marked 捕获的渲染错误）
         const themeStyles = 
             AppConfig.syntaxHighlighting.themeStyles[theme] ||
             AppConfig.syntaxHighlighting.themeStyles[AppConfig.defaults.theme] ||
             Object.values(AppConfig.syntaxHighlighting.themeStyles)[0];
         const isCompact = mode === 'compact';
+        const isMagazineTemplate = typeof TemplateManager !== 'undefined'
+            && (templateId || TemplateManager.activeId) === 'wechat-magazine';
 
         // 代码块样式
         const codeBlockStyle = `
@@ -573,7 +579,7 @@ const MarkdownConverter = {
             overflow-x: auto;
             white-space: normal;
             font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Courier New', monospace;
-            font-size: 14px;
+            font-size: ${isMagazineTemplate ? '13px' : '14px'};
             line-height: 1.5;
             color: ${themeStyles.text};
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
