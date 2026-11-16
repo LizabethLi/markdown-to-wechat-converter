@@ -31,8 +31,8 @@
             italic: (_m, text) => `<em style="font-style:italic;opacity:.95;">${text}</em>`,
 
             blockquote: (_m, text) => `
-                <blockquote style="margin:14px 0;padding:14px 16px;background:#fff;border:1px solid #eee;border-left:4px solid {{THEME_COLOR}};border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.04);">
-                  <p style="margin:0;color:#444;line-height:1.7;font-size:15px;">${text}</p>
+                <blockquote style="margin:14px 0;padding:14px 16px;background:#fff;border:1px solid #eee;border-left:4px solid {{THEME_COLOR}};border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.04);font-size:15px;line-height:1.9;">
+                  <p style="margin:0;color:#444;line-height:1.9;font-size:15px;">${text}</p>
                 </blockquote>`,
 
             codeBlock: (_m, _lang, code) => `
@@ -120,7 +120,7 @@
                     bold: c.bold,
                     italic: c.italic,
                     blockquote: (_m, text) => `
-                        <blockquote style=\"margin:16px 0;padding:16px 18px;background:#fff;border:1px solid #eee;border-left:5px solid {{THEME_COLOR}};border-radius:8px;box-shadow:0 3px 8px rgba(0,0,0,.06);\"><p style=\"margin:0;color:#444;line-height:1.8;font-size:15px;\">${text}</p></blockquote>`,
+                        <blockquote style=\"margin:16px 0;padding:16px 18px;background:#fff;border:1px solid #eee;border-left:5px solid {{THEME_COLOR}};border-radius:8px;box-shadow:0 3px 8px rgba(0,0,0,.06);font-size:15px;line-height:1.95;\"><p style=\"margin:0;color:#444;line-height:1.95;font-size:15px;\">${text}</p></blockquote>`,
                     codeBlock: c.codeBlock,
                     inlineCode: c.inlineCode,
                     image: c.image,
