@@ -118,11 +118,7 @@ const MarkdownConverter = {
             if (typeof frame !== 'string' || !frame) {
                 return `<blockquote>${quote}</blockquote>`;
             }
-            let cleanedQuote = quote.trim();
-            if (isMagazineTemplate) {
-                const quoteFontSize = mode === 'standard' ? 14 : 13;
-                cleanedQuote = cleanedQuote.replace(/font-size:\s*15px/gi, `font-size:${quoteFontSize}px`);
-            }
+            const cleanedQuote = quote.trim();
             const placeholderPattern = /<p[^>]*>\s*PLACEHOLDER_TEXT\s*<\/p>/i;
             if (placeholderPattern.test(frame)) {
                 return frame.replace(placeholderPattern, cleanedQuote);
