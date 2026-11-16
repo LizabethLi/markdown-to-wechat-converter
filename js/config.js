@@ -43,6 +43,11 @@ const AppConfig = {
             primary: '#16A34A',
             description: '清新自然'
         },
+        paper: {
+            name: '纸页墨绿',
+            primary: '#2f6e5c',
+            description: '沉静编辑感'
+        },
         red: {
             name: '激情红色',
             primary: '#DC2626',
@@ -109,6 +114,17 @@ const AppConfig = {
                 number: '#dc2626',
                 function: '#7c3aed',
                 variable: '#0891b2'
+            },
+            paper: {
+                background: '#fffdf8',
+                border: '#d8d2c0',
+                text: '#292620',
+                keyword: '#2f6e5c',
+                string: '#486f63',
+                comment: '#7a7468',
+                number: '#9a5f35',
+                function: '#245343',
+                variable: '#735f3f'
             },
             red: {
                 background: '#fef2f2',

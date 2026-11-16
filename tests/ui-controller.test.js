@@ -112,6 +112,46 @@ test('English output opens translator settings without focusing the API key fiel
     }
 });
 
+test('selecting a template applies its preferred theme and refreshes the preview', async () => {
+    const originalTemplateManager = global.TemplateManager;
+    const originalAppConfig = global.AppConfig;
+    const originalTheme = UIController.currentTheme;
+    const originalSaveTheme = UIController.saveThemeToStorage;
+    const originalUpdateThemeUI = UIController.updateThemeUI;
+    const originalUpdateStyleSummary = UIController.updateStyleSummary;
+    const originalUpdateOutput = UIController.updateOutput;
+    let selectedTemplate = '';
+    let previewUpdates = 0;
+
+    global.TemplateManager = {
+        setActive(id) { selectedTemplate = id; },
+        get() { return { defaultTheme: 'paper' }; }
+    };
+    global.AppConfig = {
+        themes: { paper: { primary: '#2f6e5c' } }
+    };
+    UIController.saveThemeToStorage = () => {};
+    UIController.updateThemeUI = () => {};
+    UIController.updateStyleSummary = () => {};
+    UIController.updateOutput = () => { previewUpdates += 1; };
+
+    try {
+        await UIController.handleTemplateChange('wechat-editorial');
+
+        assert.equal(selectedTemplate, 'wechat-editorial');
+        assert.equal(UIController.currentTheme, 'paper');
+        assert.equal(previewUpdates, 1);
+    } finally {
+        global.TemplateManager = originalTemplateManager;
+        global.AppConfig = originalAppConfig;
+        UIController.currentTheme = originalTheme;
+        UIController.saveThemeToStorage = originalSaveTheme;
+        UIController.updateThemeUI = originalUpdateThemeUI;
+        UIController.updateStyleSummary = originalUpdateStyleSummary;
+        UIController.updateOutput = originalUpdateOutput;
+    }
+});
+
 test('translation state announces progress, dims the stale preview, and blocks copying', () => {
     UIController.setTranslationState('loading');
 

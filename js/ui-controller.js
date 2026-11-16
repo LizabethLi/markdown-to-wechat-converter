@@ -148,11 +148,7 @@ const UIController = {
         const templateSelect = document.getElementById('templateSelect');
         if (templateSelect) {
             templateSelect.addEventListener('change', (e) => {
-                if (typeof TemplateManager !== 'undefined') {
-                    TemplateManager.setActive(e.target.value);
-                }
-                this.updateStyleSummary();
-                this.updateOutput();
+                this.handleTemplateChange(e.target.value);
             });
         }
 
@@ -260,6 +256,24 @@ const UIController = {
         this.updateXGeneratorVisibility();
         this.updateCopyButtonLabels();
         this.updateOutput();
+    },
+
+    handleTemplateChange: function(templateId) {
+        if (typeof TemplateManager !== 'undefined') {
+            TemplateManager.setActive(templateId);
+            const selectedTemplate = typeof TemplateManager.get === 'function'
+                ? TemplateManager.get(templateId)
+                : null;
+            if (selectedTemplate
+                && selectedTemplate.defaultTheme
+                && AppConfig.themes[selectedTemplate.defaultTheme]) {
+                this.currentTheme = selectedTemplate.defaultTheme;
+                this.saveThemeToStorage();
+                this.updateThemeUI();
+            }
+        }
+        this.updateStyleSummary();
+        return this.updateOutput();
     },
 
     handleMarkdownImagePaste: async function(event) {
@@ -2736,9 +2750,11 @@ const UIController = {
             return;
         }
 
-        // 从示例数据中获取示例内容
-        const exampleContent = typeof ExampleData !== 'undefined' 
-            ? ExampleData.getExampleMarkdown() 
+        // Templates can supply an example; loading one is always an explicit action.
+        const template = this.getCurrentChannel() === 'wechat' && typeof TemplateManager !== 'undefined'
+            ? TemplateManager.getActive() : null;
+        const exampleContent = typeof ExampleData !== 'undefined'
+            ? ExampleData.getExampleByKey(template && template.exampleKey || 'full')
             : this.getDefaultExample();
 
         markdownInput.value = exampleContent;

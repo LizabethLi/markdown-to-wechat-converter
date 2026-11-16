@@ -61,6 +61,9 @@ const MarkdownConverter = {
 
         // 分隔线使用内联样式，确保复制到公众号后仍然可见
         renderer.hr = () => {
+            if (typeof wechatStyles.hr === 'function') {
+                return wechatStyles.hr(null);
+            }
             const dividerColor = /^#[0-9a-f]{3,8}$/i.test(themeColor || '')
                 ? themeColor
                 : '#d1d5db';
@@ -69,6 +72,9 @@ const MarkdownConverter = {
 
         // 列表渲染
         renderer.list = (body, ordered, start) => {
+            if (typeof wechatStyles.list === 'function') {
+                return wechatStyles.list(null, body, ordered, start);
+            }
             if (/data-wechat-task-item="true"/.test(body || '')) {
                 const margin = mode === 'compact' ? '8px 0' : '15px 0';
                 return `<section data-wechat-task-list="true" style="margin:${margin};">${body}</section>`;
@@ -83,6 +89,9 @@ const MarkdownConverter = {
         };
 
         renderer.listitem = (text, task = false, checked = false) => {
+            if (typeof wechatStyles.listItem === 'function') {
+                return wechatStyles.listItem(null, text, task, checked);
+            }
             const listFontSize = isMagazineTemplate ? 13 : 14;
             const style = mode === 'compact'
                 ? `margin: 5px 0; line-height: 1.6; font-size: ${listFontSize}px; color: #333;`
@@ -114,6 +123,9 @@ const MarkdownConverter = {
 
         // 引用
         renderer.blockquote = (quote) => {
+            if (typeof wechatStyles.blockquoteContent === 'function') {
+                return wechatStyles.blockquoteContent(null, quote);
+            }
             const frame = wechatStyles.blockquote ? wechatStyles.blockquote(null, 'PLACEHOLDER_TEXT') : '';
             if (typeof frame !== 'string' || !frame) {
                 return `<blockquote>${quote}</blockquote>`;
@@ -157,14 +169,23 @@ const MarkdownConverter = {
 
         // 表格
         renderer.table = (header, body) => {
+            if (typeof wechatStyles.table === 'function') {
+                return wechatStyles.table(null, header, body);
+            }
             return `<table style="border-collapse: collapse; margin: 15px 0; width: 100%; border: 1px solid #e2e8f0;"><thead>${header}</thead><tbody>${body}</tbody></table>`;
         };
         
         renderer.tablerow = (content) => {
+            if (typeof wechatStyles.tableRow === 'function') {
+                return wechatStyles.tableRow(null, content);
+            }
             return `<tr style="border-bottom: 1px solid #e2e8f0;">${content}</tr>`;
         };
 
         renderer.tablecell = (content, flags) => {
+            if (typeof wechatStyles.tableCell === 'function') {
+                return wechatStyles.tableCell(null, content, flags);
+            }
             const tag = flags.header ? 'th' : 'td';
             const textAlign = flags.align ? `text-align: ${flags.align};` : '';
             const style = flags.header
@@ -759,7 +780,7 @@ const MarkdownConverter = {
         html = this.postProcessHtml(html, mode);
 
         // 6. 包装在微信样式容器中
-        return this.wrapInWechatContainer(html);
+        return this.wrapInWechatContainer(html, mode, themeColor, templateId);
     },
 
     // 后处理HTML
@@ -790,7 +811,11 @@ const MarkdownConverter = {
     },
 
     // 包装在微信样式容器中
-    wrapInWechatContainer: function(html) {
+    wrapInWechatContainer: function(html, mode = 'compact', themeColor = null, templateId = null) {
+        const wechatStyles = this.getWechatStyles(mode, themeColor, templateId);
+        if (wechatStyles && typeof wechatStyles.container === 'function') {
+            return wechatStyles.container(null, html);
+        }
         // Use <section> to mirror WeChat's outer container element
         return `<section style="font-family: 'PingFang SC', system-ui, -apple-system, 'Helvetica Neue', 'Microsoft YaHei', Arial, sans-serif; color: rgba(0, 0, 0, 0.9); max-width: 100%; overflow-wrap: break-word;">${html}</section>`;
     },

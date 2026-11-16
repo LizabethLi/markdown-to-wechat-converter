@@ -1,5 +1,55 @@
 // 示例数据模块
 const ExampleData = {
+    getResearchExample: function() {
+        return `[lead] 我们平时会读不少论文和技术博客，Research AI+ 社区里也常有大家分享的好内容。**「什么值得看」栏目希望把这些日常阅读、推荐和讨论积累下来，每半个月精选一批有意思、值得细读的工作，为大家提供一份有参考价值的阅读清单。**
+
+这份排版示例节选自「什么值得看」阅读清单，展示论文、Research Blog、研究机构、配图与图注的排版方式。可以在「样式」中选择薄荷青、紫色、蓝色或自定义颜色，查看同一份内容的不同效果。
+
+# 01｜Papers
+
+### 01. Are Self-Evolving Agents Continual Learners?
+
+**研究机构：** Mila、Université de Montréal、Google DeepMind
+
+![01_self_evolving_fig1.png](assets/examples/research-learning.jpg)
+
+*图：四类任务漂移下，三种自演进方法的逐组学习曲线。*
+
+Self-Evolving Agent 的能力提升，可能伴随着旧任务表现的退化。研究基于 BIRD、BFCL 和 ScienceWorld 构建四类动态任务流，对比 ReasoningBank、GEPA 和 Meta-Harness，发现自我修改容易产生跨任务干扰，记忆检索也会遭遇相似任务间的冲突。
+
+它将 Self-Evolving 的评估从单次任务表现推进到长期学习过程，揭示了**能力可塑性与稳定性之间的关系**。对研究 Agent Memory、Harness Evolution 和 Continual Learning 的团队来说，这提供了非常具体的设计与评测问题。
+
+### 02. How Much of a Harness Does a Strong Agent Need for Autonomous ML Engineering?
+
+**研究机构：** EPFL、Apple
+
+![03_harness_fig1.png](assets/examples/research-harness.png)
+
+*图：相同时间预算下，不同基础模型与 Harness 的获奖率及平均排名百分位。*
+
+Multi-Agent 编排、专用检索与复杂任务管理，究竟为 Agent 带来了多少额外能力？研究在相同基础模型和时间预算下开展系统性消融，发现具备文件读写、Bash 执行等基础工具的单 Agent，在所测 ML Engineering 任务中可以匹敌复杂 Harness。
+
+> 这篇为 Agent 架构设计提供了少见的控制变量证据，也促使我们重新思考模型能力与外部系统复杂度的关系。
+
+# 02｜Research Blogs / Essays
+
+### 01. The sleep framework: A new way for LLMs to retain knowledge in continual learning
+
+**作者及机构：** Ali Behrouz、Vahab Mirrokni，Google Research
+
+Google 提出了一种受人类记忆巩固过程启发的持续学习框架，让模型交替经历交互学习与离线“睡眠”。在睡眠阶段，系统将短期经验转化为长期参数知识，并利用“做梦”机制探索新的训练样本。
+
+## 值得继续追问的问题
+
+- 模型如何从经验中成长，同时保留旧任务的能力？
+- 复杂的 Agent Harness 究竟贡献了多少额外能力？
+- 长期运行的 AI 系统，应当如何组织和巩固记忆？
+
+---
+
+欢迎关注「什么值得看」栏目，也欢迎推荐值得读的研究，或投稿自己的文章。`;
+    },
+
     // 获取示例Markdown内容
     // 与仓库根目录 PROJECT-INTRO-DEMO.md 保持同步。
     getExampleMarkdown: function() {
@@ -370,6 +420,8 @@ $$ \\sum_{i=1}^{n} i = \\frac{n(n+1)}{2} $$`;
     // 根据键获取示例
     getExampleByKey: function(key) {
         switch (key) {
+            case 'research':
+                return this.getResearchExample();
             case 'full':
                 return this.getExampleMarkdown();
             case 'simple':
