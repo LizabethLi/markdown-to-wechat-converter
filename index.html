@@ -168,6 +168,9 @@
                                         <option value="wechat-default">默认模板</option>
                                     </select>
                                 </label>
+                                <button type="button" id="customTemplateButton" class="custom-template-create-button">
+                                    ✨ 从喜欢的排版创建模板
+                                </button>
                                 <div class="style-panel-section-title">主题色</div>
                                 <div class="theme-option" data-theme="purple" onclick="selectTheme('purple')">
                                     <div class="theme-color" style="background: #7E3AF2;"></div>
@@ -291,6 +294,57 @@
             <textarea id="htmlOutput" hidden readonly aria-hidden="true"></textarea>
         </div>
     </main>
+
+    <div id="customTemplateModal" class="custom-template-modal" hidden aria-hidden="true">
+        <section class="custom-template-dialog" role="dialog" aria-modal="true" aria-labelledby="customTemplateTitle">
+            <header class="custom-template-dialog-header">
+                <div>
+                    <h2 id="customTemplateTitle">创建我的模板</h2>
+                    <p>复制一段喜欢的公众号排版并粘贴。支持时会优先使用 Chrome 本地 AI。</p>
+                </div>
+                <button type="button" id="customTemplateClose" class="custom-template-close" aria-label="关闭">×</button>
+            </header>
+            <div class="custom-template-dialog-body">
+                <details class="custom-template-library-panel">
+                    <summary>管理已保存的个人模板</summary>
+                    <div id="customTemplateLibrary" class="custom-template-library"></div>
+                    <div class="custom-template-library-actions">
+                        <button type="button" id="customTemplateExport" class="btn">导出 JSON</button>
+                        <label class="btn custom-template-import-label">导入 JSON<input id="customTemplateImport" type="file" accept="application/json,.json" hidden></label>
+                    </div>
+                </details>
+                <div id="customTemplatePaste" class="custom-template-paste" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="在这里粘贴带格式的公众号内容…"></div>
+                <div class="custom-template-actions">
+                    <button type="button" id="customTemplateAnalyze" class="btn custom-template-primary">分析排版</button>
+                    <span id="customTemplateStatus" class="custom-template-status" role="status" aria-live="polite"></span>
+                </div>
+                <div id="customTemplateResult" class="custom-template-result" hidden>
+                    <div class="custom-template-mapping">
+                        <label>文章标题<select data-custom-template-role="h1"></select></label>
+                        <label>章节标题<select data-custom-template-role="h2"></select></label>
+                        <label>小标题<select data-custom-template-role="h3"></select></label>
+                        <label>正文<select data-custom-template-role="paragraph"></select></label>
+                        <label>引用<select data-custom-template-role="blockquote"></select></label>
+                    </div>
+                    <div id="customTemplatePreview" class="custom-template-preview">
+                        <h1 data-preview-role="h1">这是文章标题</h1>
+                        <h2 data-preview-role="h2">这是章节标题</h2>
+                        <h3 data-preview-role="h3">这是小标题</h3>
+                        <p data-preview-role="paragraph">这是一段正文预览，用于确认字号、行距、颜色和段落间距。</p>
+                        <blockquote data-preview-role="blockquote">这是一段引用预览。</blockquote>
+                    </div>
+                    <label class="custom-template-name-field">
+                        <span>模板名称</span>
+                        <input id="customTemplateName" type="text" maxlength="40" value="我的模板" autocomplete="off">
+                    </label>
+                    <div class="custom-template-footer">
+                        <button type="button" id="customTemplateCancel" class="btn">取消</button>
+                        <button type="button" id="customTemplateSave" class="btn custom-template-primary">保存到当前浏览器</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
     
     <!-- 外部JavaScript模块 -->
     <script defer src="js/config.js?v=20260915-editorial-template"></script>
@@ -303,6 +357,8 @@
     <script defer src="js/templates/wechat-magazine.js"></script>
     <script defer src="js/templates/wechat-editorial.js?v=20260915-editorial-template"></script>
     <script defer src="js/templates/wechat-research.js?v=20261116-research-template"></script>
+    <script defer src="js/custom-template-manager.js?v=20261121-local-ai-templates"></script>
+    <script defer src="js/custom-template-ui.js?v=20261121-local-ai-templates"></script>
     <script defer src="js/translator.js?v=20260912-translation-feedback"></script>
     <script defer src="js/dependency-loader.js?v=20260824-lazy-renderers"></script>
     <script defer src="js/channel-converter.js?v=20260824-seo-foundation"></script>
