@@ -1,0 +1,115 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Custom template browser integration</title>
+<style>body{font:14px system-ui;padding:24px} .pass{color:#15803d}.fail{color:#b91c1c} iframe{width:1200px;height:800px;border:1px solid #ddd}</style>
+<h1>Custom template browser integration</h1>
+<pre id="result">RUNNING</pre>
+<iframe id="app" src="../index.html"></iframe>
+<script>
+const result = document.getElementById('result');
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+const waitFor = async (check, timeout = 5000) => {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const value = check();
+    if (value) return value;
+    await new Promise(resolve => setTimeout(resolve, 40));
+  }
+  throw new Error('Timed out');
+};
+
+document.getElementById('app').addEventListener('load', async event => {
+  const win = event.currentTarget.contentWindow;
+  const doc = event.currentTarget.contentDocument;
+  try {
+    win.localStorage.removeItem('wechat-custom-templates-v1');
+    await waitFor(() => win.App && win.App.isInitialized);
+    assert(doc.getElementById('customTemplateButton'), 'missing custom template button');
+    assert(win.CustomTemplateUI, 'missing CustomTemplateUI');
+
+    win.CustomTemplateUI.open();
+    const paste = doc.getElementById('customTemplatePaste');
+    const clipboard = new win.DataTransfer();
+    clipboard.setData('text/html', '<p style="font-size:17px;background-image:url(https://tracker.invalid/pixel.png)">安全粘贴内容</p><video src="https://tracker.invalid/video.mp4"></video><img src="https://tracker.invalid/image.png">');
+    paste.dispatchEvent(new win.ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true }));
+    assert(/安全粘贴内容/.test(paste.textContent), 'safe pasted text was not inserted');
+    assert(!paste.querySelector('img,video,audio,source,track'), 'resource-loading pasted elements were retained');
+    assert(!paste.querySelector('p').style.backgroundImage, 'resource-loading pasted CSS was retained');
+    paste.innerHTML = `
+      <h1 style="font-size:25px;font-weight:800;text-align:center;color:#123456">参考标题</h1>
+      <h2 style="font-size:19px;font-weight:700;border-left:4px solid #2563eb;padding-left:10px">章节标题</h2>
+      <p style="font-size:15px;line-height:1.9;color:#222;margin:12px 0">这是一段足够长的参考正文，用来帮助系统识别正文排版样式。</p>
+      <blockquote style="font-size:15px;line-height:1.9;background:#f8fafc;padding:12px 16px">参考引用</blockquote>
+      <script>window.__unsafeExecuted = true<\/script>`;
+
+    win.LanguageModel = {
+      async availability() { return 'available'; },
+      async create() {
+        return {
+          async prompt(_prompt, options) {
+            assert(options.responseConstraint, 'missing structured output schema');
+            return JSON.stringify({ h1:'style-1', h2:'style-2', h3:'', paragraph:'style-3', blockquote:'style-4' });
+          },
+          destroy() {}
+        };
+      }
+    };
+
+    await win.CustomTemplateUI.analyze();
+    assert(!win.__unsafeExecuted, 'pasted script executed');
+    assert(doc.getElementById('customTemplateResult').hidden === false, 'result step stayed hidden');
+    assert(/本地 AI/.test(doc.getElementById('customTemplateStatus').textContent), 'AI path was not reported');
+    doc.getElementById('customTemplateName').value = '浏览器测试模板';
+    win.CustomTemplateUI.save();
+    assert(paste.innerHTML === '', 'pasted source remained in the hidden dialog after save');
+
+    const saved = JSON.parse(win.localStorage.getItem('wechat-custom-templates-v1'));
+    assert(saved.length === 1, 'template was not saved locally');
+    assert(!saved[0].styles.h1.width, 'sandbox width leaked into the template');
+    assert(!saved[0].styles.h1.display, 'sandbox display leaked into the template');
+    assert(!saved[0].styles.h1.border, 'zero-width browser defaults leaked into the template');
+    assert(win.TemplateManager.get(saved[0].id), 'saved template was not registered');
+    assert(doc.getElementById('templateSelect').value === saved[0].id, 'saved template was not selected');
+    doc.getElementById('markdownInput').value = '# 自定义标题\n\n这是使用个人模板渲染的正文。';
+    await win.UIController.updateOutput();
+    await waitFor(() => doc.querySelector('#preview h1'));
+    assert(doc.querySelector('#preview h1').style.fontSize === '25px', 'custom heading style was not rendered');
+    assert(doc.querySelector('#preview p').style.fontSize === '15px', 'custom paragraph style was not rendered');
+
+    const savedId = saved[0].id;
+    win.CustomTemplateUI.rename(savedId, '已重命名模板');
+    assert(win.CustomTemplateManager.loadDefinitions()[0].name === '已重命名模板', 'template was not renamed');
+    const exported = win.CustomTemplateUI.exportJson(false);
+    assert(/已重命名模板/.test(exported), 'template export did not include saved template');
+    win.CustomTemplateUI.remove(savedId);
+    assert(!win.TemplateManager.get(savedId), 'deleted template remained registered');
+    assert(win.CustomTemplateManager.loadDefinitions().length === 0, 'deleted template remained in storage');
+    win.CustomTemplateUI.importJson(exported);
+    assert(win.TemplateManager.get(savedId), 'imported template was not registered');
+
+    win.CustomTemplateUI.open();
+    paste.innerHTML = '<p style="font-size:16px;line-height:1.8">手动回退正文</p>';
+    win.LanguageModel = undefined;
+    await win.CustomTemplateUI.analyze();
+    assert(/手动/.test(doc.getElementById('customTemplateStatus').textContent), 'manual fallback was not shown');
+
+    win.CustomTemplateUI.open();
+    paste.innerHTML = `
+      <h1 style="font-size:24px">标题</h1>
+      <h2 style="font-size:18px">小标题</h2>
+      <p style="font-size:15px">足够长的正文内容用于低置信度回退测试</p>`;
+    win.LanguageModel = {
+      async availability() { return 'available'; },
+      async create() { return { async prompt() { return JSON.stringify({h1:'missing',h2:'',h3:'',paragraph:'',blockquote:''}); }, destroy() {} }; }
+    };
+    await win.CustomTemplateUI.analyze();
+    assert(/不确定/.test(doc.getElementById('customTemplateStatus').textContent), 'low-confidence AI output was not explained');
+
+    result.className = 'pass';
+    result.textContent = 'PASS: AI classification, local save, sanitization, and manual fallback';
+  } catch (error) {
+    result.className = 'fail';
+    result.textContent = `FAIL: ${error.stack || error}`;
+  }
+});
+</script>
